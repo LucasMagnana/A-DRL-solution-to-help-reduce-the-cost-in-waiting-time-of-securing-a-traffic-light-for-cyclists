@@ -84,7 +84,7 @@ else:
 dict_cyclists= {}
 dict_cyclists_arrived = {}
 
-structure = Structure("E0", "E3", edges, net, dict_cyclists, traci, dict_edges_index, model,\
+structure = Structure("E0", "E2", edges, net, dict_cyclists, traci, dict_edges_index, model,\
 min_group_size=min_group_size, batch_size=batch_size, learning=learning, lr=lr)
 
 
@@ -96,7 +96,7 @@ while(len(dict_cyclists) != 0 or id<=num_cyclists):
     if(id<=num_cyclists and randint(0, 100) == 0):
         if(len(dict_cyclists)<max_num_cyclists_same_time):
             e1 = net.getEdge("E0")
-            e2 = net.getEdge("E"+str(randint(4, 9)))
+            e2 = net.getEdge("E3")#+str(randint(4, 9)))
             path = net.getShortestPath(e1, e2, vClass='bicycle')[0]
             spawn_cyclist(str(id), step, path, net, structure, step_length)
             id+=1
