@@ -26,7 +26,7 @@ lr=1e-5
 
 step_length = 0.2
 
-num_cyclists = 2500
+num_cyclists = 1000
 max_num_cyclists_same_time = 50
 
 if(use_model):
@@ -45,7 +45,7 @@ else:
     sys.exit("please declare environment variable 'SUMO_HOME'")
 
 sumoBinary = "/usr/bin/sumo-gui"
-sumoCmd = [sumoBinary, "-c", "sumo_files/sumo.sumocfg", "--waiting-time-memory", '10000', '--start', '--quit-on-end', '--delay', '0', '--step-length', str(step_length), '--no-warnings']
+sumoCmd = [sumoBinary, "-c", "sumo_files/sumo.sumocfg", "--waiting-time-memory", '10000', '--start', '--delay', '0', '--step-length', str(step_length), '--no-warnings']
 
 
 import traci

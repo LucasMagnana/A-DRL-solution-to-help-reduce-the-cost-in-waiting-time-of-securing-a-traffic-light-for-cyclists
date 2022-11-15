@@ -74,13 +74,20 @@ class Structure:
             self.learn()
 
 
-
+                
         for i in self.module_traci.edge.getLastStepVehicleIDs(self.start_edge.getID()):
-            if(self.module_traci.vehicle.getSpeed(i)<= 1 and i not in self.id_cyclists_waiting\
-            and i not in self.id_cyclists_crossing_struct and self.dict_cyclists[i].struct_candidate):
-                self.id_cyclists_waiting.append(i)
-                self.dict_cyclists[i].step_cancel_struct_candidature = step+99999
-                #print(i, "waiting")
+            if(i not in self.id_cyclists_waiting and i not in self.id_cyclists_crossing_struct and self.dict_cyclists[i].struct_candidate):
+                if(len(self.id_cyclists_waiting)==0):
+                    if(self.module_traci.vehicle.getSpeed(i)<= 1):
+                        self.id_cyclists_waiting.append(i)
+                        self.dict_cyclists[i].step_cancel_struct_candidature = step+99999
+                else:
+                    for j in range(len(self.id_cyclists_waiting)-1, -1, -1):
+                        pos = self.module_traci.vehicle.getPosition(self.id_cyclists_waiting[j])
+                        if(self.module_traci.vehicle.getDrivingDistance2D(i, pos[0], pos[1])<2):
+                            self.id_cyclists_waiting.append(i)
+                            self.dict_cyclists[i].step_cancel_struct_candidature = step+99999
+                            break
 
         if(len(self.id_cyclists_waiting)>=self.min_group_size):
             self.activated = True
@@ -141,6 +148,7 @@ class Structure:
     def check_for_candidates(self, step, edges, id=None, force_candidature=False):
 
         #print(force_candidature)
+
 
         list_id_candidates = []
 

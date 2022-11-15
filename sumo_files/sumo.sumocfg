@@ -6,7 +6,7 @@
 <configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/sumoConfiguration.xsd">
 
     <input>
-        <net-file value="/home/lucas/Projets/sumo_structure/sumo_files/net.net.xml"/>
+        <net-file value="net.net.xml"/>
         <route-files value="osm.bicycle.trips.xml"/>
     </input>
 

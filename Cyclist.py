@@ -21,6 +21,7 @@ class Cyclist:
         
         self.module_traci.vehicle.setMaxSpeed(self.id, max_speed)
         self.max_speed = self.module_traci.vehicle.getMaxSpeed(str(self.id)) 
+        self.module_traci.vehicle.setSpeed(self.id, self.max_speed//2)
 
         for i in range(len(self.original_path)):
             if(self.original_path[i] not in self.structure.path):
@@ -51,6 +52,7 @@ class Cyclist:
 
         self.going_to_struct = False
         self.crossing_struct = False
+        self.wanting_to_exit_struct = False
         self.struct_crossed = False
 
 
@@ -66,6 +68,9 @@ class Cyclist:
             if(self.module_traci.vehicle.getSpeed(self.id)<0.5):
                 self.waiting_time += 1
             self.distance_travelled = self.module_traci.vehicle.getDistance(self.id)
+
+            if('J' in self.actual_edge_id and self.wanting_to_exit_struct):
+                self.exit_struct()
 
             if(self.actual_edge_id==self.original_path[-1]):
                 self.arrived = True
@@ -83,7 +88,7 @@ class Cyclist:
                 self.go_to_struct()
 
             if(self.crossing_struct and self.actual_edge_id == self.last_edge_in_struct_id):
-                self.exit_struct()
+                self.wanting_to_exit_struct = True
 
             if(self.canceled_candidature):
                 self.module_traci.vehicle.highlight(self.id, color=(0, 0, 255, 255))
@@ -127,6 +132,7 @@ class Cyclist:
 
 
     def exit_struct(self):
+        self.wanting_to_exit_struct = False
         self.crossing_struct = False
         self.struct_crossed = True
         self.struct_candidate = False
