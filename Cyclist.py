@@ -2,7 +2,7 @@ import time
 
 class Cyclist:
 
-    def __init__(self, id, step, path, net, structure, max_speed, traci, sumolib, step_length):
+    def __init__(self, id, step, path, net, structure, max_speed, traci, sumolib, step_length, struct_candidate=True):
         self.id = id
         self.start_step = step
         self.net=net
@@ -11,18 +11,16 @@ class Cyclist:
         self.module_sumolib = sumolib
         self.module_traci = traci
 
-        self.struct_candidate = True
+        self.struct_candidate = struct_candidate
 
         
         path = [e.getID() for e in path]
         self.original_path = path
         self.module_traci.route.add(str(self.id)+"_sp", path)
-        self.module_traci.vehicle.add(str(self.id), str(self.id)+"_sp", departLane="best", typeID='bicycle')#, departSpeed=traci.vehicletype.getMaxSpeed('bike_bicycle'))
+        self.module_traci.vehicle.add(str(self.id), str(self.id)+"_sp", departLane="best", typeID='bicycle', departSpeed=traci.vehicletype.getMaxSpeed('bicycle')-1)
         
         self.set_max_speed(max_speed)
-        self.max_speed = self.module_traci.vehicle.getMaxSpeed(str(self.id)) 
-        self.module_traci.vehicle.setSpeed(self.id, self.max_speed)
-        self.module_traci.vehicle.setSpeed(self.id, -1)
+        self.max_speed = self.module_traci.vehicle.getMaxSpeed(str(self.id))
 
         for i in range(len(self.original_path)):
             if(self.original_path[i] not in self.structure.path):
@@ -70,6 +68,7 @@ class Cyclist:
             if(self.module_traci.vehicle.getSpeed(self.id)<0.5):
                 self.waiting_time += 1
             self.distance_travelled = self.module_traci.vehicle.getDistance(self.id)
+
 
             if('J' in self.actual_edge_id and self.wanting_to_exit_struct):
                 self.exit_struct()

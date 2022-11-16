@@ -16,9 +16,11 @@ from Model import Model
 
 min_group_size=5
 
+new_scenario = True
+
 use_model = False
 save_model = use_model
-learning = True
+learning = False
 batch_size = 32
 hidden_size_1 = 64
 hidden_size_2 = 32
@@ -26,7 +28,7 @@ lr=1e-5
 
 step_length = 0.2
 
-num_cyclists = 1000
+num_cyclists = 500
 max_num_cyclists_same_time = 50
 
 if(use_model):
@@ -53,16 +55,28 @@ import sumolib
 import traci.constants as tc
 
 
-def spawn_cyclist(id, step, path, net, structure, step_length):
-    max_speed = np.random.normal(15, 3)
-    c = Cyclist(id, step, path, net, structure, max_speed, traci, sumolib, step_length)
-    dict_cyclists[id]=c
+def spawn_cyclist(id, step, path, net, structure, step_length, max_speed):
+    struct_candidate = True
+    if(new_scenario or num_cyclists-id+len(structure.id_cyclists_waiting)<structure.min_group_size):
+        struct_candidate = False
+    
+    c = Cyclist(str(id), step, path, net, structure, max_speed, traci, sumolib, step_length, struct_candidate=struct_candidate)
+    dict_cyclists[str(id)]=c
 
 
 traci.start(sumoCmd)
 
 net = sumolib.net.readNet('sumo_files/net.net.xml')
 edges = net.getEdges()
+
+
+if(new_scenario):
+    print("WARNING : Creating a new scenario...")
+    tab_scenario=[]
+else:
+    print("WARNING : Loading the scenario...")
+    with open('scenario.tab', 'rb') as infile:
+        tab_scenario = pickle.load(infile)
 
 
 dict_edges_index = {}
@@ -85,46 +99,65 @@ dict_cyclists= {}
 dict_cyclists_arrived = {}
 
 structure = Structure("E0", "E2", edges, net, dict_cyclists, traci, dict_edges_index, model,\
-min_group_size=min_group_size, batch_size=batch_size, learning=learning, lr=lr)
+open=not new_scenario, min_group_size=min_group_size, batch_size=batch_size, learning=learning, lr=lr)
 
 
 id = 0
 step = 0
 
-while(len(dict_cyclists) != 0 or id<=num_cyclists):
-    path=None
-    if(id<=num_cyclists and randint(0, 100) == 0):
-        if(len(dict_cyclists)<max_num_cyclists_same_time):
-            e1 = net.getEdge("E0")
-            e2 = net.getEdge("E3")#+str(randint(4, 9)))
-            path = net.getShortestPath(e1, e2, vClass='bicycle')[0]
-            spawn_cyclist(str(id), step, path, net, structure, step_length)
-            id+=1
+try :
+    while(len(dict_cyclists) != 0 or id<num_cyclists):
+        if(new_scenario):
+            if(id<num_cyclists and randint(0, 100) == 0):
+                if(len(dict_cyclists)<max_num_cyclists_same_time):
+                    e1 = net.getEdge("E0")
+                    e2 = net.getEdge("E3")#+str(randint(4, 9)))
+                    path = net.getShortestPath(e1, e2, vClass='bicycle')[0]
+                    max_speed = np.random.normal(15, 3)
+                    tab_scenario.append({"start_step": step, "start_edge": e1, "end_edge": e2, "max_speed": max_speed, "finish_step": -1})
+                    spawn_cyclist(id, step, path, net, structure, step_length, max_speed)
+                    id+=1
 
-    traci.simulationStep() 
+        elif(id<len(tab_scenario) and step >= tab_scenario[id]["start_step"]):
+                e1=tab_scenario[id]["start_edge"]
+                e2=tab_scenario[id]["end_edge"]
+                path = net.getShortestPath(e1, e2, vClass='bicycle')[0]
+                spawn_cyclist(id, step, path, net, structure, step_length, tab_scenario[id]["max_speed"])
+                id+=1
 
-    for i in copy.deepcopy(list(dict_cyclists.keys())):
-        dict_cyclists[i].step(step)
-        if(not dict_cyclists[i].alive):
-            if(dict_cyclists[i].finish_step > 0):
-                dict_cyclists_arrived[i] = dict_cyclists[i]
-                target = None
-                if(i in structure.dict_model_input and target != None):
-                    structure.list_input_to_learn.append(structure.dict_model_input[i])
-                    structure.list_target.append(target)                  
-                    del structure.dict_model_input[i]
-            else:
-                traci.vehicle.remove(i)
-            del dict_cyclists[i]
+        traci.simulationStep() 
 
-    #(step%1, step%1<=step_length)
-    if(step%1<=step_length and structure.open):
-        structure.step(step, edges)
+        for i in copy.deepcopy(list(dict_cyclists.keys())):
+            dict_cyclists[i].step(step)
+            if(not dict_cyclists[i].alive):
+                if(dict_cyclists[i].finish_step > 0):
+                    dict_cyclists_arrived[i] = dict_cyclists[i]
+                    target = None
+                    if(i in structure.dict_model_input and target != None):
+                        structure.list_input_to_learn.append(structure.dict_model_input[i])
+                        structure.list_target.append(target)                  
+                        del structure.dict_model_input[i]
 
-    print("\rStep {}: {} cyclists in simu, {} cyclists spawned since start."\
-    .format(int(step), len(traci.vehicle.getIDList()), id), end="")
+                    if(new_scenario):
+                        tab_scenario[int(dict_cyclists[i].id)]["finish_step"] = step
+                        tab_scenario[int(dict_cyclists[i].id)]["waiting_time"] = dict_cyclists[i].waiting_time
+                        tab_scenario[int(dict_cyclists[i].id)]["distance_travelled"] = dict_cyclists[i].distance_travelled
+                        
+                else:
+                    traci.vehicle.remove(i)
+                del dict_cyclists[i]
 
-    step += step_length
+        #(step%1, step%1<=step_length)
+        if(structure.open):
+            structure.step(step, edges)
+
+        print("\rStep {}: {} cyclists in simu, {} cyclists spawned since start."\
+        .format(int(step), len(traci.vehicle.getIDList()), id), end="")
+
+        step += step_length
+
+except traci.exceptions.FatalTraCIError:
+    pass
 
 if(new_scenario):
     print("WARNING: Saving scenario...")
@@ -176,7 +209,7 @@ if(not new_scenario):
 
         if(learning):
             
-            if(not os.path.exists("files/"+sub_folders)):
+            if(not os.path.exists("files/"+sub_folders)):files
                 os.makedirs("files/"+sub_folders)
                 tab_num_cycl = [[], []]
                 tab_time_diff = []
@@ -190,9 +223,6 @@ if(not new_scenario):
                 if(use_model):
                     with open('files/'+sub_folders+'mean_loss.tab', 'rb') as infile:
                         tab_mean_loss = pickle.load(infile)
-
-            with open('files/'+sub_folders+'timeouts.dict', 'wb') as outfile:
-                pickle.dump(dict_timeouts, outfile)
 
             with open('files/'+sub_folders+'structure_uses.dict', 'wb') as outfile:
                 pickle.dump(dict_structure_uses, outfile)

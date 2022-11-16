@@ -112,7 +112,7 @@ class Structure:
                         self.module_traci.trafficlight.setPhaseDuration(tls.getID(), 99999)
 
                 elif(not(set(self.module_traci.edge.getLastStepVehicleIDs(e)) & set(self.id_cyclists_crossing_struct))):
-                    if(self.module_traci.trafficlight.getNextSwitch(tls.getID()) > 10000):
+                    if(self.module_traci.trafficlight.getNextSwitch(tls.getID())-step > 10000):
                         self.module_traci.trafficlight.setPhase(tls.getID(), (self.module_traci.trafficlight.getPhase(tls.getID())+1)%4)
 
 
