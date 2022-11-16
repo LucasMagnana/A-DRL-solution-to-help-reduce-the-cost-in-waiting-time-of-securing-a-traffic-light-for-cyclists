@@ -81,10 +81,6 @@ class Structure:
 
             for i in self.id_cyclists_crossing_struct:
                 self.dict_cyclists[i].set_max_speed(min_max_speed)
-        print()
-        print([self.module_traci.vehicle.getSpeed(i) for i in self.id_cyclists_crossing_struct])
-        print([self.module_traci.vehicle.getMaxSpeed(i) for i in self.id_cyclists_crossing_struct])
-        print([self.dict_cyclists[i].max_speed for i in self.id_cyclists_crossing_struct])
 
             #print("activated at step", step)
 

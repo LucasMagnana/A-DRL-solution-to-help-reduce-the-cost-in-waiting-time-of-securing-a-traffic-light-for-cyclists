@@ -19,9 +19,10 @@ class Cyclist:
         self.module_traci.route.add(str(self.id)+"_sp", path)
         self.module_traci.vehicle.add(str(self.id), str(self.id)+"_sp", departLane="best", typeID='bicycle')#, departSpeed=traci.vehicletype.getMaxSpeed('bike_bicycle'))
         
-        self.module_traci.vehicle.setMaxSpeed(self.id, max_speed)
+        self.set_max_speed(max_speed)
         self.max_speed = self.module_traci.vehicle.getMaxSpeed(str(self.id)) 
-        self.module_traci.vehicle.setSpeed(self.id, self.max_speed//2)
+        self.module_traci.vehicle.setSpeed(self.id, self.max_speed)
+        self.module_traci.vehicle.setSpeed(self.id, -1)
 
         for i in range(len(self.original_path)):
             if(self.original_path[i] not in self.structure.path):
@@ -31,6 +32,7 @@ class Cyclist:
         self.module_traci.vehicle.setActionStepLength(self.id, step_length)
         self.module_traci.vehicle.setTau(self.id, step_length)
         self.module_traci.vehicle.setMinGap(self.id, 0)
+        #self.module_traci.vehicle.setSpeedFactor(self.id, 1)
 
 
         self.actual_path = self.original_path
@@ -137,7 +139,7 @@ class Cyclist:
         self.struct_crossed = True
         self.struct_candidate = False
         self.structure.id_cyclists_crossing_struct.remove(self.id)
-        self.module_traci.vehicle.setMaxSpeed(self.id, self.max_speed)
+        self.set_max_speed(self.max_speed)
 
     def cancel_struct_candidature(self):
         if(self.id in self.structure.id_cyclists_waiting):
