@@ -5,6 +5,7 @@ import pickle
 import osmnx as ox
 import copy
 import torch
+import argparse
 
 from Cyclist import Cyclist
 from Structure import Structure
@@ -12,13 +13,19 @@ from graphs import *
 from Model import Model
 
 
-min_group_size=5
-
-new_scenario = False
+if __name__ == "__main__": 
+    parse = argparse.ArgumentParser()
+    parse.add_argument('--new-scenario', type=bool, default=False)
+    parse.add_argument('--learning', type=bool, default=False)
+    parse.add_argument('--poisson-lambda', type=float, default=0.05)
+    parse.add_argument('--min-group-size', type=int, default=5)
+    parse.add_argument('--gui', type=bool, default=False)
+    
+args = parse.parse_args()
 
 use_model = False
 save_model = use_model
-learning = False
+learning = True
 batch_size = 32
 hidden_size_1 = 64
 hidden_size_2 = 32
@@ -28,11 +35,10 @@ step_length = 0.2
 
 num_cyclists = 500
 max_num_cyclists_same_time = 50
-poisson_lambda = 0.1
 
-poisson_distrib = np.random.poisson(poisson_lambda, 10000)
+poisson_distrib = np.random.poisson(args.poisson_lambda, 10000)
 while(sum(poisson_distrib)<num_cyclists):
-    poisson_distrib = np.random.poisson(poisson_lambda, 10000)
+    poisson_distrib = np.random.poisson(args.poisson_lambda, 10000)
 
 if(use_model):
     sub_folders = "w_model/"
@@ -49,7 +55,9 @@ if 'SUMO_HOME' in os.environ:
 else:
     sys.exit("please declare environment variable 'SUMO_HOME'")
 
-sumoBinary = "/usr/bin/sumo-gui"
+sumoBinary = "/usr/bin/sumo"
+if(args.gui):
+    sumoBinary += "-gui"
 sumoCmd = [sumoBinary, "-c", "sumo_files/sumo.sumocfg", "--quit-on-end", "--waiting-time-memory", '10000', '--start', '--delay', '0', '--step-length', str(step_length), '--no-warnings']
 
 
@@ -60,7 +68,7 @@ import traci.constants as tc
 
 def spawn_cyclist(id, step, path, net, structure, step_length, max_speed):
     struct_candidate = True
-    if(new_scenario or num_cyclists-id+max(len(structure.id_cyclists_waiting), len(traci.edge.getLastStepVehicleIDs(structure.start_edge.getID())))<structure.min_group_size):
+    if(args.new_scenario or num_cyclists-id+max(len(structure.id_cyclists_waiting), len(traci.edge.getLastStepVehicleIDs(structure.start_edge.getID())))<structure.min_group_size):
         struct_candidate = False
     
     c = Cyclist(str(id), step, path, net, structure, max_speed, traci, sumolib, step_length, struct_candidate=struct_candidate)
@@ -73,7 +81,7 @@ net = sumolib.net.readNet('sumo_files/net.net.xml')
 edges = net.getEdges()
 
 
-if(new_scenario):
+if(args.new_scenario):
     print("WARNING : Creating a new scenario...")
     tab_scenario=[]
 else:
@@ -102,14 +110,14 @@ dict_cyclists= {}
 dict_cyclists_arrived = {}
 
 structure = Structure("E0", "E2", edges, net, dict_cyclists, traci, dict_edges_index, model,\
-open=not new_scenario, min_group_size=min_group_size, batch_size=batch_size, learning=learning, lr=lr)
+open=not args.new_scenario, min_group_size=args.min_group_size, batch_size=batch_size, learning=args.learning, lr=lr)
 
 
 id = 0
 step = 0
 
 while(len(dict_cyclists) != 0 or id<num_cyclists):
-    if(new_scenario):
+    if(args.new_scenario):
         if(id<num_cyclists and poisson_distrib[int(step)] != 0):
             if(len(dict_cyclists)<max_num_cyclists_same_time):
                 poisson_distrib[int(step)] = 0
@@ -141,7 +149,7 @@ while(len(dict_cyclists) != 0 or id<num_cyclists):
                     structure.list_target.append(target)                  
                     del structure.dict_model_input[i]
 
-                if(new_scenario):
+                if(args.new_scenario):
                     tab_scenario[int(dict_cyclists[i].id)]["finish_step"] = step
                     tab_scenario[int(dict_cyclists[i].id)]["waiting_time"] = dict_cyclists[i].waiting_time
                     tab_scenario[int(dict_cyclists[i].id)]["distance_travelled"] = dict_cyclists[i].distance_travelled
@@ -159,7 +167,7 @@ while(len(dict_cyclists) != 0 or id<num_cyclists):
 
     step += step_length
 
-if(new_scenario):
+if(args.new_scenario):
     print("WARNING: Saving scenario...")
     with open('scenario.tab', 'wb') as outfile:
         pickle.dump(tab_scenario, outfile)
@@ -173,7 +181,7 @@ print("\ndata number:", len(dict_cyclists_arrived), ",", structure.num_cyclists_
 
 
 
-if(not new_scenario):
+if(not args.new_scenario):
     tab_all_diff_arrival_time, tab_diff_finish_step, tab_diff_waiting_time, tab_diff_distance_travelled, tab_num_type_cyclists =\
     compute_graphs_data(structure.open, dict_cyclists_arrived, tab_scenario)
     
@@ -213,12 +221,13 @@ if(not new_scenario):
         plot_and_save_bar(tab_num_type_cyclists, "cyclists_type", labels=labels, sub_folders=sub_folders)
 
 
-        if(learning):
+        if(args.learning):
             
             if(not os.path.exists("files/"+sub_folders)):
                 os.makedirs("files/"+sub_folders)
                 tab_num_cycl = [[], []]
                 tab_time_diff = []
+                tab_x_values = []
                 if(use_model):
                     tab_mean_loss = []
             else:
@@ -226,26 +235,27 @@ if(not new_scenario):
                     tab_num_cycl = pickle.load(infile)
                 with open('files/'+sub_folders+'time_diff.tab', 'rb') as infile:
                     tab_time_diff = pickle.load(infile)
+                with open('files/'+sub_folders+'x_values.tab', 'rb') as infile:
+                    tab_x_values = pickle.load(infile)
                 if(use_model):
                     with open('files/'+sub_folders+'mean_loss.tab', 'rb') as infile:
                         tab_mean_loss = pickle.load(infile)
 
-            with open('files/'+sub_folders+'structure_uses.dict', 'wb') as outfile:
-                pickle.dump(dict_structure_uses, outfile)
 
             tab_num_cycl[0].append(structure.num_cyclists_crossed)
             tab_num_cycl[1].append(structure.num_cyclists_canceled)
             tab_time_diff.append(mean_diff_finish_step)
+            tab_x_values.append(args.poisson_lambda)
 
             print(tab_num_cycl[0], tab_num_cycl[1], tab_time_diff)
 
             plt.clf()
-            plt.plot(tab_time_diff)
+            plt.plot(tab_x_values, tab_time_diff)
             plt.savefig("images/"+sub_folders+"evolution_time_diff.png")
 
             plt.clf()
-            plt.plot(tab_num_cycl[0], label="num crossed")
-            plt.plot(tab_num_cycl[1], label="num canceled")
+            plt.plot(tab_x_values, tab_num_cycl[0], label="num crossed")
+            plt.plot(tab_x_values, tab_num_cycl[1], label="num canceled")
             plt.legend()
             plt.savefig("images/"+sub_folders+"evolution_num_cycl_using_struct.png")
 
@@ -253,6 +263,8 @@ if(not new_scenario):
                 pickle.dump(tab_num_cycl, outfile)
             with open('files/'+sub_folders+'time_diff.tab', 'wb') as outfile:
                 pickle.dump(tab_time_diff, outfile)
+            with open('files/'+sub_folders+'x_values.tab', 'wb') as outfile:
+                pickle.dump(tab_x_values, outfile)
 
             if(use_model and save_model and len(structure.list_loss) != 0):
                 print(tab_mean_loss)
