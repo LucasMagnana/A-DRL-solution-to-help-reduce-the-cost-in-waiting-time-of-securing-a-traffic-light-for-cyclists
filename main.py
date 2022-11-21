@@ -11,12 +11,10 @@ from Structure import Structure
 from graphs import *
 from Model import Model
 
-#46 11 22 went in the first simu but was not worth
-
 
 min_group_size=5
 
-new_scenario = True
+new_scenario = False
 
 use_model = False
 save_model = use_model
@@ -30,6 +28,11 @@ step_length = 0.2
 
 num_cyclists = 500
 max_num_cyclists_same_time = 50
+poisson_lambda = 0.1
+
+poisson_distrib = np.random.poisson(poisson_lambda, 10000)
+while(sum(poisson_distrib)<num_cyclists):
+    poisson_distrib = np.random.poisson(poisson_lambda, 10000)
 
 if(use_model):
     sub_folders = "w_model/"
@@ -47,7 +50,7 @@ else:
     sys.exit("please declare environment variable 'SUMO_HOME'")
 
 sumoBinary = "/usr/bin/sumo-gui"
-sumoCmd = [sumoBinary, "-c", "sumo_files/sumo.sumocfg", "--waiting-time-memory", '10000', '--start', '--delay', '0', '--step-length', str(step_length), '--no-warnings']
+sumoCmd = [sumoBinary, "-c", "sumo_files/sumo.sumocfg", "--quit-on-end", "--waiting-time-memory", '10000', '--start', '--delay', '0', '--step-length', str(step_length), '--no-warnings']
 
 
 import traci
@@ -57,7 +60,7 @@ import traci.constants as tc
 
 def spawn_cyclist(id, step, path, net, structure, step_length, max_speed):
     struct_candidate = True
-    if(new_scenario or num_cyclists-id+len(structure.id_cyclists_waiting)<structure.min_group_size):
+    if(new_scenario or num_cyclists-id+max(len(structure.id_cyclists_waiting), len(traci.edge.getLastStepVehicleIDs(structure.start_edge.getID())))<structure.min_group_size):
         struct_candidate = False
     
     c = Cyclist(str(id), step, path, net, structure, max_speed, traci, sumolib, step_length, struct_candidate=struct_candidate)
@@ -105,59 +108,56 @@ open=not new_scenario, min_group_size=min_group_size, batch_size=batch_size, lea
 id = 0
 step = 0
 
-try :
-    while(len(dict_cyclists) != 0 or id<num_cyclists):
-        if(new_scenario):
-            if(id<num_cyclists and randint(0, 100) == 0):
-                if(len(dict_cyclists)<max_num_cyclists_same_time):
-                    e1 = net.getEdge("E0")
-                    e2 = net.getEdge("E3")#+str(randint(4, 9)))
-                    path = net.getShortestPath(e1, e2, vClass='bicycle')[0]
-                    max_speed = np.random.normal(15, 3)
-                    tab_scenario.append({"start_step": step, "start_edge": e1, "end_edge": e2, "max_speed": max_speed, "finish_step": -1})
-                    spawn_cyclist(id, step, path, net, structure, step_length, max_speed)
-                    id+=1
-
-        elif(id<len(tab_scenario) and step >= tab_scenario[id]["start_step"]):
-                e1=tab_scenario[id]["start_edge"]
-                e2=tab_scenario[id]["end_edge"]
+while(len(dict_cyclists) != 0 or id<num_cyclists):
+    if(new_scenario):
+        if(id<num_cyclists and poisson_distrib[int(step)] != 0):
+            if(len(dict_cyclists)<max_num_cyclists_same_time):
+                poisson_distrib[int(step)] = 0
+                e1 = net.getEdge("E0")
+                e2 = net.getEdge("E3")#+str(randint(4, 9)))
                 path = net.getShortestPath(e1, e2, vClass='bicycle')[0]
-                spawn_cyclist(id, step, path, net, structure, step_length, tab_scenario[id]["max_speed"])
+                max_speed = np.random.normal(15, 3)
+                tab_scenario.append({"start_step": step, "start_edge": e1, "end_edge": e2, "max_speed": max_speed, "finish_step": -1})
+                spawn_cyclist(id, step, path, net, structure, step_length, max_speed)
                 id+=1
 
-        traci.simulationStep() 
+    elif(id<len(tab_scenario) and step >= tab_scenario[id]["start_step"]):
+            e1=tab_scenario[id]["start_edge"]
+            e2=tab_scenario[id]["end_edge"]
+            path = net.getShortestPath(e1, e2, vClass='bicycle')[0]
+            spawn_cyclist(id, step, path, net, structure, step_length, tab_scenario[id]["max_speed"])
+            id+=1
 
-        for i in copy.deepcopy(list(dict_cyclists.keys())):
-            dict_cyclists[i].step(step)
-            if(not dict_cyclists[i].alive):
-                if(dict_cyclists[i].finish_step > 0):
-                    dict_cyclists_arrived[i] = dict_cyclists[i]
-                    target = None
-                    if(i in structure.dict_model_input and target != None):
-                        structure.list_input_to_learn.append(structure.dict_model_input[i])
-                        structure.list_target.append(target)                  
-                        del structure.dict_model_input[i]
+    traci.simulationStep() 
 
-                    if(new_scenario):
-                        tab_scenario[int(dict_cyclists[i].id)]["finish_step"] = step
-                        tab_scenario[int(dict_cyclists[i].id)]["waiting_time"] = dict_cyclists[i].waiting_time
-                        tab_scenario[int(dict_cyclists[i].id)]["distance_travelled"] = dict_cyclists[i].distance_travelled
-                        
-                else:
-                    traci.vehicle.remove(i)
-                del dict_cyclists[i]
+    for i in copy.deepcopy(list(dict_cyclists.keys())):
+        dict_cyclists[i].step(step)
+        if(not dict_cyclists[i].alive):
+            if(dict_cyclists[i].finish_step > 0):
+                dict_cyclists_arrived[i] = dict_cyclists[i]
+                target = None
+                if(i in structure.dict_model_input and target != None):
+                    structure.list_input_to_learn.append(structure.dict_model_input[i])
+                    structure.list_target.append(target)                  
+                    del structure.dict_model_input[i]
 
-        #(step%1, step%1<=step_length)
-        if(structure.open):
-            structure.step(step, edges)
+                if(new_scenario):
+                    tab_scenario[int(dict_cyclists[i].id)]["finish_step"] = step
+                    tab_scenario[int(dict_cyclists[i].id)]["waiting_time"] = dict_cyclists[i].waiting_time
+                    tab_scenario[int(dict_cyclists[i].id)]["distance_travelled"] = dict_cyclists[i].distance_travelled
+                    
+            else:
+                traci.vehicle.remove(i)
+            del dict_cyclists[i]
 
-        print("\rStep {}: {} cyclists in simu, {} cyclists spawned since start."\
-        .format(int(step), len(traci.vehicle.getIDList()), id), end="")
+    #(step%1, step%1<=step_length)
+    if(structure.open):
+        structure.step(step, edges)
 
-        step += step_length
+    print(f"\rStep {int(step)}: {len(traci.vehicle.getIDList())} cyclists in simu, {id} cyclists spawned since start,\
+{structure.num_cyclists_crossed} cyclists crossed the struct.", end="")
 
-except traci.exceptions.FatalTraCIError:
-    pass
+    step += step_length
 
 if(new_scenario):
     print("WARNING: Saving scenario...")
@@ -193,8 +193,14 @@ if(not new_scenario):
         mean_diff_finish_step = 0
     else:
         mean_diff_finish_step = sum_diff_finish_step/num_diff_finish_step
+
+
+    if(len(tab_diff_finish_step[-1]) == 0):
+        mean_diff_finish_step_others = 0
+    else:
+        mean_diff_finish_step_others = sum(tab_diff_finish_step[-1])/len(tab_diff_finish_step[-1])
     
-    print("mean finish time diff for users of struct:", mean_diff_finish_step, ", for others:", sum(tab_diff_finish_step[-1])/len(tab_diff_finish_step[-1]))
+    print("mean finish time diff for users of struct:", mean_diff_finish_step, ", for others:",mean_diff_finish_step_others)
 
 
     if(structure.open):
@@ -209,7 +215,7 @@ if(not new_scenario):
 
         if(learning):
             
-            if(not os.path.exists("files/"+sub_folders)):files
+            if(not os.path.exists("files/"+sub_folders)):
                 os.makedirs("files/"+sub_folders)
                 tab_num_cycl = [[], []]
                 tab_time_diff = []

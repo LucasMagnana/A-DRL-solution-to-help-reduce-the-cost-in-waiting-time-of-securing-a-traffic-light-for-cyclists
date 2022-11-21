@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<!-- generated on 2022-11-14 14:29:52 by Eclipse SUMO netedit Version 1.12.0
+<!-- generated on 2022-11-18 14:22:06 by Eclipse SUMO netedit Version 1.12.0
 <configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/netconvertConfiguration.xsd">
 
     <input>
@@ -447,15 +447,15 @@
     </edge>
 
     <tlLogic id="J1" type="static" programID="0" offset="0">
-        <phase duration="42" state="GGggGgrrrrrrGGggGgrrrrrr"/>
+        <phase duration="30" state="GGggGgrrrrrrGGggGgrrrrrr"/>
         <phase duration="3"  state="yyyyyyrrrrrryyyyyyrrrrrr"/>
-        <phase duration="42" state="rrrrrrGGggGgrrrrrrGGggGg"/>
+        <phase duration="30" state="rrrrrrGGggGgrrrrrrGGggGg"/>
         <phase duration="3"  state="rrrrrryyyyyyrrrrrryyyyyy"/>
     </tlLogic>
     <tlLogic id="J10" type="static" programID="0" offset="0">
-        <phase duration="42" state="GGggGgrrrrrrGGggGgrrrrrr"/>
+        <phase duration="25" state="GGggGgrrrrrrGGggGgrrrrrr"/>
         <phase duration="3"  state="yyyyyyrrrrrryyyyyyrrrrrr"/>
-        <phase duration="42" state="rrrrrrGGggGgrrrrrrGGggGg"/>
+        <phase duration="25" state="rrrrrrGGggGgrrrrrrGGggGg"/>
         <phase duration="3"  state="rrrrrryyyyyyrrrrrryyyyyy"/>
     </tlLogic>
     <tlLogic id="J4" type="static" programID="0" offset="0">

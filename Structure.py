@@ -44,6 +44,12 @@ class Structure:
 
         self.open = open
 
+        for e in self.path:
+            tls = self.net.getEdge(e).getTLS()
+            if(tls):
+                self.module_traci.trafficlight.setPhase(tls.getID(), 2)
+
+
 
     def step(self, step, edges):
         #print(step, self.id_cyclists_waiting, self.id_cyclists_crossing_struct)
@@ -56,13 +62,20 @@ class Structure:
         for i in self.module_traci.edge.getLastStepVehicleIDs(self.start_edge.getID()):
             if(i not in self.id_cyclists_waiting and i not in self.id_cyclists_crossing_struct and self.dict_cyclists[i].struct_candidate):
                 if(len(self.id_cyclists_waiting)==0):
-                    if(self.module_traci.vehicle.getSpeed(i)<= 1):
+                    for j in range(len(self.id_cyclists_crossing_struct)-1, -1, -1):
+                        pos = self.module_traci.vehicle.getPosition(self.id_cyclists_crossing_struct[j])
+                        if(self.module_traci.vehicle.getDrivingDistance2D(i, pos[0], pos[1])<=3):
+                            self.id_cyclists_waiting.append(i)
+                            self.dict_cyclists[i].step_cancel_struct_candidature = step+99999
+                            break
+                    if(i not in self.id_cyclists_waiting and self.module_traci.vehicle.getSpeed(i)<= 3):
                         self.id_cyclists_waiting.append(i)
                         self.dict_cyclists[i].step_cancel_struct_candidature = step+99999
+                    
                 else:
                     for j in range(len(self.id_cyclists_waiting)-1, -1, -1):
                         pos = self.module_traci.vehicle.getPosition(self.id_cyclists_waiting[j])
-                        if(self.module_traci.vehicle.getDrivingDistance2D(i, pos[0], pos[1])<2):
+                        if(self.module_traci.vehicle.getDrivingDistance2D(i, pos[0], pos[1])<=3):
                             self.id_cyclists_waiting.append(i)
                             self.dict_cyclists[i].step_cancel_struct_candidature = step+99999
                             break
@@ -76,7 +89,6 @@ class Structure:
                     min_max_speed = self.dict_cyclists[i].max_speed
                 #print(i, "crossing")
                 self.id_cyclists_crossing_struct.append(i)
-                self.num_cyclists_crossed += 1
             self.id_cyclists_waiting = []
 
             for i in self.id_cyclists_crossing_struct:
@@ -90,8 +102,13 @@ class Structure:
                 for i in self.id_cyclists_waiting:
                     self.id_cyclists_crossing_struct.append(i)
                     self.dict_cyclists[i].cross_struct()
-                    self.dict_cyclists[i].set_max_speed(self.dict_cyclists[self.id_cyclists_crossing_struct[0]].max_speed)
+                    self.dict_cyclists[i].set_max_speed(self.dict_cyclists[self.id_cyclists_crossing_struct[0]].max_speed)                  
                     self.id_cyclists_waiting.remove(i)
+
+
+        for i in self.id_cyclists_waiting:
+            if(i not in self.module_traci.edge.getLastStepVehicleIDs(self.start_edge.getID())):
+                self.id_cyclists_waiting.remove(i)
             
         for e in self.path:
             tls = self.net.getEdge(e).getTLS()
@@ -104,8 +121,7 @@ class Structure:
                         ind += 1
                 light_color = self.module_traci.trafficlight.getRedYellowGreenState(tls.getID())[ind]
 
-                if(set(self.module_traci.edge.getLastStepVehicleIDs(e)) & set(self.id_cyclists_crossing_struct) and\
-                len(self.module_traci.edge.getLastStepVehicleIDs(e)) >= self.min_group_size):
+                if(len(set(self.module_traci.edge.getLastStepVehicleIDs(e)) & set(self.id_cyclists_crossing_struct)) >= self.min_group_size):
                     if(light_color == 'r'):
                         self.module_traci.trafficlight.setPhase(tls.getID(), (self.module_traci.trafficlight.getPhase(tls.getID())+1)%4)
                     elif(light_color == "g" or light_color == "G"):

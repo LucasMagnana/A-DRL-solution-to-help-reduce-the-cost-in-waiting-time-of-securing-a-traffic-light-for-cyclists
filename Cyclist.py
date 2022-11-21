@@ -17,7 +17,9 @@ class Cyclist:
         path = [e.getID() for e in path]
         self.original_path = path
         self.module_traci.route.add(str(self.id)+"_sp", path)
-        self.module_traci.vehicle.add(str(self.id), str(self.id)+"_sp", departLane="best", typeID='bicycle', departSpeed=traci.vehicletype.getMaxSpeed('bicycle')-1)
+        
+        d_speed = traci.vehicletype.getMaxSpeed('bicycle')-2
+        self.module_traci.vehicle.add(str(self.id), str(self.id)+"_sp", departLane="best", typeID='bicycle', departSpeed=d_speed)
         
         self.set_max_speed(max_speed)
         self.max_speed = self.module_traci.vehicle.getMaxSpeed(str(self.id))
@@ -91,11 +93,11 @@ class Cyclist:
             if(self.crossing_struct and self.actual_edge_id == self.last_edge_in_struct_id):
                 self.wanting_to_exit_struct = True
 
-            if(self.canceled_candidature):
+            if(self.crossing_struct):
                 self.module_traci.vehicle.highlight(self.id, color=(0, 0, 255, 255))
-            if(self.struct_crossed):
+            elif(self.struct_crossed):
                 self.module_traci.vehicle.highlight(self.id, color=(0, 255, 0, 255))
-            if(self.struct_candidate):
+            elif(self.struct_candidate):
                 self.module_traci.vehicle.highlight(self.id)
 
         elif(self.id in self.module_traci.simulation.getArrivedIDList()):
@@ -120,12 +122,13 @@ class Cyclist:
 
 
     def go_to_struct(self):
-        self.module_traci.vehicle.setStop(self.id, self.structure.start_edge.getID(), self.structure.start_edge.getLength()-1)
+        #self.module_traci.vehicle.setStop(self.id, self.structure.start_edge.getID(), self.structure.start_edge.getLength()-1)
         self.going_to_struct = True
 
     def cross_struct(self):
         self.going_to_struct = False
         self.crossing_struct = True
+        self.structure.num_cyclists_crossed += 1
         if(self.module_traci.vehicle.isStopped(self.id)):
             self.module_traci.vehicle.resume(self.id)
         if(self.module_traci.vehicle.getNextStops(self.id)):
