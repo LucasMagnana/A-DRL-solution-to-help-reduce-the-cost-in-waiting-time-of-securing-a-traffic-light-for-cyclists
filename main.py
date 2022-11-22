@@ -36,9 +36,9 @@ step_length = 0.2
 num_cyclists = 500
 max_num_cyclists_same_time = 50
 
-poisson_distrib = np.random.poisson(args.poisson_lambda, 10000)
+poisson_distrib = np.random.poisson(args.poisson_lambda, 100000)
 while(sum(poisson_distrib)<num_cyclists):
-    poisson_distrib = np.random.poisson(args.poisson_lambda, 10000)
+    poisson_distrib = np.random.poisson(args.poisson_lambda, 100000)
 
 if(use_model):
     sub_folders = "w_model/"
