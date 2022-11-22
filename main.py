@@ -23,6 +23,7 @@ if __name__ == "__main__":
     
 args = parse.parse_args()
 
+
 use_model = False
 save_model = use_model
 learning = True
@@ -33,12 +34,8 @@ lr=1e-5
 
 step_length = 0.2
 
-num_cyclists = 500
-max_num_cyclists_same_time = 50
 
-poisson_distrib = np.random.poisson(args.poisson_lambda, 100000)
-while(sum(poisson_distrib)<num_cyclists):
-    poisson_distrib = np.random.poisson(args.poisson_lambda, 100000)
+poisson_distrib = np.random.poisson(args.poisson_lambda, 3600)
 
 if(use_model):
     sub_folders = "w_model/"
@@ -84,10 +81,14 @@ edges = net.getEdges()
 if(args.new_scenario):
     print("WARNING : Creating a new scenario...")
     tab_scenario=[]
+    num_cyclists = sum(poisson_distrib)
 else:
     print("WARNING : Loading the scenario...")
     with open('scenario.tab', 'rb') as infile:
         tab_scenario = pickle.load(infile)
+    num_cyclists = len(tab_scenario)
+
+    
 
 
 dict_edges_index = {}
@@ -119,8 +120,7 @@ step = 0
 while(len(dict_cyclists) != 0 or id<num_cyclists):
     if(args.new_scenario):
         if(id<num_cyclists and poisson_distrib[int(step)] != 0):
-            if(len(dict_cyclists)<max_num_cyclists_same_time):
-                poisson_distrib[int(step)] = 0
+            for _ in range(poisson_distrib[int(step)]):
                 e1 = net.getEdge("E0")
                 e2 = net.getEdge("E3")#+str(randint(4, 9)))
                 path = net.getShortestPath(e1, e2, vClass='bicycle')[0]
@@ -128,6 +128,7 @@ while(len(dict_cyclists) != 0 or id<num_cyclists):
                 tab_scenario.append({"start_step": step, "start_edge": e1, "end_edge": e2, "max_speed": max_speed, "finish_step": -1})
                 spawn_cyclist(id, step, path, net, structure, step_length, max_speed)
                 id+=1
+            poisson_distrib[int(step)] = 0
 
     elif(id<len(tab_scenario) and step >= tab_scenario[id]["start_step"]):
             e1=tab_scenario[id]["start_edge"]
@@ -225,14 +226,14 @@ if(not args.new_scenario):
             
             if(not os.path.exists("files/"+sub_folders)):
                 os.makedirs("files/"+sub_folders)
-                tab_num_cycl = [[], []]
+                tab_perc_cycl = [[], []]
                 tab_time_diff = []
                 tab_x_values = []
                 if(use_model):
                     tab_mean_loss = []
             else:
-                with open('files/'+sub_folders+'num_cycl.tab', 'rb') as infile:
-                    tab_num_cycl = pickle.load(infile)
+                with open('files/'+sub_folders+'perc_cycl.tab', 'rb') as infile:
+                    tab_perc_cycl = pickle.load(infile)
                 with open('files/'+sub_folders+'time_diff.tab', 'rb') as infile:
                     tab_time_diff = pickle.load(infile)
                 with open('files/'+sub_folders+'x_values.tab', 'rb') as infile:
@@ -242,25 +243,25 @@ if(not args.new_scenario):
                         tab_mean_loss = pickle.load(infile)
 
 
-            tab_num_cycl[0].append(structure.num_cyclists_crossed)
-            tab_num_cycl[1].append(structure.num_cyclists_canceled)
+            tab_perc_cycl[0].append(structure.num_cyclists_crossed/num_cyclists*100)
+            tab_perc_cycl[1].append(structure.num_cyclists_canceled/num_cyclists*100)
             tab_time_diff.append(mean_diff_finish_step)
             tab_x_values.append(args.poisson_lambda)
 
-            print(tab_num_cycl[0], tab_num_cycl[1], tab_time_diff)
+            print(tab_perc_cycl[0], tab_perc_cycl[1], tab_time_diff)
 
             plt.clf()
             plt.plot(tab_x_values, tab_time_diff)
             plt.savefig("images/"+sub_folders+"evolution_time_diff.png")
 
             plt.clf()
-            plt.plot(tab_x_values, tab_num_cycl[0], label="num crossed")
-            plt.plot(tab_x_values, tab_num_cycl[1], label="num canceled")
+            plt.plot(tab_x_values, tab_perc_cycl[0], label="num crossed")
+            plt.plot(tab_x_values, tab_perc_cycl[1], label="num canceled")
             plt.legend()
-            plt.savefig("images/"+sub_folders+"evolution_num_cycl_using_struct.png")
+            plt.savefig("images/"+sub_folders+"evolution_percentage_cycl_using_struct.png")
 
-            with open('files/'+sub_folders+'num_cycl.tab', 'wb') as outfile:
-                pickle.dump(tab_num_cycl, outfile)
+            with open('files/'+sub_folders+'perc_cycl.tab', 'wb') as outfile:
+                pickle.dump(tab_perc_cycl, outfile)
             with open('files/'+sub_folders+'time_diff.tab', 'wb') as outfile:
                 pickle.dump(tab_time_diff, outfile)
             with open('files/'+sub_folders+'x_values.tab', 'wb') as outfile:
