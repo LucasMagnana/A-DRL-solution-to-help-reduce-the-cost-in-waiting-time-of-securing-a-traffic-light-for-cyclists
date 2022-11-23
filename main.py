@@ -243,20 +243,48 @@ if(not args.new_scenario):
                         tab_mean_loss = pickle.load(infile)
 
 
-            tab_perc_cycl[0].append(structure.num_cyclists_crossed/num_cyclists*100)
-            tab_perc_cycl[1].append(structure.num_cyclists_canceled/num_cyclists*100)
-            tab_time_diff.append(mean_diff_finish_step)
-            tab_x_values.append(args.poisson_lambda)
+            if(len(tab_x_values) == 0 or tab_x_values[-1] != args.poisson_lambda):
+                tab_perc_cycl[0].append([structure.num_cyclists_crossed/num_cyclists*100])
+                tab_perc_cycl[1].append([structure.num_cyclists_canceled/num_cyclists*100])
+                tab_time_diff.append([mean_diff_finish_step])
+                tab_x_values.append(args.poisson_lambda)
+            else:
+                tab_perc_cycl[0][-1].append(structure.num_cyclists_crossed/num_cyclists*100)
+                tab_perc_cycl[1][-1].append(structure.num_cyclists_canceled/num_cyclists*100)
+                tab_time_diff[-1].append(mean_diff_finish_step)
+
 
             print(tab_perc_cycl[0], tab_perc_cycl[1], tab_time_diff)
 
+            tab_mean_perc_cycl = []
+            tab_max_perc_cycl = []
+            tab_min_perc_cycl = []
+
+            tab_mean_time_diff = []
+            tab_max_time_diff = []
+            tab_min_time_diff = []
+
+            for i in range(len(tab_x_values)):
+                tab_mean_perc_cycl.append(sum(tab_perc_cycl[0][i])/len(tab_perc_cycl[0][i]))
+                tab_max_perc_cycl.append(max(tab_perc_cycl[0][i]))
+                tab_min_perc_cycl.append(min(tab_perc_cycl[0][i]))
+
+                tab_mean_time_diff.append(sum(tab_time_diff[i])/len(tab_time_diff[i]))
+                tab_max_time_diff.append(max(tab_time_diff[i]))
+                tab_min_time_diff.append(min(tab_time_diff[i]))
+
+
             plt.clf()
-            plt.plot(tab_x_values, tab_time_diff)
+            plt.plot(tab_x_values, tab_mean_time_diff, label="mean")
+            plt.plot(tab_x_values, tab_max_time_diff, label="max")
+            plt.plot(tab_x_values, tab_min_time_diff, label="min")
+            plt.legend()
             plt.savefig("images/"+sub_folders+"evolution_time_diff.png")
 
             plt.clf()
-            plt.plot(tab_x_values, tab_perc_cycl[0], label="num crossed")
-            plt.plot(tab_x_values, tab_perc_cycl[1], label="num canceled")
+            plt.plot(tab_x_values, tab_mean_perc_cycl, label="mean")
+            plt.plot(tab_x_values, tab_max_perc_cycl, label="max")
+            plt.plot(tab_x_values, tab_min_perc_cycl, label="min")
             plt.legend()
             plt.savefig("images/"+sub_folders+"evolution_percentage_cycl_using_struct.png")
 
