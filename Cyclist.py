@@ -83,9 +83,9 @@ class Cyclist:
 
             if(self.actual_edge_id in self.structure.path):
                 if(self.actual_path == self.original_path):
-                    self.module_traci.vehicle.changeLane(self.id, 0, 1)
+                    self.module_traci.vehicle.changeLane(self.id, 0, 3)
                 elif(self.actual_edge_id != self.last_edge_in_struct_id):
-                    self.module_traci.vehicle.changeLane(self.id, 1, 1) 
+                    self.module_traci.vehicle.changeLane(self.id, 1, 3) 
 
             if(self.struct_candidate and not self.going_to_struct and not self.crossing_struct):
                 self.go_to_struct()

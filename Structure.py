@@ -60,7 +60,7 @@ class Structure:
 
                 
         for i in self.module_traci.edge.getLastStepVehicleIDs(self.start_edge.getID()):
-            if(i not in self.id_cyclists_waiting and i not in self.id_cyclists_crossing_struct and self.dict_cyclists[i].struct_candidate):
+            if("_c" not in i and i not in self.id_cyclists_waiting and i not in self.id_cyclists_crossing_struct and self.dict_cyclists[i].struct_candidate):
                 if(len(self.id_cyclists_waiting)==0):
                     for j in range(len(self.id_cyclists_crossing_struct)-1, -1, -1):
                         pos = self.module_traci.vehicle.getPosition(self.id_cyclists_crossing_struct[j])

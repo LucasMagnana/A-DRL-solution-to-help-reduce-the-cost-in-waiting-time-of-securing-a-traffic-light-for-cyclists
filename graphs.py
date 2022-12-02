@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 
-def compute_graphs_data(structure_was_open, dict_cyclists_arrived, tab_scenario):
+def compute_graphs_data(structure_was_open, dict_cyclists_arrived, dict_scenario):
     tab_diff_finish_step = [[],[],[], []]
     tab_diff_waiting_time = [[],[],[], []]
     tab_diff_distance_travelled = [[],[],[], []]
@@ -10,28 +10,28 @@ def compute_graphs_data(structure_was_open, dict_cyclists_arrived, tab_scenario)
 
     for i in dict_cyclists_arrived:
         c = dict_cyclists_arrived[i]
-        tab_all_diff_arrival_time.append(tab_scenario[int(c.id)]["finish_step"]-c.finish_step)
+        tab_all_diff_arrival_time.append(dict_scenario["bikes"][int(c.id)]["finish_step"]-c.finish_step)
         if(structure_was_open):
             if(c.canceled_candidature):
-                tab_diff_finish_step[2].append(tab_scenario[int(c.id)]["finish_step"]-c.finish_step)
-                tab_diff_waiting_time[2].append(tab_scenario[int(c.id)]["waiting_time"]-c.waiting_time)
-                tab_diff_distance_travelled[2].append(tab_scenario[int(c.id)]["distance_travelled"]-c.distance_travelled)
+                tab_diff_finish_step[2].append(dict_scenario["bikes"][int(c.id)]["finish_step"]-c.finish_step)
+                tab_diff_waiting_time[2].append(dict_scenario["bikes"][int(c.id)]["waiting_time"]-c.waiting_time)
+                tab_diff_distance_travelled[2].append(dict_scenario["bikes"][int(c.id)]["distance_travelled"]-c.distance_travelled)
                 tab_num_type_cyclists[2]+=1
             elif(c.struct_crossed):
-                if(c.finish_step>tab_scenario[int(c.id)]["finish_step"]):
-                    tab_diff_finish_step[1].append(tab_scenario[int(c.id)]["finish_step"]-c.finish_step)
-                    tab_diff_waiting_time[1].append(tab_scenario[int(c.id)]["waiting_time"]-c.waiting_time)
-                    tab_diff_distance_travelled[1].append(tab_scenario[int(c.id)]["distance_travelled"]-c.distance_travelled)
+                if(c.finish_step>dict_scenario["bikes"][int(c.id)]["finish_step"]):
+                    tab_diff_finish_step[1].append(dict_scenario["bikes"][int(c.id)]["finish_step"]-c.finish_step)
+                    tab_diff_waiting_time[1].append(dict_scenario["bikes"][int(c.id)]["waiting_time"]-c.waiting_time)
+                    tab_diff_distance_travelled[1].append(dict_scenario["bikes"][int(c.id)]["distance_travelled"]-c.distance_travelled)
                     tab_num_type_cyclists[1]+=1
-                elif(c.finish_step<tab_scenario[int(c.id)]["finish_step"]):
-                    tab_diff_finish_step[0].append(tab_scenario[int(c.id)]["finish_step"]-c.finish_step)
-                    tab_diff_waiting_time[0].append(tab_scenario[int(c.id)]["waiting_time"]-c.waiting_time)
-                    tab_diff_distance_travelled[0].append(tab_scenario[int(c.id)]["distance_travelled"]-c.distance_travelled)
+                elif(c.finish_step<dict_scenario["bikes"][int(c.id)]["finish_step"]):
+                    tab_diff_finish_step[0].append(dict_scenario["bikes"][int(c.id)]["finish_step"]-c.finish_step)
+                    tab_diff_waiting_time[0].append(dict_scenario["bikes"][int(c.id)]["waiting_time"]-c.waiting_time)
+                    tab_diff_distance_travelled[0].append(dict_scenario["bikes"][int(c.id)]["distance_travelled"]-c.distance_travelled)
                     tab_num_type_cyclists[0]+=1
             else:
-                tab_diff_finish_step[3].append(tab_scenario[int(c.id)]["finish_step"]-c.finish_step)
-                tab_diff_waiting_time[3].append(tab_scenario[int(c.id)]["waiting_time"]-c.waiting_time)
-                tab_diff_distance_travelled[3].append(tab_scenario[int(c.id)]["distance_travelled"]-c.distance_travelled)
+                tab_diff_finish_step[3].append(dict_scenario["bikes"][int(c.id)]["finish_step"]-c.finish_step)
+                tab_diff_waiting_time[3].append(dict_scenario["bikes"][int(c.id)]["waiting_time"]-c.waiting_time)
+                tab_diff_distance_travelled[3].append(dict_scenario["bikes"][int(c.id)]["distance_travelled"]-c.distance_travelled)
                 tab_num_type_cyclists[3]+=1
 
                     

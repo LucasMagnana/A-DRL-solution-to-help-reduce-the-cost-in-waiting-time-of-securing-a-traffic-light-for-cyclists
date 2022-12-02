@@ -17,9 +17,11 @@ if __name__ == "__main__":
     parse = argparse.ArgumentParser()
     parse.add_argument('--new-scenario', type=bool, default=False)
     parse.add_argument('--learning', type=bool, default=False)
-    parse.add_argument('--poisson-lambda', type=float, default=0.05)
+    parse.add_argument('--bike-poisson-lambda', type=float, default=0.15)
+    parse.add_argument('--car-poisson-lambda', type=float, default=0.15)
     parse.add_argument('--min-group-size', type=int, default=5)
     parse.add_argument('--gui', type=bool, default=False)
+    parse.add_argument('--config', type=int, default=0)
     
 args = parse.parse_args()
 
@@ -35,7 +37,8 @@ lr=1e-5
 step_length = 0.2
 
 
-poisson_distrib = np.random.poisson(args.poisson_lambda, 3600)
+bike_poisson_distrib = np.random.poisson(args.bike_poisson_lambda, 3600)
+car_poisson_distrib = np.random.poisson(args.car_poisson_lambda, 3600)
 
 if(use_model):
     sub_folders = "w_model/"
@@ -55,7 +58,7 @@ else:
 sumoBinary = "/usr/bin/sumo"
 if(args.gui):
     sumoBinary += "-gui"
-sumoCmd = [sumoBinary, "-c", "sumo_files/sumo.sumocfg", "--quit-on-end", "--waiting-time-memory", '10000', '--start', '--delay', '0', '--step-length', str(step_length), '--no-warnings']
+sumoCmd = [sumoBinary, "-c", "sumo_files/sumo_"+str(args.config)+".sumocfg", "--quit-on-end", "--waiting-time-memory", '10000', '--start', '--delay', '0', '--step-length', str(step_length), '--no-warnings']
 
 
 import traci
@@ -63,30 +66,39 @@ import sumolib
 import traci.constants as tc
 
 
-def spawn_cyclist(id, step, path, net, structure, step_length, max_speed):
-    struct_candidate = True
-    if(args.new_scenario or num_cyclists-id+max(len(structure.id_cyclists_waiting), len(traci.edge.getLastStepVehicleIDs(structure.start_edge.getID())))<structure.min_group_size):
+def spawn_cyclist(id_cyclist, step, path, net, structure, step_length, max_speed, struct_candidate, args, dict_cyclists):
+    if(args.new_scenario or num_cyclists-id_cyclist+max(len(structure.id_cyclists_waiting), len(traci.edge.getLastStepVehicleIDs(structure.start_edge.getID())))<structure.min_group_size):
         struct_candidate = False
     
-    c = Cyclist(str(id), step, path, net, structure, max_speed, traci, sumolib, step_length, struct_candidate=struct_candidate)
-    dict_cyclists[str(id)]=c
+    c = Cyclist(str(id_cyclist), step, path, net, structure, max_speed, traci, sumolib, step_length, struct_candidate=struct_candidate)
+    dict_cyclists[str(id_cyclist)]=c
+
+
+def spawn_car(id_car, step, path, net, dict_cars):
+    path = [e.getID() for e in path]
+    traci.route.add(str(id_car)+"_c_sp", path)
+    traci.vehicle.add(str(id_car)+"_c", str(id_car)+"_c_sp", departLane="best", typeID='car')
+    dict_cars[str(id_car)]=[]
+
 
 
 traci.start(sumoCmd)
 
-net = sumolib.net.readNet('sumo_files/net.net.xml')
+net = sumolib.net.readNet("sumo_files/net_"+str(args.config)+".net.xml")
 edges = net.getEdges()
 
 
 if(args.new_scenario):
     print("WARNING : Creating a new scenario...")
-    tab_scenario=[]
-    num_cyclists = sum(poisson_distrib)
+    dict_scenario={"cars": [], "bikes": []}
+    num_cyclists = sum(bike_poisson_distrib)
+    num_cars = sum(car_poisson_distrib)
 else:
     print("WARNING : Loading the scenario...")
-    with open('scenario.tab', 'rb') as infile:
-        tab_scenario = pickle.load(infile)
-    num_cyclists = len(tab_scenario)
+    with open('scenario.dict', 'rb') as infile:
+        dict_scenario = pickle.load(infile)
+    num_cyclists = len(dict_scenario["bikes"])
+    num_cars = len(dict_scenario["cars"])
 
     
 
@@ -108,34 +120,52 @@ else:
     model = None
 
 dict_cyclists= {}
+dict_cars = {}
 dict_cyclists_arrived = {}
 
 structure = Structure("E0", "E2", edges, net, dict_cyclists, traci, dict_edges_index, model,\
 open=not args.new_scenario, min_group_size=args.min_group_size, batch_size=batch_size, learning=args.learning, lr=lr)
 
 
-id = 0
+id_cyclist = 0
+id_car = 0
 step = 0
 
-while(len(dict_cyclists) != 0 or id<num_cyclists):
+while(len(dict_cyclists) != 0 or id_cyclist<num_cyclists or len(dict_cars) != 0 or id_car<num_cars):
     if(args.new_scenario):
-        if(id<num_cyclists and poisson_distrib[int(step)] != 0):
-            for _ in range(poisson_distrib[int(step)]):
+        if(id_cyclist<num_cyclists):
+            for _ in range(bike_poisson_distrib[int(step)]):
                 e1 = net.getEdge("E0")
                 e2 = net.getEdge("E3")#+str(randint(4, 9)))
                 path = net.getShortestPath(e1, e2, vClass='bicycle')[0]
                 max_speed = np.random.normal(15, 3)
-                tab_scenario.append({"start_step": step, "start_edge": e1, "end_edge": e2, "max_speed": max_speed, "finish_step": -1})
-                spawn_cyclist(id, step, path, net, structure, step_length, max_speed)
-                id+=1
-            poisson_distrib[int(step)] = 0
+                dict_scenario["bikes"].append({"start_step": step, "start_edge": e1, "end_edge": e2, "max_speed": max_speed, "finish_step": -1})
+                spawn_cyclist(id_cyclist, step, path, net, structure, step_length, max_speed, args.config==0, args, dict_cyclists)
+                id_cyclist+=1
+            bike_poisson_distrib[int(step)] = 0
+        if(id_car<num_cars):
+            for _ in range(car_poisson_distrib[int(step)]):
+                e1 = net.getEdge("E0")
+                e2 = net.getEdge("E"+str(randint(3, 9)))
+                path = net.getShortestPath(e1, e2, vClass='passenger')[0]
+                dict_scenario["cars"].append({"start_step": step, "start_edge": e1, "end_edge": e2, "finish_step": -1})
+                spawn_car(id_car, step, path, net, dict_cars)
+                id_car+=1
+            car_poisson_distrib[int(step)] = 0
 
-    elif(id<len(tab_scenario) and step >= tab_scenario[id]["start_step"]):
-            e1=tab_scenario[id]["start_edge"]
-            e2=tab_scenario[id]["end_edge"]
+    else:
+        if(id_cyclist<len(dict_scenario["bikes"]) and step >= dict_scenario["bikes"][id_cyclist]["start_step"]):
+            e1=dict_scenario["bikes"][id_cyclist]["start_edge"]
+            e2=dict_scenario["bikes"][id_cyclist]["end_edge"]
             path = net.getShortestPath(e1, e2, vClass='bicycle')[0]
-            spawn_cyclist(id, step, path, net, structure, step_length, tab_scenario[id]["max_speed"])
-            id+=1
+            spawn_cyclist(id_cyclist, step, path, net, structure, step_length, dict_scenario["bikes"][id_cyclist]["max_speed"], args.config==0, args, dict_cyclists)
+            id_cyclist+=1
+        if(id_car<len(dict_scenario["cars"]) and step >= dict_scenario["cars"][id_car]["start_step"]):
+            e1=dict_scenario["cars"][id_car]["start_edge"]
+            e2=dict_scenario["cars"][id_car]["end_edge"]
+            path = net.getShortestPath(e1, e2, vClass='passenger')[0]
+            spawn_car(id_car, step, path, net, dict_cars)
+            id_car+=1
 
     traci.simulationStep() 
 
@@ -151,27 +181,33 @@ while(len(dict_cyclists) != 0 or id<num_cyclists):
                     del structure.dict_model_input[i]
 
                 if(args.new_scenario):
-                    tab_scenario[int(dict_cyclists[i].id)]["finish_step"] = step
-                    tab_scenario[int(dict_cyclists[i].id)]["waiting_time"] = dict_cyclists[i].waiting_time
-                    tab_scenario[int(dict_cyclists[i].id)]["distance_travelled"] = dict_cyclists[i].distance_travelled
+                    dict_scenario["bikes"][int(dict_cyclists[i].id)]["finish_step"] = step
+                    dict_scenario["bikes"][int(dict_cyclists[i].id)]["waiting_time"] = dict_cyclists[i].waiting_time
+                    dict_scenario["bikes"][int(dict_cyclists[i].id)]["distance_travelled"] = dict_cyclists[i].distance_travelled
                     
             else:
                 traci.vehicle.remove(i)
             del dict_cyclists[i]
 
+    for i in copy.deepcopy(list(dict_cars.keys())):
+        sumo_id = i+"_c"
+        if(sumo_id in traci.simulation.getArrivedIDList()):
+            dict_scenario["cars"][int(i)]["finish_step"] = step
+            del dict_cars[i]
+
     #(step%1, step%1<=step_length)
     if(structure.open):
         structure.step(step, edges)
 
-    print(f"\rStep {int(step)}: {len(traci.vehicle.getIDList())} cyclists in simu, {id} cyclists spawned since start,\
+    print(f"\rStep {int(step)}: {len(traci.vehicle.getIDList())} cyclists in simu, {id_cyclist} cyclists spawned since start,\
 {structure.num_cyclists_crossed} cyclists crossed the struct.", end="")
 
     step += step_length
 
 if(args.new_scenario):
     print("WARNING: Saving scenario...")
-    with open('scenario.tab', 'wb') as outfile:
-        pickle.dump(tab_scenario, outfile)
+    with open('scenario.dict', 'wb') as outfile:
+        pickle.dump(dict_scenario, outfile)
 
 traci.close()
 
@@ -184,7 +220,7 @@ print("\ndata number:", len(dict_cyclists_arrived), ",", structure.num_cyclists_
 
 if(not args.new_scenario):
     tab_all_diff_arrival_time, tab_diff_finish_step, tab_diff_waiting_time, tab_diff_distance_travelled, tab_num_type_cyclists =\
-    compute_graphs_data(structure.open, dict_cyclists_arrived, tab_scenario)
+    compute_graphs_data(structure.open, dict_cyclists_arrived, dict_scenario)
     
     if(not os.path.exists("images/"+sub_folders)):
         os.makedirs("images/"+sub_folders)
@@ -243,11 +279,11 @@ if(not args.new_scenario):
                         tab_mean_loss = pickle.load(infile)
 
 
-            if(len(tab_x_values) == 0 or tab_x_values[-1] != args.poisson_lambda):
+            if(len(tab_x_values) == 0 or tab_x_values[-1] != args.bike_poisson_lambda):
                 tab_perc_cycl[0].append([structure.num_cyclists_crossed/num_cyclists*100])
                 tab_perc_cycl[1].append([structure.num_cyclists_canceled/num_cyclists*100])
                 tab_time_diff.append([mean_diff_finish_step])
-                tab_x_values.append(args.poisson_lambda)
+                tab_x_values.append(args.bike_poisson_lambda)
             else:
                 tab_perc_cycl[0][-1].append(structure.num_cyclists_crossed/num_cyclists*100)
                 tab_perc_cycl[1][-1].append(structure.num_cyclists_canceled/num_cyclists*100)
