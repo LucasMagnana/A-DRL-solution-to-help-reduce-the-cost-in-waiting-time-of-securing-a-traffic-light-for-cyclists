@@ -17,8 +17,8 @@ if __name__ == "__main__":
     parse = argparse.ArgumentParser()
     parse.add_argument('--new-scenario', type=bool, default=False)
     parse.add_argument('--learning', type=bool, default=False)
-    parse.add_argument('--bike-poisson-lambda', type=float, default=0.15)
-    parse.add_argument('--car-poisson-lambda', type=float, default=0.15)
+    parse.add_argument('--bike-poisson-lambda', type=float, default=0.20)
+    parse.add_argument('--car-poisson-lambda', type=float, default=0.25)
     parse.add_argument('--min-group-size', type=int, default=5)
     parse.add_argument('--gui', type=bool, default=False)
     parse.add_argument('--config', type=int, default=0)
@@ -40,10 +40,13 @@ step_length = 0.2
 bike_poisson_distrib = np.random.poisson(args.bike_poisson_lambda, 3600)
 car_poisson_distrib = np.random.poisson(args.car_poisson_lambda, 3600)
 
+
 if(use_model):
     sub_folders = "w_model/"
 else:
     sub_folders = "wou_model/"
+
+sub_folders+="config_"+str(args.config)+"/"
 
 
 
@@ -101,7 +104,7 @@ else:
     num_cars = len(dict_scenario["cars"])
 
     
-
+print(num_cyclists, num_cars)
 
 dict_edges_index = {}
 for i, e in enumerate(edges) :
@@ -216,11 +219,99 @@ if(len(structure.list_input_to_learn)>0):
     
 print("\ndata number:", len(dict_cyclists_arrived), ",", structure.num_cyclists_crossed, "cyclits used struct, last step:", step)
 
+if(args.config == 2):
+
+    mean_cars_finish_step = compute_graphs_data_cyclists(dict_scenario)
+
+    if(not os.path.exists("files/"+sub_folders)):
+        os.makedirs("files/"+sub_folders)
+        tab_time_diff_cars = []
+        tab_x_values = []
+    else:
+        with open('files/'+sub_folders+'time_diff_car.tab', 'rb') as infile:
+            tab_time_diff_cars = pickle.load(infile)
+        with open('files/'+sub_folders+'x_values.tab', 'rb') as infile:
+            tab_x_values = pickle.load(infile)
+    
+    if(len(tab_x_values) == 0 or tab_x_values[-1] != args.bike_poisson_lambda):
+        tab_time_diff_cars.append([mean_cars_finish_step])
+        tab_x_values.append(args.bike_poisson_lambda)
+    else:
+        tab_time_diff_cars[-1].append(mean_cars_finish_step)
 
 
-if(not args.new_scenario):
+    tab_mean_time_diff_cars = []
+    tab_max_time_diff_cars = []
+    tab_min_time_diff_cars = []
+
+    for i in range(len(tab_x_values)):
+        tab_mean_time_diff_cars.append(sum(tab_time_diff_cars[i])/len(tab_time_diff_cars[i]))
+        tab_max_time_diff_cars.append(max(tab_time_diff_cars[i]))
+        tab_min_time_diff_cars.append(min(tab_time_diff_cars[i]))
+
+
+    plt.clf()
+    plt.plot(tab_x_values, tab_mean_time_diff_cars, label="mean")
+    plt.plot(tab_x_values, tab_max_time_diff_cars, label="max")
+    plt.plot(tab_x_values, tab_min_time_diff_cars, label="min")
+    plt.legend()
+    plt.savefig("images/"+sub_folders+"evolution_cars_time_diff.png")
+
+
+
+elif(args.config == 1 and args.learning):
+    if(not os.path.exists("images/"+sub_folders)):
+        os.makedirs("images/"+sub_folders)
+
+    mean_travel_time = compute_graphs_data_cyclists_wout_struct(dict_scenario)
+
+    if(not os.path.exists("files/"+sub_folders)):
+        os.makedirs("files/"+sub_folders)
+        tab_travel_time = []
+        tab_x_values = []
+    else:
+        with open('files/'+sub_folders+'travel_time.tab', 'rb') as infile:
+            tab_travel_time = pickle.load(infile)
+        with open('files/'+sub_folders+'x_values.tab', 'rb') as infile:
+            tab_x_values = pickle.load(infile)
+    
+    if(len(tab_x_values) == 0 or tab_x_values[-1] != args.car_poisson_lambda):
+        tab_travel_time.append([mean_travel_time])
+        tab_x_values.append(args.car_poisson_lambda)
+    else:
+        tab_travel_time[-1].append(mean_travel_time)
+
+
+
+    tab_mean_travel_time = []
+    tab_max_travel_time = []
+    tab_min_travel_time = []
+
+    for i in range(len(tab_x_values)):
+        tab_mean_travel_time.append(sum(tab_travel_time[i])/len(tab_travel_time[i]))
+        tab_max_travel_time.append(max(tab_travel_time[i]))
+        tab_min_travel_time.append(min(tab_travel_time[i]))
+
+
+    plt.clf()
+    plt.plot(tab_x_values, tab_mean_travel_time, label="mean")
+    plt.plot(tab_x_values, tab_max_travel_time, label="max")
+    plt.plot(tab_x_values, tab_min_travel_time, label="min")
+    plt.legend()
+    plt.savefig("images/"+sub_folders+"evolution_travel_time.png") 
+
+    with open('files/'+sub_folders+'travel_time.tab', 'wb') as outfile:
+        pickle.dump(tab_travel_time, outfile)
+    with open('files/'+sub_folders+'x_values.tab', 'wb') as outfile:
+        pickle.dump(tab_x_values, outfile)
+
+
+
+
+
+elif(args.config == 0 and not args.new_scenario):
     tab_all_diff_arrival_time, tab_diff_finish_step, tab_diff_waiting_time, tab_diff_distance_travelled, tab_num_type_cyclists =\
-    compute_graphs_data(structure.open, dict_cyclists_arrived, dict_scenario)
+    compute_graphs_data_cyclists(structure.open, dict_cyclists_arrived, dict_scenario)
     
     if(not os.path.exists("images/"+sub_folders)):
         os.makedirs("images/"+sub_folders)

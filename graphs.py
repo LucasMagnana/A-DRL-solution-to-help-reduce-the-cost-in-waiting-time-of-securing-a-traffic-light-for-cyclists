@@ -1,6 +1,22 @@
 import matplotlib.pyplot as plt
 
-def compute_graphs_data(structure_was_open, dict_cyclists_arrived, dict_scenario):
+def compute_graphs_data_cyclists_wout_struct(dict_scenario):
+    if(len(dict_scenario["cars"])>0):
+        tab_travel_time = [b["finish_step"]-b["start_step"] for b in dict_scenario["bikes"]]
+        return sum(tab_travel_time)/len(tab_travel_time)
+    else:
+        return 0
+
+
+
+def compute_graphs_data_cars(dict_scenario):
+    if(len(dict_scenario["cars"])>0):
+        tab_diff_finish_step = [c["finish_step"]-c["start_step"] for c in dict_scenario["cars"]]
+        return sum(tab_diff_finish_step)/len(tab_diff_finish_step)
+    else:
+        return 0
+
+def compute_graphs_data_cyclists(structure_was_open, dict_cyclists_arrived, dict_scenario):
     tab_diff_finish_step = [[],[],[], []]
     tab_diff_waiting_time = [[],[],[], []]
     tab_diff_distance_travelled = [[],[],[], []]
