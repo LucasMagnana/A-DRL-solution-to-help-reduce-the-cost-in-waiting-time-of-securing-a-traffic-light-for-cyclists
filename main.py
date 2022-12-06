@@ -17,7 +17,7 @@ if __name__ == "__main__":
     parse = argparse.ArgumentParser()
     parse.add_argument('--new-scenario', type=bool, default=False)
     parse.add_argument('--learning', type=bool, default=False)
-    parse.add_argument('--bike-poisson-lambda', type=float, default=1)
+    parse.add_argument('--bike-poisson-lambda', type=float, default=0.4)
     parse.add_argument('--car-poisson-lambda', type=float, default=0.1)
     parse.add_argument('--min-group-size', type=int, default=5)
     parse.add_argument('--gui', type=bool, default=False)
@@ -46,8 +46,10 @@ if(use_model):
 else:
     sub_folders = "wou_model/"
 
-sub_folders+="config_"+str(args.config)+"/"
-
+if(args.config == 1):
+    sub_folders+="config_"+str(args.config)+"/"+str(args.bike_poisson_lambda)+"/"
+elif(args.config == 2):
+    sub_folders+="config_"+str(args.config)+"/"+str(args.car_poisson_lambda)+"/"
 
 
 
@@ -232,6 +234,7 @@ print("\ndata number:", len(dict_cyclists_arrived), ",", structure.num_cyclists_
 if(args.learning):
     if(not os.path.exists("files/"+sub_folders)):
         os.makedirs("files/"+sub_folders)
+        os.makedirs("images/"+sub_folders)
         tab_travel_time_cars = []
         tab_travel_time_cyclists = []
         tab_x_values = []
@@ -278,6 +281,7 @@ if(args.learning):
     plt.plot(tab_x_values, plot_cars_travel_time[0], label="mean")
     plt.plot(tab_x_values, plot_cars_travel_time[1], label="min")
     plt.plot(tab_x_values, plot_cars_travel_time[2], label="max")
+
     plt.legend()
     plt.savefig("images/"+sub_folders+"evolution_cars_travel_time.png")
 
