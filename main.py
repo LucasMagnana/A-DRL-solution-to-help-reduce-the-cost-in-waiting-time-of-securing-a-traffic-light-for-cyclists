@@ -17,8 +17,8 @@ if __name__ == "__main__":
     parse = argparse.ArgumentParser()
     parse.add_argument('--new-scenario', type=bool, default=False)
     parse.add_argument('--learning', type=bool, default=False)
-    parse.add_argument('--bike-poisson-lambda', type=float, default=0.20)
-    parse.add_argument('--car-poisson-lambda', type=float, default=0.25)
+    parse.add_argument('--bike-poisson-lambda', type=float, default=1)
+    parse.add_argument('--car-poisson-lambda', type=float, default=0.1)
     parse.add_argument('--min-group-size', type=int, default=5)
     parse.add_argument('--gui', type=bool, default=False)
     parse.add_argument('--config', type=int, default=0)
@@ -35,10 +35,10 @@ hidden_size_2 = 32
 lr=1e-5
 
 step_length = 0.2
+simu_length = 1000
 
-
-bike_poisson_distrib = np.random.poisson(args.bike_poisson_lambda, 3600)
-car_poisson_distrib = np.random.poisson(args.car_poisson_lambda, 3600)
+bike_poisson_distrib = np.random.poisson(args.bike_poisson_lambda, simu_length)
+car_poisson_distrib = np.random.poisson(args.car_poisson_lambda, simu_length)
 
 
 if(use_model):
@@ -61,7 +61,7 @@ else:
 sumoBinary = "/usr/bin/sumo"
 if(args.gui):
     sumoBinary += "-gui"
-sumoCmd = [sumoBinary, "-c", "sumo_files/sumo_"+str(args.config)+".sumocfg", "--quit-on-end", "--waiting-time-memory", '10000', '--start', '--delay', '0', '--step-length', str(step_length), '--no-warnings']
+sumoCmd = [sumoBinary, "-c", "sumo_files/sumo_"+str(args.config)+".sumocfg", "--extrapolate-departpos", "--quit-on-end", "--waiting-time-memory", '10000', '--start', '--delay', '0', '--step-length', str(step_length), '--no-warnings']
 
 
 import traci
@@ -80,7 +80,7 @@ def spawn_cyclist(id_cyclist, step, path, net, structure, step_length, max_speed
 def spawn_car(id_car, step, path, net, dict_cars):
     path = [e.getID() for e in path]
     traci.route.add(str(id_car)+"_c_sp", path)
-    traci.vehicle.add(str(id_car)+"_c", str(id_car)+"_c_sp", departLane="best", typeID='car')
+    traci.vehicle.add(str(id_car)+"_c", str(id_car)+"_c_sp", departLane="best", departPos="last", typeID='car', departSpeed="last")
     dict_cars[str(id_car)]=[]
 
 
@@ -134,27 +134,33 @@ id_cyclist = 0
 id_car = 0
 step = 0
 
-while(len(dict_cyclists) != 0 or id_cyclist<num_cyclists or len(dict_cars) != 0 or id_car<num_cars):
+while(step<simu_length or len(dict_cyclists) != 0 or len(dict_cars) != 0):
     if(args.new_scenario):
-        if(id_cyclist<num_cyclists):
-            for _ in range(bike_poisson_distrib[int(step)]):
+        if(step<simu_length):
+            if(bike_poisson_distrib[int(step)] != 0):
                 e1 = net.getEdge("E0")
                 e2 = net.getEdge("E3")#+str(randint(4, 9)))
                 path = net.getShortestPath(e1, e2, vClass='bicycle')[0]
                 max_speed = np.random.normal(15, 3)
-                dict_scenario["bikes"].append({"start_step": step, "start_edge": e1, "end_edge": e2, "max_speed": max_speed, "finish_step": -1})
+                dict_scenario["bikes"].append({"start_step": step, "start_edge": e1, "end_edge": e2, "max_speed": max_speed})
                 spawn_cyclist(id_cyclist, step, path, net, structure, step_length, max_speed, args.config==0, args, dict_cyclists)
                 id_cyclist+=1
             bike_poisson_distrib[int(step)] = 0
-        if(id_car<num_cars):
-            for _ in range(car_poisson_distrib[int(step)]):
-                e1 = net.getEdge("E0")
-                e2 = net.getEdge("E"+str(randint(3, 9)))
-                path = net.getShortestPath(e1, e2, vClass='passenger')[0]
-                dict_scenario["cars"].append({"start_step": step, "start_edge": e1, "end_edge": e2, "finish_step": -1})
-                spawn_car(id_car, step, path, net, dict_cars)
-                id_car+=1
-            car_poisson_distrib[int(step)] = 0
+        if(step<simu_length):
+            can_spawn = True
+            for i in traci.edge.getLastStepVehicleIDs("E0"):
+                if("c" in i):
+                    if(traci.vehicle.getLanePosition(i)<15):
+                        can_spawn = True                       
+            if(can_spawn):    
+                if(car_poisson_distrib[int(step)] > 0):
+                    e1 = net.getEdge("E0")
+                    e2 = net.getEdge("E"+str(randint(3, 9)))
+                    path = net.getShortestPath(e1, e2, vClass='passenger')[0]
+                    dict_scenario["cars"].append({"start_step": step, "start_edge": e1, "end_edge": e2})
+                    spawn_car(id_car, step, path, net, dict_cars)
+                    id_car+=1
+                    car_poisson_distrib[int(step)] = 0
 
     else:
         if(id_cyclist<len(dict_scenario["bikes"]) and step >= dict_scenario["bikes"][id_cyclist]["start_step"]):
@@ -173,6 +179,8 @@ while(len(dict_cyclists) != 0 or id_cyclist<num_cyclists or len(dict_cars) != 0 
     traci.simulationStep() 
 
     for i in copy.deepcopy(list(dict_cyclists.keys())):
+        if(dict_scenario["bikes"][int(i)]["start_step"]<0 and i in traci.vehicle.getIDList() and traci.vehicle.getRoadID(i) == "E_start"):
+            dict_scenario["bikes"][int(i)]["start_step"] = step
         dict_cyclists[i].step(step)
         if(not dict_cyclists[i].alive):
             if(dict_cyclists[i].finish_step > 0):
@@ -194,6 +202,8 @@ while(len(dict_cyclists) != 0 or id_cyclist<num_cyclists or len(dict_cars) != 0 
 
     for i in copy.deepcopy(list(dict_cars.keys())):
         sumo_id = i+"_c"
+        if(dict_scenario["cars"][int(i)]["start_step"]<0 and sumo_id in traci.vehicle.getIDList() and traci.vehicle.getRoadID(sumo_id) == "E_start"):
+            dict_scenario["cars"][int(i)]["start_step"] = step
         if(sumo_id in traci.simulation.getArrivedIDList()):
             dict_scenario["cars"][int(i)]["finish_step"] = step
             del dict_cars[i]
@@ -219,219 +229,69 @@ if(len(structure.list_input_to_learn)>0):
     
 print("\ndata number:", len(dict_cyclists_arrived), ",", structure.num_cyclists_crossed, "cyclits used struct, last step:", step)
 
-if(args.config == 2):
-
-    mean_cars_finish_step = compute_graphs_data_cyclists(dict_scenario)
-
+if(args.learning):
     if(not os.path.exists("files/"+sub_folders)):
         os.makedirs("files/"+sub_folders)
-        tab_time_diff_cars = []
+        tab_travel_time_cars = []
+        tab_travel_time_cyclists = []
         tab_x_values = []
     else:
-        with open('files/'+sub_folders+'time_diff_car.tab', 'rb') as infile:
-            tab_time_diff_cars = pickle.load(infile)
+        with open('files/'+sub_folders+'travel_time_cars.tab', 'rb') as infile:
+            tab_travel_time_cars = pickle.load(infile)
+        with open('files/'+sub_folders+'travel_time_cyclists.tab', 'rb') as infile:
+            tab_travel_time_cyclists = pickle.load(infile)
         with open('files/'+sub_folders+'x_values.tab', 'rb') as infile:
             tab_x_values = pickle.load(infile)
-    
-    if(len(tab_x_values) == 0 or tab_x_values[-1] != args.bike_poisson_lambda):
-        tab_time_diff_cars.append([mean_cars_finish_step])
-        tab_x_values.append(args.bike_poisson_lambda)
+
+    mean_cars_travel_time = compute_graphs_data_cars(dict_scenario)
+    mean_cyclists_travel_time = compute_graphs_data_cyclists_wout_struct(dict_scenario)
+
+    print(f"mean car travel time: {mean_cars_travel_time}, mean cyclists travel time: {mean_cyclists_travel_time}")
+
+    if(len(tab_x_values) == 0 or (args.config == 1 and tab_x_values[-1] != args.car_poisson_lambda) or\
+    (args.config == 2 and tab_x_values[-1] != args.bike_poisson_lambda)):
+        tab_travel_time_cars.append([mean_cars_travel_time])
+        tab_travel_time_cyclists.append([mean_cyclists_travel_time])
+        if(args.config == 1):
+            tab_x_values.append(args.car_poisson_lambda)
+        elif(args.config == 2):
+            tab_x_values.append(args.bike_poisson_lambda)
     else:
-        tab_time_diff_cars[-1].append(mean_cars_finish_step)
+        tab_travel_time_cars[-1].append(mean_cars_travel_time)
+        tab_travel_time_cyclists[-1].append(mean_cyclists_travel_time)
 
 
-    tab_mean_time_diff_cars = []
-    tab_max_time_diff_cars = []
-    tab_min_time_diff_cars = []
+    plot_cars_travel_time = [[], [], []]
+    plot_cyclists_travel_time = [[], [], []]
 
     for i in range(len(tab_x_values)):
-        tab_mean_time_diff_cars.append(sum(tab_time_diff_cars[i])/len(tab_time_diff_cars[i]))
-        tab_max_time_diff_cars.append(max(tab_time_diff_cars[i]))
-        tab_min_time_diff_cars.append(min(tab_time_diff_cars[i]))
+        plot_cars_travel_time[0].append(sum(tab_travel_time_cars[i])/len(tab_travel_time_cars[i]))
+        plot_cars_travel_time[1].append(min(tab_travel_time_cars[i]))
+        plot_cars_travel_time[2].append(max(tab_travel_time_cars[i]))
+
+        plot_cyclists_travel_time[0].append(sum(tab_travel_time_cyclists[i])/len(tab_travel_time_cyclists[i]))
+        plot_cyclists_travel_time[1].append(min(tab_travel_time_cyclists[i]))
+        plot_cyclists_travel_time[2].append(max(tab_travel_time_cyclists[i]))
 
 
     plt.clf()
-    plt.plot(tab_x_values, tab_mean_time_diff_cars, label="mean")
-    plt.plot(tab_x_values, tab_max_time_diff_cars, label="max")
-    plt.plot(tab_x_values, tab_min_time_diff_cars, label="min")
+    plt.plot(tab_x_values, plot_cars_travel_time[0], label="mean")
+    plt.plot(tab_x_values, plot_cars_travel_time[1], label="min")
+    plt.plot(tab_x_values, plot_cars_travel_time[2], label="max")
     plt.legend()
-    plt.savefig("images/"+sub_folders+"evolution_cars_time_diff.png")
-
-
-
-elif(args.config == 1 and args.learning):
-    if(not os.path.exists("images/"+sub_folders)):
-        os.makedirs("images/"+sub_folders)
-
-    mean_travel_time = compute_graphs_data_cyclists_wout_struct(dict_scenario)
-
-    if(not os.path.exists("files/"+sub_folders)):
-        os.makedirs("files/"+sub_folders)
-        tab_travel_time = []
-        tab_x_values = []
-    else:
-        with open('files/'+sub_folders+'travel_time.tab', 'rb') as infile:
-            tab_travel_time = pickle.load(infile)
-        with open('files/'+sub_folders+'x_values.tab', 'rb') as infile:
-            tab_x_values = pickle.load(infile)
-    
-    if(len(tab_x_values) == 0 or tab_x_values[-1] != args.car_poisson_lambda):
-        tab_travel_time.append([mean_travel_time])
-        tab_x_values.append(args.car_poisson_lambda)
-    else:
-        tab_travel_time[-1].append(mean_travel_time)
-
-
-
-    tab_mean_travel_time = []
-    tab_max_travel_time = []
-    tab_min_travel_time = []
-
-    for i in range(len(tab_x_values)):
-        tab_mean_travel_time.append(sum(tab_travel_time[i])/len(tab_travel_time[i]))
-        tab_max_travel_time.append(max(tab_travel_time[i]))
-        tab_min_travel_time.append(min(tab_travel_time[i]))
-
+    plt.savefig("images/"+sub_folders+"evolution_cars_travel_time.png")
 
     plt.clf()
-    plt.plot(tab_x_values, tab_mean_travel_time, label="mean")
-    plt.plot(tab_x_values, tab_max_travel_time, label="max")
-    plt.plot(tab_x_values, tab_min_travel_time, label="min")
+    plt.plot(tab_x_values, plot_cyclists_travel_time[0], label="mean")
+    plt.plot(tab_x_values, plot_cyclists_travel_time[1], label="min")
+    plt.plot(tab_x_values, plot_cyclists_travel_time[2], label="max")
     plt.legend()
-    plt.savefig("images/"+sub_folders+"evolution_travel_time.png") 
+    plt.savefig("images/"+sub_folders+"evolution_cyclists_travel_time.png")
 
-    with open('files/'+sub_folders+'travel_time.tab', 'wb') as outfile:
-        pickle.dump(tab_travel_time, outfile)
+    with open('files/'+sub_folders+'travel_time_cars.tab', 'wb') as outfile:
+        pickle.dump(tab_travel_time_cars, outfile)
+    with open('files/'+sub_folders+'travel_time_cyclists.tab', 'wb') as outfile:
+        pickle.dump(tab_travel_time_cyclists, outfile)
     with open('files/'+sub_folders+'x_values.tab', 'wb') as outfile:
         pickle.dump(tab_x_values, outfile)
-
-
-
-
-
-elif(args.config == 0 and not args.new_scenario):
-    tab_all_diff_arrival_time, tab_diff_finish_step, tab_diff_waiting_time, tab_diff_distance_travelled, tab_num_type_cyclists =\
-    compute_graphs_data_cyclists(structure.open, dict_cyclists_arrived, dict_scenario)
-    
-    if(not os.path.exists("images/"+sub_folders)):
-        os.makedirs("images/"+sub_folders)
-
-    plot_and_save_boxplot(tab_all_diff_arrival_time, "time_diff_struct", structure_was_open=structure.open, sub_folders=sub_folders)
-
-    num_diff_finish_step = 0   
-    sum_diff_finish_step = 0
-    
-    for i in range(len(tab_diff_finish_step)-1):
-        sum_diff_finish_step += sum(tab_diff_finish_step[i])
-        num_diff_finish_step += len(tab_diff_finish_step[i])
-
-    if(num_diff_finish_step == 0):
-        mean_diff_finish_step = 0
-    else:
-        mean_diff_finish_step = sum_diff_finish_step/num_diff_finish_step
-
-
-    if(len(tab_diff_finish_step[-1]) == 0):
-        mean_diff_finish_step_others = 0
-    else:
-        mean_diff_finish_step_others = sum(tab_diff_finish_step[-1])/len(tab_diff_finish_step[-1])
-    
-    print("mean finish time diff for users of struct:", mean_diff_finish_step, ", for others:",mean_diff_finish_step_others)
-
-
-    if(structure.open):
-        labels=["Gagnants", "Perdants", "Annulés", "Reste"]
-
-        plot_and_save_boxplot(tab_diff_finish_step, "mean_time_diff", labels=labels, sub_folders=sub_folders)
-        plot_and_save_boxplot(tab_diff_waiting_time, "mean_waiting_time", labels=labels, sub_folders=sub_folders)
-        plot_and_save_boxplot(tab_diff_distance_travelled, "mean_distance_travelled", labels=labels, sub_folders=sub_folders)
-
-        plot_and_save_bar(tab_num_type_cyclists, "cyclists_type", labels=labels, sub_folders=sub_folders)
-
-
-        if(args.learning):
-            
-            if(not os.path.exists("files/"+sub_folders)):
-                os.makedirs("files/"+sub_folders)
-                tab_perc_cycl = [[], []]
-                tab_time_diff = []
-                tab_x_values = []
-                if(use_model):
-                    tab_mean_loss = []
-            else:
-                with open('files/'+sub_folders+'perc_cycl.tab', 'rb') as infile:
-                    tab_perc_cycl = pickle.load(infile)
-                with open('files/'+sub_folders+'time_diff.tab', 'rb') as infile:
-                    tab_time_diff = pickle.load(infile)
-                with open('files/'+sub_folders+'x_values.tab', 'rb') as infile:
-                    tab_x_values = pickle.load(infile)
-                if(use_model):
-                    with open('files/'+sub_folders+'mean_loss.tab', 'rb') as infile:
-                        tab_mean_loss = pickle.load(infile)
-
-
-            if(len(tab_x_values) == 0 or tab_x_values[-1] != args.bike_poisson_lambda):
-                tab_perc_cycl[0].append([structure.num_cyclists_crossed/num_cyclists*100])
-                tab_perc_cycl[1].append([structure.num_cyclists_canceled/num_cyclists*100])
-                tab_time_diff.append([mean_diff_finish_step])
-                tab_x_values.append(args.bike_poisson_lambda)
-            else:
-                tab_perc_cycl[0][-1].append(structure.num_cyclists_crossed/num_cyclists*100)
-                tab_perc_cycl[1][-1].append(structure.num_cyclists_canceled/num_cyclists*100)
-                tab_time_diff[-1].append(mean_diff_finish_step)
-
-
-            print(tab_perc_cycl[0], tab_perc_cycl[1], tab_time_diff)
-
-            tab_mean_perc_cycl = []
-            tab_max_perc_cycl = []
-            tab_min_perc_cycl = []
-
-            tab_mean_time_diff = []
-            tab_max_time_diff = []
-            tab_min_time_diff = []
-
-            for i in range(len(tab_x_values)):
-                tab_mean_perc_cycl.append(sum(tab_perc_cycl[0][i])/len(tab_perc_cycl[0][i]))
-                tab_max_perc_cycl.append(max(tab_perc_cycl[0][i]))
-                tab_min_perc_cycl.append(min(tab_perc_cycl[0][i]))
-
-                tab_mean_time_diff.append(sum(tab_time_diff[i])/len(tab_time_diff[i]))
-                tab_max_time_diff.append(max(tab_time_diff[i]))
-                tab_min_time_diff.append(min(tab_time_diff[i]))
-
-
-            plt.clf()
-            plt.plot(tab_x_values, tab_mean_time_diff, label="mean")
-            plt.plot(tab_x_values, tab_max_time_diff, label="max")
-            plt.plot(tab_x_values, tab_min_time_diff, label="min")
-            plt.legend()
-            plt.savefig("images/"+sub_folders+"evolution_time_diff.png")
-
-            plt.clf()
-            plt.plot(tab_x_values, tab_mean_perc_cycl, label="mean")
-            plt.plot(tab_x_values, tab_max_perc_cycl, label="max")
-            plt.plot(tab_x_values, tab_min_perc_cycl, label="min")
-            plt.legend()
-            plt.savefig("images/"+sub_folders+"evolution_percentage_cycl_using_struct.png")
-
-            with open('files/'+sub_folders+'perc_cycl.tab', 'wb') as outfile:
-                pickle.dump(tab_perc_cycl, outfile)
-            with open('files/'+sub_folders+'time_diff.tab', 'wb') as outfile:
-                pickle.dump(tab_time_diff, outfile)
-            with open('files/'+sub_folders+'x_values.tab', 'wb') as outfile:
-                pickle.dump(tab_x_values, outfile)
-
-            if(use_model and save_model and len(structure.list_loss) != 0):
-                print(tab_mean_loss)
-                mean_loss = sum(structure.list_loss)/len(structure.list_loss)
-                tab_mean_loss.append(mean_loss)
-                
-                plt.clf()
-                plt.plot(tab_mean_loss)
-                plt.savefig("images/"+sub_folders+"evolution_mean_loss.png")
-
-                with open('files/'+sub_folders+'mean_loss.tab', 'wb') as outfile:
-                    pickle.dump(tab_mean_loss, outfile)
-
 

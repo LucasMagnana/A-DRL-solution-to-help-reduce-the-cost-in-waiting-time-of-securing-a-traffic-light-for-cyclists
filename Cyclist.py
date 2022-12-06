@@ -19,7 +19,7 @@ class Cyclist:
         self.module_traci.route.add(str(self.id)+"_sp", path)
         
         d_speed = traci.vehicletype.getMaxSpeed('bicycle')-2
-        self.module_traci.vehicle.add(str(self.id), str(self.id)+"_sp", departLane="best", typeID='bicycle', departSpeed=d_speed)
+        self.module_traci.vehicle.add(str(self.id), str(self.id)+"_sp", departLane="0", typeID='bicycle', departPos="last", departSpeed="avg")
         
         self.set_max_speed(max_speed)
         self.max_speed = self.module_traci.vehicle.getMaxSpeed(str(self.id))
@@ -83,9 +83,9 @@ class Cyclist:
 
             if(self.actual_edge_id in self.structure.path):
                 if(self.actual_path == self.original_path):
-                    self.module_traci.vehicle.changeLane(self.id, 0, 3)
+                    self.module_traci.vehicle.changeLane(self.id, 0, 10)
                 elif(self.actual_edge_id != self.last_edge_in_struct_id):
-                    self.module_traci.vehicle.changeLane(self.id, 1, 3) 
+                    self.module_traci.vehicle.changeLane(self.id, 1, 10) 
 
             if(self.struct_candidate and not self.going_to_struct and not self.crossing_struct):
                 self.go_to_struct()
