@@ -36,13 +36,19 @@ lr=1e-5
 step_length = 0.2
 simu_length = 1000
 
-
+if(args.config == 0):
+    car_poisson_lambda = 0.2
+    bike_poisson_lambda = args.poisson_lambda
+    bike_evoluting = True
 if(args.config == 1):
     car_poisson_lambda = args.poisson_lambda
-    bike_poisson_lambda = 1
+    bike_poisson_lambda = 0.2
+    bike_evoluting = False
 elif(args.config == 2):
     car_poisson_lambda = 0.2
     bike_poisson_lambda = args.poisson_lambda
+    bike_evoluting = True
+
 
 bike_poisson_distrib = np.random.poisson(bike_poisson_lambda, simu_length)
 car_poisson_distrib = np.random.poisson(car_poisson_lambda, simu_length)
@@ -53,10 +59,10 @@ if(use_model):
 else:
     sub_folders = "wou_model/"
 
-if(args.config == 1):
-    sub_folders+="config_"+str(args.config)+"/"+str(bike_poisson_lambda)+"/"
-elif(args.config == 2):
+if(bike_evoluting):
     sub_folders+="config_"+str(args.config)+"/"+str(car_poisson_lambda)+"/"
+else:
+    sub_folders+="config_"+str(args.config)+"/"+str(bike_poisson_lambda)+"/"
 
 
 
@@ -146,17 +152,17 @@ step = 0
 while(step<simu_length or len(dict_cyclists) != 0 or len(dict_cars) != 0):
     if(args.new_scenario):
         if(step<simu_length):
-            for _ in bike_poisson_distrib[int(step)]:
+            for _ in range(bike_poisson_distrib[int(step)]):
                 e1 = net.getEdge("E0")
                 e2 = net.getEdge("E"+str(randint(3, 9)))
                 path = net.getShortestPath(e1, e2, vClass='bicycle')[0]
                 max_speed = np.random.normal(15, 3)
                 dict_scenario["bikes"].append({"start_step": step, "start_edge": e1, "end_edge": e2, "max_speed": max_speed})
-                spawn_cyclist(id_cyclist, step, path, net, structure, step_length, max_speed, args.config==0, args, dict_cyclists)
+                spawn_cyclist(id_cyclist, step, path, net, structure, step_length, max_speed, False, args, dict_cyclists)
                 id_cyclist+=1
             bike_poisson_distrib[int(step)] = 0
         if(step<simu_length):  
-            for _ in car_poisson_distrib[int(step)]:
+            for _ in range(car_poisson_distrib[int(step)]):
                 e1 = net.getEdge("E0")
                 e2 = net.getEdge("E"+str(randint(3, 9)))
                 path = net.getShortestPath(e1, e2, vClass='passenger')[0]
@@ -170,7 +176,7 @@ while(step<simu_length or len(dict_cyclists) != 0 or len(dict_cars) != 0):
             e1=dict_scenario["bikes"][id_cyclist]["start_edge"]
             e2=dict_scenario["bikes"][id_cyclist]["end_edge"]
             path = net.getShortestPath(e1, e2, vClass='bicycle')[0]
-            spawn_cyclist(id_cyclist, step, path, net, structure, step_length, dict_scenario["bikes"][id_cyclist]["max_speed"], args.config==0, args, dict_cyclists)
+            spawn_cyclist(id_cyclist, step, path, net, structure, step_length, dict_scenario["bikes"][id_cyclist]["max_speed"], False, args, dict_cyclists)
             id_cyclist+=1
         if(id_car<len(dict_scenario["cars"]) and step >= dict_scenario["cars"][id_car]["start_step"]):
             e1=dict_scenario["cars"][id_car]["start_edge"]
@@ -253,14 +259,15 @@ if(args.learning):
 
     print(f"mean car travel time: {mean_cars_travel_time}, mean cyclists travel time: {mean_cyclists_travel_time}")
 
-    if(len(tab_x_values) == 0 or (args.config == 1 and tab_x_values[-1] != car_poisson_lambda) or\
-    (args.config == 2 and tab_x_values[-1] != bike_poisson_lambda)):
+    if(len(tab_x_values) == 0 or bike_evoluting and tab_x_values[-1] != bike_poisson_lambda  or\
+    not bike_evoluting and tab_x_values[-1] != car_poisson_lambda):
         tab_travel_time_cars.append([mean_cars_travel_time])
         tab_travel_time_cyclists.append([mean_cyclists_travel_time])
-        if(args.config == 1):
-            tab_x_values.append(car_poisson_lambda)
-        elif(args.config == 2):
+        if(bike_evoluting):
             tab_x_values.append(bike_poisson_lambda)
+        else:
+            tab_x_values.append(car_poisson_lambda)
+            
     else:
         tab_travel_time_cars[-1].append(mean_cars_travel_time)
         tab_travel_time_cyclists[-1].append(mean_cyclists_travel_time)
@@ -285,12 +292,14 @@ if(args.learning):
     plt.plot(tab_x_values, plot_cyclists_travel_time[0], label="bikes")
     plt.fill_between(tab_x_values, plot_cyclists_travel_time[1], plot_cyclists_travel_time[2], alpha=0.2, color="orange")
     plt.legend()
-    if(args.config == 1):
-        plt.xlabel("Lambda Cars")
-    elif(args.config == 2):
-        plt.xlabel("Lambda Bikes")
     plt.ylabel("Travel Time")
-    plt.savefig("images/"+sub_folders+"evolution_travel_time.png")
+    if(bike_evoluting):
+        plt.xlabel("Lambda Bikes")
+        plt.savefig("images/"+sub_folders+"bike_evolution_travel_time.png")
+    else:
+        plt.xlabel("Lambda Cars")
+        plt.savefig("images/"+sub_folders+"car_evolution_travel_time.png")
+    
 
     with open('files/'+sub_folders+'travel_time_cars.tab', 'wb') as outfile:
         pickle.dump(tab_travel_time_cars, outfile)
