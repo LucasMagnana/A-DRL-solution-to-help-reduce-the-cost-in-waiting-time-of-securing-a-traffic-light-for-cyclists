@@ -15,7 +15,7 @@ from Model import Model
 
 if __name__ == "__main__": 
     parse = argparse.ArgumentParser()
-    parse.add_argument('--new-scenario', type=bool, default=False)
+    parse.add_argument('--new-scenario', type=bool, default=True)
     parse.add_argument('--learning', type=bool, default=False)
     parse.add_argument('--poisson-lambda', type=float, default=0.2)
     parse.add_argument('--min-group-size', type=int, default=5)
@@ -37,12 +37,12 @@ step_length = 0.2
 simu_length = 1000
 
 if(args.config == 0):
-    car_poisson_lambda = args.poisson_lambda
-    bike_poisson_lambda = 0.2
-    bike_evoluting = False
+    car_poisson_lambda = 0.2 
+    bike_poisson_lambda = args.poisson_lambda
+    bike_evoluting = True
 if(args.config == 1):
     car_poisson_lambda = args.poisson_lambda
-    bike_poisson_lambda = 0.2
+    bike_poisson_lambda = 1
     bike_evoluting = False
 elif(args.config == 2):
     car_poisson_lambda = 0.2
@@ -238,6 +238,12 @@ if(len(structure.list_input_to_learn)>0):
     
 print("\ndata number:", len(dict_cyclists_arrived), ",", structure.num_cyclists_crossed, "cyclits used struct, last step:", step)
 
+
+mean_cars_travel_time = compute_graphs_data_cars(dict_scenario)
+mean_cyclists_travel_time = compute_graphs_data_cyclists_wout_struct(dict_scenario)
+
+print(f"mean car travel time: {mean_cars_travel_time}, mean cyclists travel time: {mean_cyclists_travel_time}")
+
 if(args.learning):
     if(not os.path.exists("files/"+sub_folders)):
         os.makedirs("files/"+sub_folders)
@@ -254,10 +260,6 @@ if(args.learning):
         with open('files/'+sub_folders+'x_values.tab', 'rb') as infile:
             tab_x_values = pickle.load(infile)
 
-    mean_cars_travel_time = compute_graphs_data_cars(dict_scenario)
-    mean_cyclists_travel_time = compute_graphs_data_cyclists_wout_struct(dict_scenario)
-
-    print(f"mean car travel time: {mean_cars_travel_time}, mean cyclists travel time: {mean_cyclists_travel_time}")
 
     if(len(tab_x_values) == 0 or bike_evoluting and tab_x_values[-1] != bike_poisson_lambda  or\
     not bike_evoluting and tab_x_values[-1] != car_poisson_lambda):
