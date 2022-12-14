@@ -2,7 +2,7 @@ import threading
 import torch
 
 class Structure:
-    def __init__(self, start_edge, end_edge, edges, net, dict_cyclists, traci,\
+    def __init__(self, start_edge, end_edge, edges, net, dict_cyclists, traci, config,\
     dict_edges_index=None, model=None, open=True, min_group_size=5, batch_size=32, learning=True, lr=1e-5):
 
         for e in edges:
@@ -44,10 +44,21 @@ class Structure:
 
         self.open = open
 
+        self.config = config
+
         for e in self.path:
             tls = self.net.getEdge(e).getTLS()
             if(tls):
                 self.module_traci.trafficlight.setPhase(tls.getID(), 2)
+
+
+        if(self.config == 3):
+            tls = self.net.getEdge(self.path[0]).getTLS()
+            self.module_traci.trafficlight.setProgramLogic(tls.getID(), self.module_traci.trafficlight.Logic(1, 0, 0, \
+            phases=[self.module_traci.trafficlight.Phase(duration=99999, state="rrrrrrrrrrrrGGGrrrrrrrrr", minDur=9999, maxDur=9999)]))
+
+            self.module_traci.trafficlight.setProgram(tls.getID(), 0)
+            self.module_traci.trafficlight.setPhase(tls.getID(), 2)
 
 
 
@@ -56,7 +67,6 @@ class Structure:
 
         if(len(self.list_input_to_learn)>=self.batch_size):
             self.learn()
-
 
                 
         for i in self.module_traci.edge.getLastStepVehicleIDs(self.start_edge.getID()):
@@ -71,6 +81,7 @@ class Structure:
                     if(i not in self.id_cyclists_waiting and self.module_traci.vehicle.getSpeed(i)<= 3):
                         self.id_cyclists_waiting.append(i)
                         self.dict_cyclists[i].step_cancel_struct_candidature = step+99999
+                        print(self.id_cyclists_waiting)
                     
                 else:
                     for j in range(len(self.id_cyclists_waiting)-1, -1, -1):
@@ -109,7 +120,34 @@ class Structure:
         for i in self.id_cyclists_waiting:
             if(i not in self.module_traci.edge.getLastStepVehicleIDs(self.start_edge.getID())):
                 self.id_cyclists_waiting.remove(i)
-            
+
+
+        print(self.config)
+        if(self.config == 0):
+            self.check_lights_1_program(step)
+        elif(self.config == 3):
+            self.check_lights_2_programs()
+
+
+    def check_lights_2_programs(self):
+        e = self.path[0]
+        tls = self.net.getEdge(e).getTLS()
+        if(len(set(self.module_traci.edge.getLastStepVehicleIDs(e)) & set(self.id_cyclists_crossing_struct)) >= self.min_group_size):           
+            if(self.module_traci.trafficlight.getProgram(tls.getID()) == "0"):
+                if(self.module_traci.trafficlight.getPhase(tls.getID()) == 2):
+                    self.module_traci.trafficlight.setPhase(tls.getID(), 3)
+                elif(self.module_traci.trafficlight.getPhase(tls.getID()) == 0):
+                    self.module_traci.trafficlight.setProgram(tls.getID(), 1)
+        
+        elif(len(set(self.module_traci.edge.getLastStepVehicleIDs(e)) & set(self.id_cyclists_crossing_struct)) == 0):
+            if(self.module_traci.trafficlight.getProgram(tls.getID()) == "1"):
+                self.module_traci.trafficlight.setProgram(tls.getID(), 0)
+                self.module_traci.trafficlight.setPhase(tls.getID(), 0)
+
+        
+
+    def check_lights_1_program(self, step):
+        print("bite")
         for e in self.path:
             tls = self.net.getEdge(e).getTLS()
             if(tls):

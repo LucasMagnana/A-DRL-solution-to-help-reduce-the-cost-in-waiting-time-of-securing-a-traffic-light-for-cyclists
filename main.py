@@ -15,14 +15,16 @@ from Model import Model
 
 if __name__ == "__main__": 
     parse = argparse.ArgumentParser()
-    parse.add_argument('--new-scenario', type=bool, default=True)
     parse.add_argument('--learning', type=bool, default=False)
     parse.add_argument('--poisson-lambda', type=float, default=0.2)
     parse.add_argument('--min-group-size', type=int, default=5)
     parse.add_argument('--gui', type=bool, default=False)
     parse.add_argument('--config', type=int, default=0)
+    parse.add_argument('--struct-open', type=bool, default=False)
     
 args = parse.parse_args()
+
+print(args)
 
 
 use_model = False
@@ -36,7 +38,7 @@ lr=1e-5
 step_length = 0.2
 simu_length = 1000
 
-if(args.config == 0):
+if(args.config == 0 or args.config == 3):
     car_poisson_lambda = 0.2 
     bike_poisson_lambda = args.poisson_lambda
     bike_evoluting = True
@@ -85,8 +87,8 @@ import traci.constants as tc
 
 
 def spawn_cyclist(id_cyclist, step, path, net, structure, step_length, max_speed, struct_candidate, args, dict_cyclists):
-    if(args.new_scenario or num_cyclists-id_cyclist+max(len(structure.id_cyclists_waiting), len(traci.edge.getLastStepVehicleIDs(structure.start_edge.getID())))<structure.min_group_size):
-        struct_candidate = False
+    if(args.struct_open or num_cyclists-id_cyclist+max(len(structure.id_cyclists_waiting), len(traci.edge.getLastStepVehicleIDs(structure.start_edge.getID())))<structure.min_group_size):
+        struct_candidate = True
     
     c = Cyclist(str(id_cyclist), step, path, net, structure, max_speed, traci, sumolib, step_length, struct_candidate=struct_candidate)
     dict_cyclists[str(id_cyclist)]=c
@@ -106,12 +108,13 @@ net = sumolib.net.readNet("sumo_files/net_"+str(args.config)+".net.xml")
 edges = net.getEdges()
 
 
-if(args.new_scenario):
-    print("WARNING : Creating a new scenario...")
-    dict_scenario={"cars": [], "bikes": []}
-    num_cyclists = sum(bike_poisson_distrib)
-    num_cars = sum(car_poisson_distrib)
-else:
+
+print("WARNING : Creating a new scenario...")
+dict_scenario={"cars": [], "bikes": []}
+num_cyclists = sum(bike_poisson_distrib)
+num_cars = sum(car_poisson_distrib)
+
+if(False):
     print("WARNING : Loading the scenario...")
     with open('scenario.dict', 'rb') as infile:
         dict_scenario = pickle.load(infile)
@@ -141,8 +144,8 @@ dict_cyclists= {}
 dict_cars = {}
 dict_cyclists_arrived = {}
 
-structure = Structure("E0", "E2", edges, net, dict_cyclists, traci, dict_edges_index, model,\
-open=not args.new_scenario, min_group_size=args.min_group_size, batch_size=batch_size, learning=args.learning, lr=lr)
+structure = Structure("E_start", "E2", edges, net, dict_cyclists, traci, args.config, dict_edges_index, model,\
+open=args.struct_open, min_group_size=args.min_group_size, batch_size=batch_size, learning=args.learning, lr=lr)
 
 
 id_cyclist = 0
@@ -150,7 +153,7 @@ id_car = 0
 step = 0
 
 while(step<simu_length or len(dict_cyclists) != 0 or len(dict_cars) != 0):
-    if(args.new_scenario):
+    if(True): #new_scenario
         if(step<simu_length):
             for _ in range(bike_poisson_distrib[int(step)]):
                 e1 = net.getEdge("E0")
@@ -200,10 +203,9 @@ while(step<simu_length or len(dict_cyclists) != 0 or len(dict_cars) != 0):
                     structure.list_target.append(target)                  
                     del structure.dict_model_input[i]
 
-                if(args.new_scenario):
-                    dict_scenario["bikes"][int(dict_cyclists[i].id)]["finish_step"] = step
-                    dict_scenario["bikes"][int(dict_cyclists[i].id)]["waiting_time"] = dict_cyclists[i].waiting_time
-                    dict_scenario["bikes"][int(dict_cyclists[i].id)]["distance_travelled"] = dict_cyclists[i].distance_travelled
+                dict_scenario["bikes"][int(dict_cyclists[i].id)]["finish_step"] = step
+                dict_scenario["bikes"][int(dict_cyclists[i].id)]["waiting_time"] = dict_cyclists[i].waiting_time
+                dict_scenario["bikes"][int(dict_cyclists[i].id)]["distance_travelled"] = dict_cyclists[i].distance_travelled
                     
             else:
                 traci.vehicle.remove(i)
@@ -226,10 +228,10 @@ while(step<simu_length or len(dict_cyclists) != 0 or len(dict_cars) != 0):
 
     step += step_length
 
-if(args.new_scenario):
-    print("WARNING: Saving scenario...")
-    with open('scenario.dict', 'wb') as outfile:
-        pickle.dump(dict_scenario, outfile)
+
+print("WARNING: Saving scenario...")
+with open('scenario.dict', 'wb') as outfile:
+    pickle.dump(dict_scenario, outfile)
 
 traci.close()
 
@@ -297,10 +299,17 @@ if(args.learning):
     plt.ylabel("Travel Time")
     if(bike_evoluting):
         plt.xlabel("Lambda Bikes")
-        plt.savefig("images/"+sub_folders+"bike_evolution_travel_time.png")
+        name_fig = "images/"+sub_folders+"bike_evolution_travel_time"
     else:
         plt.xlabel("Lambda Cars")
-        plt.savefig("images/"+sub_folders+"car_evolution_travel_time.png")
+        name_fig = "images/"+sub_folders+"car_evolution_travel_time"
+
+    if(args.struct_open):
+        name_fig += "_struct.png"
+    else:
+        name_fig += ".png"
+
+    plt.savefig(name_fig)
     
 
     with open('files/'+sub_folders+'travel_time_cars.tab', 'wb') as outfile:
