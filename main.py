@@ -24,8 +24,6 @@ if __name__ == "__main__":
     
 args = parse.parse_args()
 
-print(args)
-
 
 use_model = False
 save_model = use_model
@@ -39,7 +37,7 @@ step_length = 0.2
 simu_length = 1000
 
 if(args.config == 0 or args.config == 3):
-    car_poisson_lambda = 0.2 
+    car_poisson_lambda = 0.2
     bike_poisson_lambda = args.poisson_lambda
     bike_evoluting = True
 if(args.config == 1):

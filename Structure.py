@@ -81,7 +81,6 @@ class Structure:
                     if(i not in self.id_cyclists_waiting and self.module_traci.vehicle.getSpeed(i)<= 3):
                         self.id_cyclists_waiting.append(i)
                         self.dict_cyclists[i].step_cancel_struct_candidature = step+99999
-                        print(self.id_cyclists_waiting)
                     
                 else:
                     for j in range(len(self.id_cyclists_waiting)-1, -1, -1):
@@ -121,8 +120,6 @@ class Structure:
             if(i not in self.module_traci.edge.getLastStepVehicleIDs(self.start_edge.getID())):
                 self.id_cyclists_waiting.remove(i)
 
-
-        print(self.config)
         if(self.config == 0):
             self.check_lights_1_program(step)
         elif(self.config == 3):
@@ -147,7 +144,6 @@ class Structure:
         
 
     def check_lights_1_program(self, step):
-        print("bite")
         for e in self.path:
             tls = self.net.getEdge(e).getTLS()
             if(tls):
