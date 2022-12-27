@@ -1,84 +1,26 @@
 import matplotlib.pyplot as plt
+import pickle
+import os
 
-def compute_graphs_data_cyclists_wout_struct(dict_scenario):
+def compute_graphs_data_cyclists(dict_scenario):
     if(len(dict_scenario["bikes"])>0):
         tab_travel_time = [b["finish_step"]-b["start_step"] for b in dict_scenario["bikes"]]
-        return sum(tab_travel_time)/len(tab_travel_time)
+        tab_speed = [b["distance_travelled"]/(b["finish_step"]-b["start_step"]) for b in dict_scenario["bikes"]]
+        tab_distance_travelled = [b["distance_travelled"] for b in dict_scenario["bikes"]]
+        
+        return sum(tab_travel_time)/len(tab_travel_time), sum(tab_speed)/len(tab_speed) 
     else:
-        return 0
+        return 0, 0
 
 
 
 def compute_graphs_data_cars(dict_scenario):
     if(len(dict_scenario["cars"])>0):
         tab_travel_time = [c["finish_step"]-c["start_step"] for c in dict_scenario["cars"]]
-        return sum(tab_travel_time)/len(tab_travel_time)
+        tab_speed = [b["distance_travelled"]/(b["finish_step"]-b["start_step"]) for b in dict_scenario["cars"]]
+        return sum(tab_travel_time)/len(tab_travel_time), sum(tab_speed)/len(tab_speed) 
     else:
-        return 0
-
-def compute_graphs_data_cyclists(structure_was_open, dict_cyclists_arrived, dict_scenario):
-    tab_diff_finish_step = [[],[],[], []]
-    tab_diff_waiting_time = [[],[],[], []]
-    tab_diff_distance_travelled = [[],[],[], []]
-    tab_num_type_cyclists = [0, 0, 0, 0]
-
-    tab_all_diff_arrival_time=[]
-
-    for i in dict_cyclists_arrived:
-        c = dict_cyclists_arrived[i]
-        tab_all_diff_arrival_time.append(dict_scenario["bikes"][int(c.id)]["finish_step"]-c.finish_step)
-        if(structure_was_open):
-            if(c.canceled_candidature):
-                tab_diff_finish_step[2].append(dict_scenario["bikes"][int(c.id)]["finish_step"]-c.finish_step)
-                tab_diff_waiting_time[2].append(dict_scenario["bikes"][int(c.id)]["waiting_time"]-c.waiting_time)
-                tab_diff_distance_travelled[2].append(dict_scenario["bikes"][int(c.id)]["distance_travelled"]-c.distance_travelled)
-                tab_num_type_cyclists[2]+=1
-            elif(c.struct_crossed):
-                if(c.finish_step>dict_scenario["bikes"][int(c.id)]["finish_step"]):
-                    tab_diff_finish_step[1].append(dict_scenario["bikes"][int(c.id)]["finish_step"]-c.finish_step)
-                    tab_diff_waiting_time[1].append(dict_scenario["bikes"][int(c.id)]["waiting_time"]-c.waiting_time)
-                    tab_diff_distance_travelled[1].append(dict_scenario["bikes"][int(c.id)]["distance_travelled"]-c.distance_travelled)
-                    tab_num_type_cyclists[1]+=1
-                elif(c.finish_step<dict_scenario["bikes"][int(c.id)]["finish_step"]):
-                    tab_diff_finish_step[0].append(dict_scenario["bikes"][int(c.id)]["finish_step"]-c.finish_step)
-                    tab_diff_waiting_time[0].append(dict_scenario["bikes"][int(c.id)]["waiting_time"]-c.waiting_time)
-                    tab_diff_distance_travelled[0].append(dict_scenario["bikes"][int(c.id)]["distance_travelled"]-c.distance_travelled)
-                    tab_num_type_cyclists[0]+=1
-            else:
-                tab_diff_finish_step[3].append(dict_scenario["bikes"][int(c.id)]["finish_step"]-c.finish_step)
-                tab_diff_waiting_time[3].append(dict_scenario["bikes"][int(c.id)]["waiting_time"]-c.waiting_time)
-                tab_diff_distance_travelled[3].append(dict_scenario["bikes"][int(c.id)]["distance_travelled"]-c.distance_travelled)
-                tab_num_type_cyclists[3]+=1
-
-                    
-
-
-        '''tab_mean_diff_arrival_time = []
-        for i in range(len(tab_diff_finish_step)):
-            if(len(tab_diff_finish_step[i])==0):
-                tab_mean_diff_arrival_time.append(0)
-            else:
-                tab_mean_diff_arrival_time.append(sum(tab_diff_finish_step[i])/len(tab_diff_finish_step[i]))
-
-
-        tab_mean_diff_waiting_time = []
-        for i in range(len(tab_diff_waiting_time)):
-            if(len(tab_diff_waiting_time[i])==0):
-                tab_mean_diff_waiting_time.append(0)
-            else:
-                tab_mean_diff_waiting_time.append(sum(tab_diff_waiting_time[i])/len(tab_diff_waiting_time[i]))
-
-        tab_mean_diff_distance_travelled = []
-        for i in range(len(tab_diff_distance_travelled)):
-            if(len(tab_diff_distance_travelled[i])==0):
-                tab_mean_diff_distance_travelled.append(0)
-            else:
-                tab_mean_diff_distance_travelled.append(sum(tab_diff_distance_travelled[i])/len(tab_diff_distance_travelled[i]))'''
-
-        
-    return tab_all_diff_arrival_time, tab_diff_finish_step, tab_diff_waiting_time, tab_diff_distance_travelled, tab_num_type_cyclists
-
-
+        return 0, 0
 
 
 def plot_and_save_boxplot(data, file_title, labels=None, structure_was_open=None, sub_folders=""):
@@ -110,3 +52,75 @@ def plot_and_save_line(data, file_title, labels=None, sub_folders=""):
     ax1.set_title('')
     ax1.bar(range(len(data)), data, tick_label=labels)
     plt.savefig("images/"+sub_folders+file_title+".png")
+
+
+if __name__ == "__main__": 
+
+    config = 0
+    poisson_lambda_fixed = 0.2
+    pre_file_name = "bikes_evolv_"
+
+    sub_folders = "wou_model/"
+    sub_folders+="config_"+str(config)+"/"+str(poisson_lambda_fixed)+"/"
+
+    with open("files/"+sub_folders+pre_file_name+"scenarios.dict", 'rb') as infile:
+        d_scenarios = pickle.load(infile)
+
+    dict_graphs = {"x_mean": [], "mean_cars_t_t": [[], [], []], "mean_bikes_t_t": [[],[],[]], "flow": [], "flow_on_speed": []}
+
+    tab_mean_t_t = [[],[]]
+
+    tab_flows = [[],[]]
+    tab_flows_on_speed = [[],[]]
+
+    for lam in d_scenarios:
+        dict_graphs["x_mean"].append(lam)
+        for i in range(len(d_scenarios[lam])):
+            mean_cars_t_t, mean_cars_speed = compute_graphs_data_cars(d_scenarios[lam][i])
+            mean_bikes_t_t, mean_bikes_speed = compute_graphs_data_cyclists(d_scenarios[lam][i])
+
+            tab_mean_t_t[0].append(mean_cars_t_t)
+            tab_mean_t_t[1].append(mean_bikes_t_t)
+            
+            tab_flows[0].append(len(d_scenarios[lam][i]["cars"])/1000)
+            tab_flows[1].append(len(d_scenarios[lam][i]["bikes"])/1000)
+
+            tab_flows_on_speed[0].append(tab_flows[0][-1]/mean_cars_speed)
+            tab_flows_on_speed[1].append(tab_flows[1][-1]/mean_bikes_speed)
+
+        dict_graphs["mean_cars_t_t"][0].append(sum(tab_mean_t_t[0])/len(tab_mean_t_t[0]))
+        dict_graphs["mean_cars_t_t"][1].append(min(tab_mean_t_t[0]))
+        dict_graphs["mean_cars_t_t"][2].append(max(tab_mean_t_t[0]))
+
+        dict_graphs["mean_bikes_t_t"][0].append(sum(tab_mean_t_t[1])/len(tab_mean_t_t[1]))
+        dict_graphs["mean_bikes_t_t"][1].append(min(tab_mean_t_t[1]))
+        dict_graphs["mean_bikes_t_t"][2].append(max(tab_mean_t_t[1]))
+
+        dict_graphs["flow"].append(sum(tab_flows[1])/len(tab_flows[1]))
+        dict_graphs["flow_on_speed"].append(sum(tab_flows_on_speed[1])/len(tab_flows_on_speed[1]))
+
+        tab_mean_t_t = [[],[]]
+
+        tab_flows = [[],[]]
+        tab_flows_on_speed = [[],[]]
+
+    if(not os.path.exists("images/"+sub_folders)):
+        os.makedirs("images/"+sub_folders)
+
+    plt.clf()
+    plt.plot(dict_graphs["x_mean"], dict_graphs["mean_cars_t_t"][0], label="cars")
+    plt.fill_between(dict_graphs["x_mean"], dict_graphs["mean_cars_t_t"][1], dict_graphs["mean_cars_t_t"][2], alpha=0.2)
+    plt.plot(dict_graphs["x_mean"], dict_graphs["mean_bikes_t_t"][0], label="bikes")
+    plt.fill_between(dict_graphs["x_mean"], dict_graphs["mean_bikes_t_t"][1], dict_graphs["mean_bikes_t_t"][2], alpha=0.2, color="orange")
+    plt.legend()
+    plt.ylabel("Travel Time")
+    plt.xlabel("Flow of bikes (per step)")
+    name_fig = "images/"+sub_folders+"bike_evolution_travel_time"
+    plt.savefig(name_fig)
+
+    plt.clf()
+    plt.plot(dict_graphs["flow_on_speed"], dict_graphs["flow"], label="bikes")
+    plt.xlabel("Flow divided by speed of bikes")
+    plt.ylabel("Flow of bikes (per step)")
+    name_fig = "images/"+sub_folders+"bike_evolution_flow_on_speed"
+    plt.savefig(name_fig)

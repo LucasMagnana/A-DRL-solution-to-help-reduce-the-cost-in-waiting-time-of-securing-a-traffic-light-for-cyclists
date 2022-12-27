@@ -100,6 +100,7 @@ def spawn_car(id_car, step, path, net, dict_cars):
 
 
 
+
 traci.start(sumoCmd)
 
 net = sumolib.net.readNet("sumo_files/net_"+str(args.config)+".net.xml")
@@ -158,7 +159,8 @@ while(step<simu_length or len(dict_cyclists) != 0 or len(dict_cars) != 0):
                 e2 = net.getEdge("E"+str(randint(3, 9)))
                 path = net.getShortestPath(e1, e2, vClass='bicycle')[0]
                 max_speed = np.random.normal(15, 3)
-                dict_scenario["bikes"].append({"start_step": step, "start_edge": e1, "end_edge": e2, "max_speed": max_speed})
+                dict_scenario["bikes"].append({"start_step": step, "start_edge": e1.getID(), "end_edge": e2.getID(), "max_speed": max_speed,
+                "distance_travelled": net.getShortestPath(net.getEdge("E_start"), e2, vClass='bicycle', fromPos=0)[1]})
                 spawn_cyclist(id_cyclist, step, path, net, structure, step_length, max_speed, False, args, dict_cyclists)
                 id_cyclist+=1
             bike_poisson_distrib[int(step)] = 0
@@ -167,7 +169,8 @@ while(step<simu_length or len(dict_cyclists) != 0 or len(dict_cars) != 0):
                 e1 = net.getEdge("E0")
                 e2 = net.getEdge("E"+str(randint(3, 9)))
                 path = net.getShortestPath(e1, e2, vClass='passenger')[0]
-                dict_scenario["cars"].append({"start_step": step, "start_edge": e1, "end_edge": e2})
+                dict_scenario["cars"].append({"start_step": step, "start_edge": e1.getID(), "end_edge": e2.getID(),
+                "distance_travelled": net.getShortestPath(net.getEdge("E_start"), e2, vClass='passenger', fromPos=0)[1]})
                 spawn_car(id_car, step, path, net, dict_cars)
                 id_car+=1
                 car_poisson_distrib[int(step)] = 0
@@ -203,7 +206,6 @@ while(step<simu_length or len(dict_cyclists) != 0 or len(dict_cars) != 0):
 
                 dict_scenario["bikes"][int(dict_cyclists[i].id)]["finish_step"] = step
                 dict_scenario["bikes"][int(dict_cyclists[i].id)]["waiting_time"] = dict_cyclists[i].waiting_time
-                dict_scenario["bikes"][int(dict_cyclists[i].id)]["distance_travelled"] = dict_cyclists[i].distance_travelled
                     
             else:
                 traci.vehicle.remove(i)
@@ -226,10 +228,29 @@ while(step<simu_length or len(dict_cyclists) != 0 or len(dict_cars) != 0):
 
     step += step_length
 
+if(bike_evoluting):
+    pre_file_name = "bikes_evolv_"
+else:
+    pre_file_name = "cars_evolv_"
 
 print("WARNING: Saving scenario...")
-with open('scenario.dict', 'wb') as outfile:
-    pickle.dump(dict_scenario, outfile)
+if(not os.path.exists("files/"+sub_folders)):
+    os.makedirs("files/"+sub_folders)
+    with open("files/"+sub_folders+pre_file_name+"scenarios.dict", 'wb') as outfile:
+        pickle.dump({args.poisson_lambda : [dict_scenario]}, outfile)
+else:
+    with open("files/"+sub_folders+pre_file_name+"scenarios.dict", 'rb') as infile:
+        d_scenarios = pickle.load(infile)
+    if(args.poisson_lambda in d_scenarios):
+        d_scenarios[args.poisson_lambda].append(dict_scenario)
+    else:
+        d_scenarios[args.poisson_lambda] = [dict_scenario]
+    with open("files/"+sub_folders+pre_file_name+"scenarios.dict", 'wb') as outfile:
+        pickle.dump(d_scenarios, outfile)
+
+
+
+
 
 traci.close()
 
@@ -240,80 +261,6 @@ print("\ndata number:", len(dict_cyclists_arrived), ",", structure.num_cyclists_
 
 
 mean_cars_travel_time = compute_graphs_data_cars(dict_scenario)
-mean_cyclists_travel_time = compute_graphs_data_cyclists_wout_struct(dict_scenario)
+mean_cyclists_travel_time = compute_graphs_data_cyclists(dict_scenario)
 
 print(f"mean car travel time: {mean_cars_travel_time}, mean cyclists travel time: {mean_cyclists_travel_time}")
-
-if(args.learning):
-    if(not os.path.exists("files/"+sub_folders)):
-        os.makedirs("files/"+sub_folders)
-        if(not os.path.exists("images/"+sub_folders)):
-            os.makedirs("images/"+sub_folders)
-        tab_travel_time_cars = []
-        tab_travel_time_cyclists = []
-        tab_x_values = []
-    else:
-        with open('files/'+sub_folders+'travel_time_cars.tab', 'rb') as infile:
-            tab_travel_time_cars = pickle.load(infile)
-        with open('files/'+sub_folders+'travel_time_cyclists.tab', 'rb') as infile:
-            tab_travel_time_cyclists = pickle.load(infile)
-        with open('files/'+sub_folders+'x_values.tab', 'rb') as infile:
-            tab_x_values = pickle.load(infile)
-
-
-    if(len(tab_x_values) == 0 or bike_evoluting and tab_x_values[-1] != bike_poisson_lambda  or\
-    not bike_evoluting and tab_x_values[-1] != car_poisson_lambda):
-        tab_travel_time_cars.append([mean_cars_travel_time])
-        tab_travel_time_cyclists.append([mean_cyclists_travel_time])
-        if(bike_evoluting):
-            tab_x_values.append(bike_poisson_lambda)
-        else:
-            tab_x_values.append(car_poisson_lambda)
-            
-    else:
-        tab_travel_time_cars[-1].append(mean_cars_travel_time)
-        tab_travel_time_cyclists[-1].append(mean_cyclists_travel_time)
-
-
-    plot_cars_travel_time = [[], [], []]
-    plot_cyclists_travel_time = [[], [], []]
-
-    for i in range(len(tab_x_values)):
-        plot_cars_travel_time[0].append(sum(tab_travel_time_cars[i])/len(tab_travel_time_cars[i]))
-        plot_cars_travel_time[1].append(min(tab_travel_time_cars[i]))
-        plot_cars_travel_time[2].append(max(tab_travel_time_cars[i]))
-
-        plot_cyclists_travel_time[0].append(sum(tab_travel_time_cyclists[i])/len(tab_travel_time_cyclists[i]))
-        plot_cyclists_travel_time[1].append(min(tab_travel_time_cyclists[i]))
-        plot_cyclists_travel_time[2].append(max(tab_travel_time_cyclists[i]))
-
-
-    plt.clf()
-    plt.plot(tab_x_values, plot_cars_travel_time[0], label="cars")
-    plt.fill_between(tab_x_values, plot_cars_travel_time[1], plot_cars_travel_time[2], alpha=0.2)
-    plt.plot(tab_x_values, plot_cyclists_travel_time[0], label="bikes")
-    plt.fill_between(tab_x_values, plot_cyclists_travel_time[1], plot_cyclists_travel_time[2], alpha=0.2, color="orange")
-    plt.legend()
-    plt.ylabel("Travel Time")
-    if(bike_evoluting):
-        plt.xlabel("Lambda Bikes")
-        name_fig = "images/"+sub_folders+"bike_evolution_travel_time"
-    else:
-        plt.xlabel("Lambda Cars")
-        name_fig = "images/"+sub_folders+"car_evolution_travel_time"
-
-    if(args.struct_open):
-        name_fig += "_struct.png"
-    else:
-        name_fig += ".png"
-
-    plt.savefig(name_fig)
-    
-
-    with open('files/'+sub_folders+'travel_time_cars.tab', 'wb') as outfile:
-        pickle.dump(tab_travel_time_cars, outfile)
-    with open('files/'+sub_folders+'travel_time_cyclists.tab', 'wb') as outfile:
-        pickle.dump(tab_travel_time_cyclists, outfile)
-    with open('files/'+sub_folders+'x_values.tab', 'wb') as outfile:
-        pickle.dump(tab_x_values, outfile)
-
