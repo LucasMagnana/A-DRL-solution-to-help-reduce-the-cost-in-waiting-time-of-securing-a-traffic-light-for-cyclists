@@ -39,7 +39,7 @@ simu_length = 1000
 if(args.config == 0 or args.config == 3):
     car_poisson_lambda = 0.2
     bike_poisson_lambda = args.poisson_lambda
-    bike_evoluting = True
+    bike_evoluting = False
 if(args.config == 1):
     car_poisson_lambda = args.poisson_lambda
     bike_poisson_lambda = 1
@@ -233,12 +233,15 @@ if(bike_evoluting):
 else:
     pre_file_name = "cars_evolv_"
 
+if(args.struct_open):
+    pre_file_name += "struct_open_"
+
 print("WARNING: Saving scenario...")
 if(not os.path.exists("files/"+sub_folders)):
     os.makedirs("files/"+sub_folders)
     with open("files/"+sub_folders+pre_file_name+"scenarios.dict", 'wb') as outfile:
         pickle.dump({args.poisson_lambda : [dict_scenario]}, outfile)
-else:
+elif(os.path.exists("files/"+sub_folders+pre_file_name+"scenarios.dict")):
     with open("files/"+sub_folders+pre_file_name+"scenarios.dict", 'rb') as infile:
         d_scenarios = pickle.load(infile)
     if(args.poisson_lambda in d_scenarios):
@@ -247,6 +250,9 @@ else:
         d_scenarios[args.poisson_lambda] = [dict_scenario]
     with open("files/"+sub_folders+pre_file_name+"scenarios.dict", 'wb') as outfile:
         pickle.dump(d_scenarios, outfile)
+else:
+    with open("files/"+sub_folders+pre_file_name+"scenarios.dict", 'wb') as outfile:
+        pickle.dump({args.poisson_lambda : [dict_scenario]}, outfile)
 
 
 
