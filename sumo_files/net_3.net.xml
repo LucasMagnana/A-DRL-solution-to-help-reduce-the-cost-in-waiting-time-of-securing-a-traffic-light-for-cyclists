@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<!-- generated on 2022-12-13 17:20:35 by Eclipse SUMO netedit Version 1.12.0
+<!-- generated on 2023-01-05 16:56:17 by Eclipse SUMO netedit Version 1.12.0
 <configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/netconvertConfiguration.xsd">
 
     <input>
-        <sumo-net-file value="/home/lucas/Projets/sumo_structure/sumo_files/net_3.net.xml"/>
+        <sumo-net-file value="/home/lucas/Projects/sumo_structure/sumo_files/net_3.net.xml"/>
     </input>
 
     <output>
-        <output-file value="/home/lucas/Projets/sumo_structure/sumo_files/net_3.net.xml"/>
+        <output-file value="/home/lucas/Projects/sumo_structure/sumo_files/net_3.net.xml"/>
     </output>
 
     <processing>
@@ -479,9 +479,9 @@
         <request index="11" response="011010110110000000110100" foes="111110110110000000110100" cont="0"/>
         <request index="12" response="000000000000000000000000" foes="000010000000000000000100" cont="0"/>
         <request index="13" response="000000000000000000000000" foes="010110001000111111100100" cont="0"/>
-        <request index="14" response="000000010000000000011011" foes="110110011000110110111111" cont="1"/>
+        <request index="14" response="000000000000000000000000" foes="110110011000110110111111" cont="1"/>
         <request index="15" response="000000000110000000000000" foes="010010000110000000100100" cont="1"/>
-        <request index="16" response="000000000000000000000000" foes="110110000100111110100100" cont="0"/>
+        <request index="16" response="000000000100000000000000" foes="110110000100111110100100" cont="0"/>
         <request index="17" response="000000000000000000011010" foes="110110000000110100011010" cont="1"/>
         <request index="18" response="000000000000000000000010" foes="000000000000000100000010" cont="0"/>
         <request index="19" response="000000111111000000010110" foes="001000111111100100010110" cont="0"/>
@@ -505,9 +505,9 @@
         <request index="11" response="011010110110000000110100" foes="111110110110000000110100" cont="0"/>
         <request index="12" response="000000000000000000000000" foes="000010000000000000000100" cont="0"/>
         <request index="13" response="000000000000000000000000" foes="010110001000111111100100" cont="0"/>
-        <request index="14" response="000000010000000000011011" foes="110110011000110110111111" cont="1"/>
+        <request index="14" response="000000000000000000000000" foes="110110011000110110111111" cont="1"/>
         <request index="15" response="000000000110000000000000" foes="010010000110000000100100" cont="1"/>
-        <request index="16" response="000000000000000000000000" foes="110110000100111110100100" cont="0"/>
+        <request index="16" response="000000000100000000000000" foes="110110000100111110100100" cont="0"/>
         <request index="17" response="000000000000000000011010" foes="110110000000110100111110" cont="1"/>
         <request index="18" response="000000000000000000000010" foes="000000000000000100000010" cont="0"/>
         <request index="19" response="000000111111000000010110" foes="001000111111100100010110" cont="0"/>
@@ -605,17 +605,17 @@
     <connection from="-E_start" to="-E0" fromLane="1" toLane="1" via=":J0_0_1" dir="s" state="M"/>
     <connection from="E0" to="E_start" fromLane="0" toLane="0" via=":J0_2_0" dir="s" state="M"/>
     <connection from="E0" to="E_start" fromLane="1" toLane="1" via=":J0_2_1" dir="s" state="M"/>
-    <connection from="E1" to="E7" fromLane="0" toLane="0" via=":J2_12_0" dir="r" state="M"/>
-    <connection from="E1" to="E2" fromLane="0" toLane="0" via=":J2_13_0" dir="s" state="M"/>
-    <connection from="E1" to="E6" fromLane="0" toLane="0" via=":J2_14_0" dir="l" state="m"/>
+    <connection from="E1" to="E7" fromLane="0" toLane="0" pass="1" via=":J2_12_0" dir="r" state="M"/>
+    <connection from="E1" to="E2" fromLane="0" toLane="0" pass="1" via=":J2_13_0" dir="s" state="M"/>
+    <connection from="E1" to="E6" fromLane="0" toLane="0" pass="1" via=":J2_14_0" dir="l" state="M"/>
     <connection from="E1" to="E7" fromLane="1" toLane="1" via=":J2_15_0" dir="r" state="m"/>
-    <connection from="E1" to="E2" fromLane="1" toLane="1" via=":J2_16_0" dir="s" state="M"/>
+    <connection from="E1" to="E2" fromLane="1" toLane="1" via=":J2_16_0" dir="s" state="m"/>
     <connection from="E1" to="E6" fromLane="1" toLane="1" via=":J2_17_0" dir="l" state="m"/>
-    <connection from="E2" to="E9" fromLane="0" toLane="0" via=":J3_12_0" dir="r" state="M"/>
-    <connection from="E2" to="E3" fromLane="0" toLane="0" via=":J3_13_0" dir="s" state="M"/>
-    <connection from="E2" to="E8" fromLane="0" toLane="0" via=":J3_14_0" dir="l" state="m"/>
+    <connection from="E2" to="E9" fromLane="0" toLane="0" pass="1" via=":J3_12_0" dir="r" state="M"/>
+    <connection from="E2" to="E3" fromLane="0" toLane="0" pass="1" via=":J3_13_0" dir="s" state="M"/>
+    <connection from="E2" to="E8" fromLane="0" toLane="0" pass="1" via=":J3_14_0" dir="l" state="M"/>
     <connection from="E2" to="E9" fromLane="1" toLane="1" via=":J3_15_0" dir="r" state="m"/>
-    <connection from="E2" to="E3" fromLane="1" toLane="1" via=":J3_16_0" dir="s" state="M"/>
+    <connection from="E2" to="E3" fromLane="1" toLane="1" via=":J3_16_0" dir="s" state="m"/>
     <connection from="E2" to="E8" fromLane="1" toLane="1" via=":J3_17_0" dir="l" state="m"/>
     <connection from="E_start" to="E5" fromLane="0" toLane="0" via=":J1_12_0" tl="J1" linkIndex="12" dir="r" state="O"/>
     <connection from="E_start" to="E1" fromLane="0" toLane="0" via=":J1_13_0" tl="J1" linkIndex="13" dir="s" state="O"/>

@@ -37,17 +37,17 @@ step_length = 0.2
 simu_length = 1000
 
 if(args.config == 0 or args.config == 3):
-    car_poisson_lambda = args.poisson_lambda
-    bike_poisson_lambda = 0.2
-    bike_evoluting = False
+    car_poisson_lambda = 0.2
+    bike_poisson_lambda = 0.8
+    evoluting = "group_size"
 if(args.config == 1):
     car_poisson_lambda = args.poisson_lambda
     bike_poisson_lambda = 1
-    bike_evoluting = False
+    evoluting = "cars"
 elif(args.config == 2):
     car_poisson_lambda = 0.2
     bike_poisson_lambda = args.poisson_lambda
-    bike_evoluting = True
+    evoluting = "bikes"
 
 
 bike_poisson_distrib = np.random.poisson(bike_poisson_lambda, simu_length)
@@ -59,10 +59,15 @@ if(use_model):
 else:
     sub_folders = "wou_model/"
 
-if(bike_evoluting):
+if(evoluting=="bikes"):
     sub_folders+="config_"+str(args.config)+"/"+str(car_poisson_lambda)+"/"
+    variable_evoluting = args.poisson_lambda
+elif(evoluting=="cars"):
+    sub_folders+="config_"+str(args.config)+"/"+str(bike_poisson_lambda)+"/"
+    variable_evoluting = args.poisson_lambda
 else:
     sub_folders+="config_"+str(args.config)+"/"+str(bike_poisson_lambda)+"/"
+    variable_evoluting = args.min_group_size
 
 
 
@@ -228,31 +233,26 @@ while(step<simu_length or len(dict_cyclists) != 0 or len(dict_cars) != 0):
 
     step += step_length
 
-if(bike_evoluting):
-    pre_file_name = "bikes_evolv_"
-else:
-    pre_file_name = "cars_evolv_"
 
-if(args.struct_open):
-    pre_file_name += "struct_open_"
+pre_file_name = evoluting+"_evolv_"
 
 print("WARNING: Saving scenario...")
 if(not os.path.exists("files/"+sub_folders)):
     os.makedirs("files/"+sub_folders)
     with open("files/"+sub_folders+pre_file_name+"scenarios.dict", 'wb') as outfile:
-        pickle.dump({args.poisson_lambda : [dict_scenario]}, outfile)
+        pickle.dump({variable_evoluting : [dict_scenario]}, outfile)
 elif(os.path.exists("files/"+sub_folders+pre_file_name+"scenarios.dict")):
     with open("files/"+sub_folders+pre_file_name+"scenarios.dict", 'rb') as infile:
         d_scenarios = pickle.load(infile)
-    if(args.poisson_lambda in d_scenarios):
-        d_scenarios[args.poisson_lambda].append(dict_scenario)
+    if(variable_evoluting in d_scenarios):
+        d_scenarios[variable_evoluting].append(dict_scenario)
     else:
-        d_scenarios[args.poisson_lambda] = [dict_scenario]
+        d_scenarios[variable_evoluting] = [dict_scenario]
     with open("files/"+sub_folders+pre_file_name+"scenarios.dict", 'wb') as outfile:
         pickle.dump(d_scenarios, outfile)
 else:
     with open("files/"+sub_folders+pre_file_name+"scenarios.dict", 'wb') as outfile:
-        pickle.dump({args.poisson_lambda : [dict_scenario]}, outfile)
+        pickle.dump({variable_evoluting : [dict_scenario]}, outfile)
 
 
 

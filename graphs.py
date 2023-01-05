@@ -56,19 +56,24 @@ def plot_and_save_line(data, file_title, labels=None, sub_folders=""):
 
 if __name__ == "__main__": 
 
-    config = 1
-    poisson_lambda_fixed = 1
+    config = 3
+    variable_fixed = 0.2
 
     sub_folders = "wou_model/"
-    sub_folders+="config_"+str(config)+"/"+str(poisson_lambda_fixed)+"/"
+    sub_folders+="config_"+str(config)+"/"+str(variable_fixed)+"/"
 
     for filename in os.listdir("./files/" + sub_folders):
         if("car" in filename):
-            vehicle_type = "cars"
+            evoluting = "cars"
+            compute_flows = True
             index_flow = 0
         elif("bike" in filename):
-            vehicle_type = "bikes"
+            evoluting = "bikes"
+            compute_flows = True
             index_flow = 1
+        else:
+            evoluting = "group_size"
+            compute_flows = False
 
         name_complement = ""
 
@@ -110,8 +115,9 @@ if __name__ == "__main__":
             dict_graphs["mean_bikes_t_t"][1].append(min(tab_mean_t_t[1]))
             dict_graphs["mean_bikes_t_t"][2].append(max(tab_mean_t_t[1]))
 
-            dict_graphs["flow"].append(sum(tab_flows[index_flow])/len(tab_flows[1]))
-            dict_graphs["flow_on_speed"].append(sum(tab_flows_on_speed[index_flow])/len(tab_flows_on_speed[index_flow]))
+            if(compute_flows):
+                dict_graphs["flow"].append(sum(tab_flows[index_flow])/len(tab_flows[1]))
+                dict_graphs["flow_on_speed"].append(sum(tab_flows_on_speed[index_flow])/len(tab_flows_on_speed[index_flow]))
 
             tab_mean_t_t = [[],[]]
 
@@ -129,14 +135,15 @@ if __name__ == "__main__":
         plt.legend()
         plt.ylabel("Travel Time")
 
-        plt.xlabel("Flow of "+vehicle_type+" (per step)")
-        name_fig = "images/"+sub_folders+vehicle_type+name_complement+"_evolution_travel_time"
+        plt.xlabel("Flow of "+evoluting+" (per step)")
+        name_fig = "images/"+sub_folders+evoluting+name_complement+"_evolution_travel_time"
 
         plt.savefig(name_fig)
 
-        plt.clf()
-        plt.plot(dict_graphs["flow_on_speed"], dict_graphs["flow"], label="bikes")
-        plt.xlabel("Flow divided by speed of "+vehicle_type)
-        plt.ylabel("Flow of "+vehicle_type+" (per step)")
-        name_fig = "images/"+sub_folders+vehicle_type+name_complement+"_evolution_flow_on_speed"
-        plt.savefig(name_fig)
+        if(compute_flows):
+            plt.clf()
+            plt.plot(dict_graphs["flow_on_speed"], dict_graphs["flow"], label="bikes")
+            plt.xlabel("Flow divided by speed of "+evoluting)
+            plt.ylabel("Flow of "+evoluting+" (per step)")
+            name_fig = "images/"+sub_folders+evoluting+name_complement+"_evolution_flow_on_speed"
+            plt.savefig(name_fig)
