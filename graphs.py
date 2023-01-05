@@ -56,8 +56,8 @@ def plot_and_save_line(data, file_title, labels=None, sub_folders=""):
 
 if __name__ == "__main__": 
 
-    config = 3
-    poisson_lambda_fixed = 0.2
+    config = 1
+    poisson_lambda_fixed = 1
 
     sub_folders = "wou_model/"
     sub_folders+="config_"+str(config)+"/"+str(poisson_lambda_fixed)+"/"
@@ -69,6 +69,11 @@ if __name__ == "__main__":
         elif("bike" in filename):
             vehicle_type = "bikes"
             index_flow = 1
+
+        name_complement = ""
+
+        if("struct_open" in filename):
+            name_complement = "_struct_open"
 
         with open("files/"+sub_folders+filename, 'rb') as infile:
             d_scenarios = pickle.load(infile)
@@ -125,7 +130,7 @@ if __name__ == "__main__":
         plt.ylabel("Travel Time")
 
         plt.xlabel("Flow of "+vehicle_type+" (per step)")
-        name_fig = "images/"+sub_folders+vehicle_type+"_evolution_travel_time"
+        name_fig = "images/"+sub_folders+vehicle_type+name_complement+"_evolution_travel_time"
 
         plt.savefig(name_fig)
 
@@ -133,5 +138,5 @@ if __name__ == "__main__":
         plt.plot(dict_graphs["flow_on_speed"], dict_graphs["flow"], label="bikes")
         plt.xlabel("Flow divided by speed of "+vehicle_type)
         plt.ylabel("Flow of "+vehicle_type+" (per step)")
-        name_fig = "images/"+sub_folders+vehicle_type+"_evolution_flow_on_speed"
+        name_fig = "images/"+sub_folders+vehicle_type+name_complement+"_evolution_flow_on_speed"
         plt.savefig(name_fig)
