@@ -8,7 +8,7 @@ do
     #lambda=`echo $lambda + $add | bc`
     mgs=`echo $mgs + $addint | bc`
     echo $mgs
-    for j in {1..1}
+    for j in {1..20}
     do
         python3 main.py --learning True --min-group-size $mgs --config 3 --struct-open True
         #python3 main.py --learning True --poisson-lambda $lambda --config 1

@@ -19,14 +19,13 @@ if __name__ == "__main__":
     parse.add_argument('--poisson-lambda', type=float, default=0.2)
     parse.add_argument('--min-group-size', type=int, default=5)
     parse.add_argument('--gui', type=bool, default=False)
-    parse.add_argument('--config', type=int, default=0)
+    parse.add_argument('--config', type=int, default=3)
     parse.add_argument('--struct-open', type=bool, default=False)
+    parse.add_argument('--use-drl', type=bool, default=False)
     
 args = parse.parse_args()
 
 
-use_model = False
-save_model = use_model
 learning = True
 batch_size = 32
 hidden_size_1 = 64
@@ -34,13 +33,13 @@ hidden_size_2 = 32
 lr=1e-5
 
 step_length = 0.2
-simu_length = 1000
+simu_length = 36000
 
-if(args.config == 0 or args.config == 3):
+if(args.config == 0):
     car_poisson_lambda = 0.2
-    bike_poisson_lambda = 0.8
+    bike_poisson_lambda = 0.2
     evoluting = "group_size"
-if(args.config == 1):
+elif(args.config == 1):
     car_poisson_lambda = args.poisson_lambda
     bike_poisson_lambda = 1
     evoluting = "cars"
@@ -48,13 +47,18 @@ elif(args.config == 2):
     car_poisson_lambda = 0.2
     bike_poisson_lambda = args.poisson_lambda
     evoluting = "bikes"
+elif(args.config == 3):
+    car_poisson_lambda = 0.2
+    bike_poisson_lambda = 0.2
+    evoluting = "cars"
+    args.struct_open = True
 
 
 bike_poisson_distrib = np.random.poisson(bike_poisson_lambda, simu_length)
 car_poisson_distrib = np.random.poisson(car_poisson_lambda, simu_length)
 
 
-if(use_model):
+if(args.use_drl):
     sub_folders = "w_model/"
 else:
     sub_folders = "wou_model/"
@@ -133,23 +137,12 @@ for i, e in enumerate(edges) :
     dict_edges_index[e.getID()] = i
 
 
-if(use_model == True):
-    model = Model(len(edges), hidden_size_1, hidden_size_2)
-    print("WARNING : Using neural network...", end="")
-    if(os.path.exists("files/"+sub_folders+"model.pt")):
-        model.load_state_dict(torch.load("files/"+sub_folders+"model.pt"))
-        model.eval()
-        print("Loading it.", end="")       
-    print("")
-else:
-    model = None
-
 dict_cyclists= {}
 dict_cars = {}
 dict_cyclists_arrived = {}
 
-structure = Structure("E_start", "E2", edges, net, dict_cyclists, traci, args.config, dict_edges_index, model,\
-open=args.struct_open, min_group_size=args.min_group_size, batch_size=batch_size, learning=args.learning, lr=lr)
+structure = Structure("E_start", "E2", edges, net, dict_cyclists, traci, args.config, dict_edges_index,\
+open=args.struct_open, min_group_size=args.min_group_size, batch_size=batch_size, learning=args.learning, use_drl=args.use_drl)
 
 
 id_cyclist = 0
@@ -209,12 +202,12 @@ while(step<simu_length or len(dict_cyclists) != 0 or len(dict_cars) != 0):
                     structure.list_target.append(target)                  
                     del structure.dict_model_input[i]
 
-                dict_scenario["bikes"][int(dict_cyclists[i].id)]["finish_step"] = step
-                dict_scenario["bikes"][int(dict_cyclists[i].id)]["waiting_time"] = dict_cyclists[i].waiting_time
-                    
+                dict_scenario["bikes"][int(dict_cyclists[i].id)]["finish_step"] = step              
             else:
                 traci.vehicle.remove(i)
             del dict_cyclists[i]
+        else:
+            dict_scenario["bikes"][int(dict_cyclists[i].id)]["waiting_time"] = traci.vehicle.getAccumulatedWaitingTime(i)
 
     for i in copy.deepcopy(list(dict_cars.keys())):
         sumo_id = i+"_c"
@@ -223,6 +216,8 @@ while(step<simu_length or len(dict_cyclists) != 0 or len(dict_cars) != 0):
         if(sumo_id in traci.simulation.getArrivedIDList()):
             dict_scenario["cars"][int(i)]["finish_step"] = step
             del dict_cars[i]
+        else:
+            dict_scenario["cars"][int(i)]["waiting_time"] = traci.vehicle.getAccumulatedWaitingTime(sumo_id) 
 
     #(step%1, step%1<=step_length)
     if(structure.open):
@@ -253,6 +248,10 @@ elif(os.path.exists("files/"+sub_folders+pre_file_name+"scenarios.dict")):
 else:
     with open("files/"+sub_folders+pre_file_name+"scenarios.dict", 'wb') as outfile:
         pickle.dump({variable_evoluting : [dict_scenario]}, outfile)
+
+if(args.use_drl):
+    torch.save(structure.drl_agent.actor_target.state_dict(), "files/"+sub_folders+"trained_target.n")
+    torch.save(structure.drl_agent.actor.state_dict(), "files/"+sub_folders+"trained.n")
 
 
 

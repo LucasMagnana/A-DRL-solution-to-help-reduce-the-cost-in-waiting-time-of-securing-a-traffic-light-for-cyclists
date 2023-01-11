@@ -57,7 +57,7 @@ def plot_and_save_line(data, file_title, labels=None, sub_folders=""):
 if __name__ == "__main__": 
 
     config = 3
-    variable_fixed = 0.2
+    variable_fixed = 0.8
 
     sub_folders = "wou_model/"
     sub_folders+="config_"+str(config)+"/"+str(variable_fixed)+"/"

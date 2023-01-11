@@ -1,9 +1,11 @@
 import threading
 import torch
 
+from DDQNAgent import DDQNAgent
+
 class Structure:
     def __init__(self, start_edge, end_edge, edges, net, dict_cyclists, traci, config,\
-    dict_edges_index=None, model=None, open=True, min_group_size=5, batch_size=32, learning=True, lr=1e-5):
+    dict_edges_index=None, open=True, min_group_size=5, batch_size=32, learning=True, use_drl=False):
 
         for e in edges:
             id = e.getID()
@@ -22,12 +24,12 @@ class Structure:
         self.id_cyclists_crossing_struct = []
         self.id_cyclists_waiting = []
 
-        self.model = model
+        '''self.model = model
         self.learning = learning
         self.batch_size=batch_size
         if(self.model != None and self.learning):
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
-            self.loss = torch.nn.BCELoss()
+            self.loss = torch.nn.BCELoss()'''
         self.dict_edges_index = dict_edges_index
         self.dict_model_input = {}
         self.list_input_to_learn = []
@@ -51,8 +53,8 @@ class Structure:
             if(tls):
                 self.module_traci.trafficlight.setPhase(tls.getID(), 2)
 
-
-        if(self.config == 3):
+        self.use_drl = use_drl
+        if(self.use_drl):
             tls = self.net.getEdge(self.path[0]).getTLS()
             self.module_traci.trafficlight.setProgramLogic(tls.getID(), self.module_traci.trafficlight.Logic(1, 0, 0, \
             phases=[self.module_traci.trafficlight.Phase(duration=99999, state="rrrrrrrrrrrrGGGrrrrrrrrr", minDur=9999, maxDur=9999)]))
@@ -60,13 +62,27 @@ class Structure:
             self.module_traci.trafficlight.setProgram(tls.getID(), 0)
             self.module_traci.trafficlight.setPhase(tls.getID(), 2)
 
+            self.width_ob = self.start_edge.getLength()//5+2
+            self.drl_agent = DDQNAgent(self.width_ob, 2)
+            self.ob = []
+
+            self.bikes_waiting_time = 0
+            self.cars_waiting_time = 0
+            self.bikes_waiting_time_coeff = 0.2
+            self.cars_waiting_time_coeff = 1-self.bikes_waiting_time_coeff
+
+            self.need_change_tls_program = False
+            self.next_step_drl = 0
+
+            self.action = -1
+
 
 
     def step(self, step, edges):
         #print(step, self.id_cyclists_waiting, self.id_cyclists_crossing_struct)
 
-        if(len(self.list_input_to_learn)>=self.batch_size):
-            self.learn()
+        if(len(self.drl_agent.buffer)>self.drl_agent.batch_size):
+            self.drl_agent.learn()
 
                 
         for i in self.module_traci.edge.getLastStepVehicleIDs(self.start_edge.getID()):
@@ -74,7 +90,7 @@ class Structure:
                 if(len(self.id_cyclists_waiting)==0):
                     for j in range(len(self.id_cyclists_crossing_struct)-1, -1, -1):
                         pos = self.module_traci.vehicle.getPosition(self.id_cyclists_crossing_struct[j])
-                        if(self.module_traci.vehicle.getDrivingDistance2D(i, pos[0], pos[1])<=3):
+                        if(self.module_traci.vehicle.getDrivingDistance2D(i, pos[0], pos[1])>0 and self.module_traci.vehicle.getDrivingDistance2D(i, pos[0], pos[1])<=5):
                             self.id_cyclists_waiting.append(i)
                             self.dict_cyclists[i].step_cancel_struct_candidature = step+99999
                             break
@@ -123,10 +139,99 @@ class Structure:
         if(self.config == 0):
             self.check_lights_1_program(step)
         elif(self.config == 3):
-            self.check_lights_2_programs()
+            if(self.use_drl):
+                self.drl_decision_making(step)
+            else:
+                self.static_decision_making()
 
 
-    def check_lights_2_programs(self):
+
+
+
+
+    def drl_decision_making(self, step):
+        e = self.path[0]
+        tls = self.net.getEdge(e).getTLS()       
+        if(step > self.next_step_drl):
+            self.create_observation()
+            self.ob_prec = self.ob
+            self.ob = self.create_observation()
+
+            if(len(self.ob_prec) == 0):
+                self.calculate_sum_waiting_time()
+            else:
+                if(self.action >= 0):
+                    reward = self.calculate_reward()
+                    self.drl_agent.memorize(self.ob_prec, self.action, self.ob, reward, False)  
+                self.action = self.drl_agent.act(self.ob)
+                if(self.action == 1):
+                    self.need_change_tls_program = True
+                    self.next_step_drl = step+1
+
+
+        if(self.need_change_tls_program):            
+            last_program = self.module_traci.trafficlight.getProgram(tls.getID())
+            self.change_light_program()
+            if(last_program != self.module_traci.trafficlight.getProgram(tls.getID())):
+                self.need_change_tls_program = False
+                self.next_step_drl = step+5
+            else:
+                self.next_step_drl = step+1
+
+
+
+    def create_observation(self):
+        edge_start_x = self.start_edge.getFromNode().getCoord()[0]
+        self.width_ob = self.start_edge.getLength()//5+2
+        ob = [[[0]*int(self.width_ob),[0]*int(self.width_ob)], [[0]*int(self.width_ob),[0]*int(self.width_ob)]]
+        for vehicle_id in self.module_traci.edge.getLastStepVehicleIDs(self.start_edge.getID()):
+            index = int(self.module_traci.vehicle.getLaneID(vehicle_id)[-1])
+            position_in_grid = int(round(self.module_traci.vehicle.getPosition(vehicle_id)[0]-edge_start_x))//5
+            ob[0][index][position_in_grid] += 1
+            ob[1][index][position_in_grid] += self.module_traci.vehicle.getSpeed(vehicle_id)
+        
+        for i in range(len(ob[0])):
+            for j in range(len(ob[0][i])):
+                if(ob[1][i][j] != 0):
+                    ob[1][i][j]/=ob[0][i][j]
+
+        return ob
+        
+
+
+    def calculate_sum_waiting_time(self):
+        last_cars_wt = self.cars_waiting_time
+        last_bikes_wt = self.bikes_waiting_time
+        self.cars_waiting_time = 0
+        self.bikes_waiting_time = 0
+        for vehicle_id in self.module_traci.edge.getLastStepVehicleIDs(self.start_edge.getID()):
+            if("_c" in vehicle_id):
+                self.cars_waiting_time += self.module_traci.vehicle.getAccumulatedWaitingTime(vehicle_id)
+            else:
+                self.bikes_waiting_time += self.module_traci.vehicle.getAccumulatedWaitingTime(vehicle_id)
+        return last_cars_wt, last_bikes_wt
+
+        
+
+    def calculate_reward(self):
+        last_cars_wt, last_bikes_wt = self.calculate_sum_waiting_time()
+        return (self.cars_waiting_time_coeff*last_cars_wt + self.bikes_waiting_time_coeff*last_bikes_wt)-\
+        (self.cars_waiting_time_coeff*self.cars_waiting_time + self.bikes_waiting_time_coeff*self.bikes_waiting_time)
+        
+
+    def change_light_program(self):
+        e = self.path[0]
+        tls = self.net.getEdge(e).getTLS()       
+        if(self.module_traci.trafficlight.getProgram(tls.getID()) == "0"):
+            if(self.module_traci.trafficlight.getPhase(tls.getID()) == 2):
+                self.module_traci.trafficlight.setPhase(tls.getID(), 3)
+            elif(self.module_traci.trafficlight.getPhase(tls.getID()) == 0):
+                self.module_traci.trafficlight.setProgram(tls.getID(), 1)
+        else:
+            self.module_traci.trafficlight.setProgram(tls.getID(), 0)
+            self.module_traci.trafficlight.setPhase(tls.getID(), 0)
+
+    def static_decision_making(self):
         e = self.path[0]
         tls = self.net.getEdge(e).getTLS()
         if(len(set(self.module_traci.edge.getLastStepVehicleIDs(e)) & set(self.id_cyclists_crossing_struct)) >= self.min_group_size):           
@@ -167,7 +272,7 @@ class Structure:
 
 
 
-    def learn(self):
+    '''def learn(self):
         self.optimizer.zero_grad()
         tens_edges_occupation = torch.stack([i[0] for i in self.list_input_to_learn])
         tens_actual_edge = torch.stack([i[1] for i in self.list_input_to_learn])
@@ -179,5 +284,5 @@ class Structure:
         l.backward()
         self.optimizer.step()
         self.list_input_to_learn = []
-        self.list_target = []     
+        self.list_target = []     '''
 
