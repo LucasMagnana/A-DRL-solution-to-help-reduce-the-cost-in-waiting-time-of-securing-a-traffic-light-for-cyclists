@@ -10,7 +10,7 @@ from NeuralNetworks import Actor
 
 class DDQNHyperParams :
     def __init__(self):
-        self.BUFFER_SIZE = 10000 
+        self.BUFFER_SIZE = 25000 
         self.ALPHA = 0.05 #
         self.GAMMA = 0.99
         self.LR = 0.01
@@ -24,7 +24,7 @@ class DDQNHyperParams :
         self.LEARNING_START = 0
 
         self.EPSILON = 1.0
-        self.MIN_EPSILON = 0
+        self.MIN_EPSILON = 0.01
         self.EPSILON_DECAY = self.EPSILON/(self.EPISODE_COUNT*4/5)
 
 class DDQNAgent(object):

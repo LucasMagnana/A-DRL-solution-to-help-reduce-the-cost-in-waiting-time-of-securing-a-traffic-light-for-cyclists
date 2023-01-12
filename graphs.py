@@ -73,6 +73,8 @@ if __name__ == "__main__":
                     vehicle_type_index = 0
                     tab_mean_waiting_time = [[], []]
                     tab_mean_travel_time = [[], []]
+                    tab_cumulative_reward = [0]
+                    tab_waiting_time = [[],[]]
                     for vehicle_type in d_scenarios[key][0]:
                         dict_graphs[vehicle_type] = [[],[]]
                         next_step_hour = 0
@@ -81,6 +83,7 @@ if __name__ == "__main__":
                                 if(len(dict_graphs[vehicle_type][0])>0):
                                     tab_mean_travel_time[vehicle_type_index].append(sum(dict_graphs[vehicle_type][0][-1])/len(dict_graphs[vehicle_type][0][-1]))
                                     tab_mean_waiting_time[vehicle_type_index].append(sum(dict_graphs[vehicle_type][1][-1])/len(dict_graphs[vehicle_type][1][-1]))
+                                    tab_waiting_time[vehicle_type_index].append(sum(dict_graphs[vehicle_type][1][-1]))
                                 dict_graphs[vehicle_type][0].append([])
                                 dict_graphs[vehicle_type][1].append([])
                                 next_step_hour += 3600
@@ -93,23 +96,38 @@ if __name__ == "__main__":
 
                     tab_x = range(len(tab_mean_waiting_time[0]))
 
-                    sl = 22      
+                    tab_reward = []
+
+                    for i in range(len(tab_waiting_time[0])):
+                        tab_reward.append(0.5*tab_waiting_time[0][i]+0.5*tab_waiting_time[1][i])
 
                     plt.clf()
-                    plt.plot(tab_x[:sl], tab_mean_travel_time[0][:sl], label=list(d_scenarios[key][0].keys())[0])
-                    plt.plot(tab_x[:sl], tab_mean_travel_time[1][:sl], label=list(d_scenarios[key][0].keys())[1])
+                    plt.plot(tab_x, tab_mean_travel_time[0], label=list(d_scenarios[key][0].keys())[0])
+                    plt.plot(tab_x, tab_mean_travel_time[1], label=list(d_scenarios[key][0].keys())[1])
                     plt.xlabel("Hour")
                     plt.ylabel("Travel Time")
                     plt.legend()
                     plt.savefig("images/"+sub_folders+"evolution_mean_time_travel.png")
 
                     plt.clf()
-                    plt.plot(tab_x[:sl], tab_mean_waiting_time[0][:sl], label=list(d_scenarios[key][0].keys())[0])
-                    plt.plot(tab_x[:sl], tab_mean_waiting_time[1][:sl], label=list(d_scenarios[key][0].keys())[1])
+                    plt.plot(tab_x, tab_mean_waiting_time[0], label=list(d_scenarios[key][0].keys())[0])
+                    plt.plot(tab_x, tab_mean_waiting_time[1], label=list(d_scenarios[key][0].keys())[1])
                     plt.xlabel("Hour")
                     plt.ylabel("Waiting Time")
                     plt.legend()
                     plt.savefig("images/"+sub_folders+"evolution_mean_waiting_time.png")
+
+                    plt.clf()
+                    plt.plot(tab_x, tab_reward)
+                    plt.xlabel("Hour")
+                    plt.ylabel("Waiting time")
+                    plt.savefig("images/"+sub_folders+"evolution_waiting_time.png")
+
+                    '''plt.clf()
+                    plt.plot(tab_x, tab_cumulative_reward)
+                    plt.xlabel("Hour")
+                    plt.ylabel("Cumulative Waiting Time")
+                    plt.savefig("images/"+sub_folders+"cumulative_waiting_time.png")'''
                     
 
 
