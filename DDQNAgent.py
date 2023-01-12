@@ -19,7 +19,7 @@ class DDQNHyperParams :
         self.HIDDEN_SIZE = 16
         self.ACT_INTER = 16
 
-        self.EPISODE_COUNT = 36000
+        self.EPISODE_COUNT = 25*3600
         self.MAX_STEPS = 1000
         self.LEARNING_START = 0
 

@@ -4,7 +4,7 @@ import torch
 from DDQNAgent import DDQNAgent
 
 class Structure:
-    def __init__(self, start_edge, end_edge, edges, net, dict_cyclists, traci, config,\
+    def __init__(self, start_edge, end_edge, edges, net, dict_cyclists, traci, config, dict_scenario,\
     dict_edges_index=None, open=True, min_group_size=5, batch_size=32, learning=True, use_drl=False):
 
         for e in edges:
@@ -48,6 +48,8 @@ class Structure:
 
         self.config = config
 
+        self.dict_scenario = dict_scenario
+
         for e in self.path:
             tls = self.net.getEdge(e).getTLS()
             if(tls):
@@ -68,7 +70,7 @@ class Structure:
 
             self.bikes_waiting_time = 0
             self.cars_waiting_time = 0
-            self.bikes_waiting_time_coeff = 0.2
+            self.bikes_waiting_time_coeff = 0.5
             self.cars_waiting_time_coeff = 1-self.bikes_waiting_time_coeff
 
             self.need_change_tls_program = False
@@ -204,11 +206,11 @@ class Structure:
         last_bikes_wt = self.bikes_waiting_time
         self.cars_waiting_time = 0
         self.bikes_waiting_time = 0
-        for vehicle_id in self.module_traci.edge.getLastStepVehicleIDs(self.start_edge.getID()):
+        for vehicle_id in self.module_traci.vehicle.getIDList():
             if("_c" in vehicle_id):
-                self.cars_waiting_time += self.module_traci.vehicle.getAccumulatedWaitingTime(vehicle_id)
+                self.cars_waiting_time += self.dict_scenario["cars"][int(vehicle_id[:-2])]["waiting_time"]
             else:
-                self.bikes_waiting_time += self.module_traci.vehicle.getAccumulatedWaitingTime(vehicle_id)
+                self.bikes_waiting_time += self.dict_scenario["bikes"][int(vehicle_id)]["waiting_time"]
         return last_cars_wt, last_bikes_wt
 
         

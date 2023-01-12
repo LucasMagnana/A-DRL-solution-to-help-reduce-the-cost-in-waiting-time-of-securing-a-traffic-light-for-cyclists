@@ -33,7 +33,8 @@ hidden_size_2 = 32
 lr=1e-5
 
 step_length = 0.2
-simu_length = 36000
+simu_length = 25*3600
+speed_threshold = 0.5
 
 if(args.config == 0):
     car_poisson_lambda = 0.2
@@ -141,7 +142,7 @@ dict_cyclists= {}
 dict_cars = {}
 dict_cyclists_arrived = {}
 
-structure = Structure("E_start", "E2", edges, net, dict_cyclists, traci, args.config, dict_edges_index,\
+structure = Structure("E_start", "E2", edges, net, dict_cyclists, traci, args.config, dict_scenario, dict_edges_index,\
 open=args.struct_open, min_group_size=args.min_group_size, batch_size=batch_size, learning=args.learning, use_drl=args.use_drl)
 
 
@@ -158,7 +159,7 @@ while(step<simu_length or len(dict_cyclists) != 0 or len(dict_cars) != 0):
                 path = net.getShortestPath(e1, e2, vClass='bicycle')[0]
                 max_speed = np.random.normal(15, 3)
                 dict_scenario["bikes"].append({"start_step": step, "start_edge": e1.getID(), "end_edge": e2.getID(), "max_speed": max_speed,
-                "distance_travelled": net.getShortestPath(net.getEdge("E_start"), e2, vClass='bicycle', fromPos=0)[1]})
+                "distance_travelled": net.getShortestPath(net.getEdge("E_start"), e2, vClass='bicycle', fromPos=0)[1], "waiting_time": 0})
                 spawn_cyclist(id_cyclist, step, path, net, structure, step_length, max_speed, False, args, dict_cyclists)
                 id_cyclist+=1
             bike_poisson_distrib[int(step)] = 0
@@ -168,7 +169,7 @@ while(step<simu_length or len(dict_cyclists) != 0 or len(dict_cars) != 0):
                 e2 = net.getEdge("E"+str(randint(3, 9)))
                 path = net.getShortestPath(e1, e2, vClass='passenger')[0]
                 dict_scenario["cars"].append({"start_step": step, "start_edge": e1.getID(), "end_edge": e2.getID(),
-                "distance_travelled": net.getShortestPath(net.getEdge("E_start"), e2, vClass='passenger', fromPos=0)[1]})
+                "distance_travelled": net.getShortestPath(net.getEdge("E_start"), e2, vClass='passenger', fromPos=0)[1], "waiting_time": 0})
                 spawn_car(id_car, step, path, net, dict_cars)
                 id_car+=1
                 car_poisson_distrib[int(step)] = 0
@@ -207,7 +208,8 @@ while(step<simu_length or len(dict_cyclists) != 0 or len(dict_cars) != 0):
                 traci.vehicle.remove(i)
             del dict_cyclists[i]
         else:
-            dict_scenario["bikes"][int(dict_cyclists[i].id)]["waiting_time"] = traci.vehicle.getAccumulatedWaitingTime(i)
+            if(traci.vehicle.getSpeed(i)< speed_threshold):
+                dict_scenario["bikes"][int(dict_cyclists[i].id)]["waiting_time"] += 1
 
     for i in copy.deepcopy(list(dict_cars.keys())):
         sumo_id = i+"_c"
@@ -217,7 +219,8 @@ while(step<simu_length or len(dict_cyclists) != 0 or len(dict_cars) != 0):
             dict_scenario["cars"][int(i)]["finish_step"] = step
             del dict_cars[i]
         else:
-            dict_scenario["cars"][int(i)]["waiting_time"] = traci.vehicle.getAccumulatedWaitingTime(sumo_id) 
+            if(traci.vehicle.getSpeed(sumo_id)< speed_threshold):
+                dict_scenario["cars"][int(i)]["waiting_time"] += 1
 
     #(step%1, step%1<=step_length)
     if(structure.open):
