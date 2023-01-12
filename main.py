@@ -22,6 +22,8 @@ if __name__ == "__main__":
     parse.add_argument('--config', type=int, default=3)
     parse.add_argument('--struct-open', type=bool, default=False)
     parse.add_argument('--use-drl', type=bool, default=False)
+    parse.add_argument('--test', type=bool, default=False)
+    parse.add_argument('--save-scenario', type=bool, default=False)
     
 args = parse.parse_args()
 
@@ -33,7 +35,7 @@ hidden_size_2 = 32
 lr=1e-5
 
 step_length = 0.2
-simu_length = 25*3600
+simu_length = 1*3600
 speed_threshold = 0.5
 
 if(args.config == 0):
@@ -142,8 +144,8 @@ dict_cyclists= {}
 dict_cars = {}
 dict_cyclists_arrived = {}
 
-structure = Structure("E_start", "E2", edges, net, dict_cyclists, traci, args.config, dict_scenario, dict_edges_index,\
-open=args.struct_open, min_group_size=args.min_group_size, batch_size=batch_size, learning=args.learning, use_drl=args.use_drl)
+structure = Structure("E_start", "E2", edges, net, dict_cyclists, traci, args.config, dict_scenario, simu_length, dict_edges_index=dict_edges_index,\
+open=args.struct_open, min_group_size=args.min_group_size, batch_size=batch_size, learning=args.learning, use_drl=args.use_drl, test=args.test)
 
 
 id_cyclist = 0
@@ -232,27 +234,28 @@ while(step<simu_length or len(dict_cyclists) != 0 or len(dict_cars) != 0):
     step += step_length
 
 
-pre_file_name = evoluting+"_evolv_"
+if(args.save_scenario):
+    pre_file_name = evoluting+"_evolv_"
 
-print("WARNING: Saving scenario...")
-if(not os.path.exists("files/"+sub_folders)):
-    os.makedirs("files/"+sub_folders)
-    with open("files/"+sub_folders+pre_file_name+"scenarios.dict", 'wb') as outfile:
-        pickle.dump({variable_evoluting : [dict_scenario]}, outfile)
-elif(os.path.exists("files/"+sub_folders+pre_file_name+"scenarios.dict")):
-    with open("files/"+sub_folders+pre_file_name+"scenarios.dict", 'rb') as infile:
-        d_scenarios = pickle.load(infile)
-    if(variable_evoluting in d_scenarios):
-        d_scenarios[variable_evoluting].append(dict_scenario)
+    print("WARNING: Saving scenario...")
+    if(not os.path.exists("files/"+sub_folders)):
+        os.makedirs("files/"+sub_folders)
+        with open("files/"+sub_folders+pre_file_name+"scenarios.dict", 'wb') as outfile:
+            pickle.dump({variable_evoluting : [dict_scenario]}, outfile)
+    elif(os.path.exists("files/"+sub_folders+pre_file_name+"scenarios.dict")):
+        with open("files/"+sub_folders+pre_file_name+"scenarios.dict", 'rb') as infile:
+            d_scenarios = pickle.load(infile)
+        if(variable_evoluting in d_scenarios):
+            d_scenarios[variable_evoluting].append(dict_scenario)
+        else:
+            d_scenarios[variable_evoluting] = [dict_scenario]
+        with open("files/"+sub_folders+pre_file_name+"scenarios.dict", 'wb') as outfile:
+            pickle.dump(d_scenarios, outfile)
     else:
-        d_scenarios[variable_evoluting] = [dict_scenario]
-    with open("files/"+sub_folders+pre_file_name+"scenarios.dict", 'wb') as outfile:
-        pickle.dump(d_scenarios, outfile)
-else:
-    with open("files/"+sub_folders+pre_file_name+"scenarios.dict", 'wb') as outfile:
-        pickle.dump({variable_evoluting : [dict_scenario]}, outfile)
+        with open("files/"+sub_folders+pre_file_name+"scenarios.dict", 'wb') as outfile:
+            pickle.dump({variable_evoluting : [dict_scenario]}, outfile)
 
-if(args.use_drl):
+if(args.use_drl and not args.test):
     torch.save(structure.drl_agent.actor_target.state_dict(), "files/"+sub_folders+"trained_target.n")
     torch.save(structure.drl_agent.actor.state_dict(), "files/"+sub_folders+"trained.n")
 

@@ -4,8 +4,8 @@ import torch
 from DDQNAgent import DDQNAgent
 
 class Structure:
-    def __init__(self, start_edge, end_edge, edges, net, dict_cyclists, traci, config, dict_scenario,\
-    dict_edges_index=None, open=True, min_group_size=5, batch_size=32, learning=True, use_drl=False):
+    def __init__(self, start_edge, end_edge, edges, net, dict_cyclists, traci, config, dict_scenario, simu_length,\
+    dict_edges_index=None, open=True, min_group_size=5, batch_size=32, learning=True, use_drl=False, test=False):
 
         for e in edges:
             id = e.getID()
@@ -50,22 +50,31 @@ class Structure:
 
         self.dict_scenario = dict_scenario
 
+        self.simu_length = simu_length
+
         for e in self.path:
             tls = self.net.getEdge(e).getTLS()
             if(tls):
                 self.module_traci.trafficlight.setPhase(tls.getID(), 2)
 
-        self.use_drl = use_drl
-        if(self.use_drl):
-            tls = self.net.getEdge(self.path[0]).getTLS()
-            self.module_traci.trafficlight.setProgramLogic(tls.getID(), self.module_traci.trafficlight.Logic(1, 0, 0, \
+        tls = self.net.getEdge(self.path[0]).getTLS()
+        self.module_traci.trafficlight.setProgramLogic(tls.getID(), self.module_traci.trafficlight.Logic(1, 0, 0, \
             phases=[self.module_traci.trafficlight.Phase(duration=99999, state="rrrrrrrrrrrrGGGrrrrrrrrr", minDur=9999, maxDur=9999)]))
 
-            self.module_traci.trafficlight.setProgram(tls.getID(), 0)
-            self.module_traci.trafficlight.setPhase(tls.getID(), 2)
+        self.module_traci.trafficlight.setProgram(tls.getID(), 0)
+        self.module_traci.trafficlight.setPhase(tls.getID(), 2)
 
+        self.use_drl = use_drl
+        if(self.use_drl):
+            self.test = test
             self.width_ob = self.start_edge.getLength()//5+2
-            self.drl_agent = DDQNAgent(self.width_ob, 2)
+
+            if(self.test):
+                actor_to_load = "files/w_model/config_"+str(self.config)+"/0.2/trained.n"
+            else:
+                actor_to_load = None
+
+            self.drl_agent = DDQNAgent(self.width_ob, 2, actor_to_load=actor_to_load)
             self.ob = []
 
             self.bikes_waiting_time = 0
@@ -83,7 +92,7 @@ class Structure:
     def step(self, step, edges):
         #print(step, self.id_cyclists_waiting, self.id_cyclists_crossing_struct)
 
-        if(len(self.drl_agent.buffer)>self.drl_agent.batch_size):
+        if(self.use_drl and not self.test and len(self.drl_agent.buffer)>self.drl_agent.batch_size):
             self.drl_agent.learn()
 
                 
@@ -144,7 +153,7 @@ class Structure:
             if(self.use_drl):
                 self.drl_decision_making(step)
             else:
-                self.static_decision_making()
+                self.static_decision_making(step)
 
 
 
@@ -162,7 +171,7 @@ class Structure:
             if(len(self.ob_prec) == 0):
                 self.calculate_sum_waiting_time()
             else:
-                if(self.action >= 0):
+                if(not self.test and self.action >= 0):
                     reward = self.calculate_reward()
                     self.drl_agent.memorize(self.ob_prec, self.action, self.ob, reward, False)  
                 self.action = self.drl_agent.act(self.ob)
@@ -233,10 +242,20 @@ class Structure:
             self.module_traci.trafficlight.setProgram(tls.getID(), 0)
             self.module_traci.trafficlight.setPhase(tls.getID(), 0)
 
-    def static_decision_making(self):
+    def static_decision_making(self, step):
         e = self.path[0]
         tls = self.net.getEdge(e).getTLS()
-        if(len(set(self.module_traci.edge.getLastStepVehicleIDs(e)) & set(self.id_cyclists_crossing_struct)) >= self.min_group_size):           
+
+        if(step >= self.simu_length):
+            cars_on_lane = False
+            for v_id in self.module_traci.edge.getLastStepVehicleIDs(e):
+                if("_c" in v_id):
+                    cars_on_lane = True
+                    break
+            if(not cars_on_lane):
+                self.module_traci.trafficlight.setProgram(tls.getID(), 1)
+
+        elif(len(set(self.module_traci.edge.getLastStepVehicleIDs(e)) & set(self.id_cyclists_crossing_struct)) >= self.min_group_size):           
             if(self.module_traci.trafficlight.getProgram(tls.getID()) == "0"):
                 if(self.module_traci.trafficlight.getPhase(tls.getID()) == 2):
                     self.module_traci.trafficlight.setPhase(tls.getID(), 3)
