@@ -53,7 +53,7 @@ def plot_and_save_line(data, file_title, labels=None, sub_folders=""):
 if __name__ == "__main__": 
 
     config = 3
-    variable_fixed = 0.5
+    variable_fixed = 0.4
     drl = True
 
     if(drl):
@@ -73,7 +73,9 @@ if __name__ == "__main__":
                     for vehicle_type in d_scenarios[key][0]:
                         dict_graphs[vehicle_type] = [[],[]]
                         next_step_hour = 0
-                        for vehicle in d_scenarios[key][0][vehicle_type]:
+                        pprint(d_scenarios[key][0][vehicle_type].keys())
+                        for v_id in d_scenarios[key][0][vehicle_type]:
+                            vehicle = d_scenarios[key][0][vehicle_type][v_id]
                             if(vehicle["start_step"]>=next_step_hour):
                                 if(len(dict_graphs[vehicle_type][0])>0):
                                     tab_mean_travel_time[vehicle_type_index].append(sum(dict_graphs[vehicle_type][0][-1])/len(dict_graphs[vehicle_type][0][-1]))
