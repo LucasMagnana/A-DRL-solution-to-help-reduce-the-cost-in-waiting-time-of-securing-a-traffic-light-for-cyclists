@@ -52,7 +52,7 @@ elif(args.config == 2):
     evoluting = "bikes"
 elif(args.config == 3):
     car_poisson_lambda = 0.2
-    bike_poisson_lambda = 0.2
+    bike_poisson_lambda = 0.5
     evoluting = "cars"
     args.struct_open = True
 

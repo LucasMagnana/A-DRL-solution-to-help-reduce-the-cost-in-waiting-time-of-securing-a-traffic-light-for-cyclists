@@ -58,7 +58,7 @@ def plot_and_save_line(data, file_title, labels=None, sub_folders=""):
 if __name__ == "__main__": 
 
     config = 3
-    variable_fixed = 0.2
+    variable_fixed = 0.5
     drl = True
 
     if(drl):
