@@ -59,7 +59,8 @@ class Structure:
 
         tls = self.net.getEdge(self.path[0]).getTLS()
         self.module_traci.trafficlight.setProgramLogic(tls.getID(), self.module_traci.trafficlight.Logic(1, 0, 0, \
-            phases=[self.module_traci.trafficlight.Phase(duration=99999, state="rrrrrrrrrrrrGGGrrrrrrrrr", minDur=9999, maxDur=9999)]))
+            phases=[self.module_traci.trafficlight.Phase(duration=3, state="rrrrrrrrrrrrrrryyyrrrrrr", minDur=3, maxDur=3),\
+            self.module_traci.trafficlight.Phase(duration=99999, state="rrrrrrrrrrrrGGGrrrrrrrrr", minDur=9999, maxDur=9999)]))
 
         self.module_traci.trafficlight.setProgram(tls.getID(), 0)
         self.module_traci.trafficlight.setPhase(tls.getID(), 2)
@@ -217,9 +218,9 @@ class Structure:
         self.bikes_waiting_time = 0
         for vehicle_id in self.module_traci.vehicle.getIDList():
             if("_c" in vehicle_id):
-                self.cars_waiting_time += self.dict_scenario["cars"][int(vehicle_id[:-2])]["waiting_time"]
+                self.cars_waiting_time += self.dict_scenario["cars"][vehicle_id[:-2]]["waiting_time"]
             else:
-                self.bikes_waiting_time += self.dict_scenario["bikes"][int(vehicle_id)]["waiting_time"]
+                self.bikes_waiting_time += self.dict_scenario["bikes"][vehicle_id]["waiting_time"]
         return last_cars_wt, last_bikes_wt
 
         
@@ -234,10 +235,12 @@ class Structure:
         e = self.path[0]
         tls = self.net.getEdge(e).getTLS()       
         if(self.module_traci.trafficlight.getProgram(tls.getID()) == "0"):
-            if(self.module_traci.trafficlight.getPhase(tls.getID()) == 2):
-                self.module_traci.trafficlight.setPhase(tls.getID(), 3)
+            if(self.module_traci.trafficlight.getPhase(tls.getID()) == 0):
+                self.module_traci.trafficlight.setProgram(tls.getID(), 1)
+                self.module_traci.trafficlight.setPhase(tls.getID(), 0)
             elif(self.module_traci.trafficlight.getPhase(tls.getID()) == 0):
                 self.module_traci.trafficlight.setProgram(tls.getID(), 1)
+                self.module_traci.trafficlight.setPhase(tls.getID(), 1)
         else:
             self.module_traci.trafficlight.setProgram(tls.getID(), 0)
             self.module_traci.trafficlight.setPhase(tls.getID(), 0)
@@ -245,17 +248,8 @@ class Structure:
     def static_decision_making(self, step):
         e = self.path[0]
         tls = self.net.getEdge(e).getTLS()
-
-        if(step >= self.simu_length):
-            cars_on_lane = False
-            for v_id in self.module_traci.edge.getLastStepVehicleIDs(e):
-                if("_c" in v_id):
-                    cars_on_lane = True
-                    break
-            if(not cars_on_lane):
-                self.module_traci.trafficlight.setProgram(tls.getID(), 1)
-
-        elif(len(set(self.module_traci.edge.getLastStepVehicleIDs(e)) & set(self.id_cyclists_crossing_struct)) >= self.min_group_size):           
+        
+        if(len(set(self.module_traci.edge.getLastStepVehicleIDs(e)) & set(self.id_cyclists_crossing_struct)) >= self.min_group_size):           
             if(self.module_traci.trafficlight.getProgram(tls.getID()) == "0"):
                 if(self.module_traci.trafficlight.getPhase(tls.getID()) == 2):
                     self.module_traci.trafficlight.setPhase(tls.getID(), 3)

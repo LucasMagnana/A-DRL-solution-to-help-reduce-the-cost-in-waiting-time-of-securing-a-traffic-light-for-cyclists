@@ -93,12 +93,13 @@ class Cyclist:
             if(self.crossing_struct and self.actual_edge_id == self.last_edge_in_struct_id):
                 self.wanting_to_exit_struct = True
 
-            if(self.crossing_struct):
-                self.module_traci.vehicle.highlight(self.id, color=(0, 0, 255, 255))
-            elif(self.struct_crossed):
-                self.module_traci.vehicle.highlight(self.id, color=(0, 255, 0, 255))
-            elif(self.struct_candidate):
-                self.module_traci.vehicle.highlight(self.id)
+            if(not self.structure.use_drl):
+                if(self.crossing_struct):
+                    self.module_traci.vehicle.highlight(self.id, color=(0, 0, 255, 255))
+                elif(self.struct_crossed):
+                    self.module_traci.vehicle.highlight(self.id, color=(0, 255, 0, 255))
+                elif(self.struct_candidate):
+                    self.module_traci.vehicle.highlight(self.id)
 
         elif(self.id in self.module_traci.simulation.getArrivedIDList()):
             self.alive = False
