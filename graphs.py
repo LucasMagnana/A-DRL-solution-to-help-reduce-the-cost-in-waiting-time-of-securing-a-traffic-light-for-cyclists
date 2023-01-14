@@ -73,7 +73,6 @@ if __name__ == "__main__":
                     for vehicle_type in d_scenarios[key][0]:
                         dict_graphs[vehicle_type] = [[],[]]
                         next_step_hour = 0
-                        pprint(d_scenarios[key][0][vehicle_type].keys())
                         for v_id in d_scenarios[key][0][vehicle_type]:
                             vehicle = d_scenarios[key][0][vehicle_type][v_id]
                             if(vehicle["start_step"]>=next_step_hour):

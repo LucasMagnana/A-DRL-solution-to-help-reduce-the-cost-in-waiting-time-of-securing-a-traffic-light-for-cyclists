@@ -35,7 +35,7 @@ hidden_size_2 = 32
 lr=1e-5
 
 step_length = 0.2
-simu_length = 1*3600
+simu_length = 25*3600
 speed_threshold = 0.5
 
 if(args.config == 0):

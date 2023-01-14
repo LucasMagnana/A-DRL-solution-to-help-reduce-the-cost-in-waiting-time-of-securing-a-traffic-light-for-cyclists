@@ -59,10 +59,7 @@ class Structure:
 
         tls = self.net.getEdge(self.path[0]).getTLS()
         self.module_traci.trafficlight.setProgramLogic(tls.getID(), self.module_traci.trafficlight.Logic(1, 0, 0, \
-            phases=[self.module_traci.trafficlight.Phase(duration=3, state="rrrrrrrrrrrrGGGyyyrrrrrr", minDur=3, maxDur=3),\
-            self.module_traci.trafficlight.Phase(duration=9999, state="rrrrrrrrrrrrGGGrrrrrrrrr", minDur=9999, maxDur=9999),
-            self.module_traci.trafficlight.Phase(duration=3, state="rrrrrrrrrrrryyyrrrrrrrrr", minDur=3, maxDur=3),
-            self.module_traci.trafficlight.Phase(duration=1, state="GGggGgrrrrrrGGggGgrrrrrr", minDur=1, maxDur=1)]))
+            phases=[self.module_traci.trafficlight.Phase(duration=99999, state="rrrrrrrrrrrrGGGrrrrrrrrr", minDur=9999, maxDur=9999)]))
 
         self.module_traci.trafficlight.setProgram(tls.getID(), 0)
         self.module_traci.trafficlight.setPhase(tls.getID(), 2)
@@ -73,7 +70,7 @@ class Structure:
             self.width_ob = self.start_edge.getLength()//5+2
 
             if(self.test):
-                actor_to_load = "files/w_model/config_"+str(self.config)+"/0.5/trained.n"
+                actor_to_load = "files/w_model/config_"+str(self.config)+"/0.4/trained.n"
             else:
                 actor_to_load = None
 
@@ -237,30 +234,38 @@ class Structure:
         e = self.path[0]
         tls = self.net.getEdge(e).getTLS()       
         if(self.module_traci.trafficlight.getProgram(tls.getID()) == "0"):
-            if(self.module_traci.trafficlight.getPhase(tls.getID()) == 0):
+            if(self.module_traci.trafficlight.getPhase(tls.getID()) == 2):
+                self.module_traci.trafficlight.setPhase(tls.getID(), 3)
+            elif(self.module_traci.trafficlight.getPhase(tls.getID()) == 0):
                 self.module_traci.trafficlight.setProgram(tls.getID(), 1)
-                self.module_traci.trafficlight.setPhase(tls.getID(), 0)
-            elif(self.module_traci.trafficlight.getPhase(tls.getID()) == 2):
-                self.module_traci.trafficlight.setProgram(tls.getID(), 1)
-                self.module_traci.trafficlight.setPhase(tls.getID(), 1)
         else:
-            if(self.module_traci.trafficlight.getPhase(tls.getID()) == 1):
-                self.module_traci.trafficlight.setPhase(tls.getID(), 2)
-            elif(self.module_traci.trafficlight.getPhase(tls.getID()) == 3):
-                self.module_traci.trafficlight.setProgram(tls.getID(), 0)
-                self.module_traci.trafficlight.setPhase(tls.getID(), 0)
+            self.module_traci.trafficlight.setProgram(tls.getID(), 0)
+            self.module_traci.trafficlight.setPhase(tls.getID(), 0)
 
     def static_decision_making(self, step):
         e = self.path[0]
         tls = self.net.getEdge(e).getTLS()
-        
-        if(len(set(self.module_traci.edge.getLastStepVehicleIDs(e)) & set(self.id_cyclists_crossing_struct)) >= self.min_group_size):           
+
+        if(step >= self.simu_length):
+            cars_on_lane = False
+            for v_id in self.module_traci.edge.getLastStepVehicleIDs(e):
+                if("_c" in v_id):
+                    cars_on_lane = True
+                    break
+            if(not cars_on_lane):
+                self.module_traci.trafficlight.setProgram(tls.getID(), 1)
+
+        elif(len(set(self.module_traci.edge.getLastStepVehicleIDs(e)) & set(self.id_cyclists_crossing_struct)) >= self.min_group_size):           
             if(self.module_traci.trafficlight.getProgram(tls.getID()) == "0"):
-                self.change_light_program()
+                if(self.module_traci.trafficlight.getPhase(tls.getID()) == 2):
+                    self.module_traci.trafficlight.setPhase(tls.getID(), 3)
+                elif(self.module_traci.trafficlight.getPhase(tls.getID()) == 0):
+                    self.module_traci.trafficlight.setProgram(tls.getID(), 1)
         
         elif(len(set(self.module_traci.edge.getLastStepVehicleIDs(e)) & set(self.id_cyclists_crossing_struct)) == 0):
             if(self.module_traci.trafficlight.getProgram(tls.getID()) == "1"):
-                self.change_light_program()
+                self.module_traci.trafficlight.setProgram(tls.getID(), 0)
+                self.module_traci.trafficlight.setPhase(tls.getID(), 0)
 
         
 
