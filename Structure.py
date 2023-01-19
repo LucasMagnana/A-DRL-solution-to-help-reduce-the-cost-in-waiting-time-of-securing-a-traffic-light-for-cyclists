@@ -1,7 +1,8 @@
 import threading
 import torch
+import numpy as np
 
-from DDQNAgent import DDQNAgent
+from DQNAgent import DQNAgent
 
 class Structure:
     def __init__(self, start_edge, end_edge, edges, net, dict_cyclists, traci, config, dict_scenario, simu_length,\
@@ -67,14 +68,14 @@ class Structure:
         self.use_drl = use_drl
         if(self.use_drl):
             self.test = test
-            self.width_ob = self.start_edge.getLength()//5+2
+            self.width_ob = (2, 2, int(self.start_edge.getLength()//5+2))
 
             if(self.test):
                 actor_to_load = "files/w_model/config_"+str(self.config)+"/0.4/trained.n"
             else:
                 actor_to_load = None
 
-            self.drl_agent = DDQNAgent(self.width_ob, 2, actor_to_load=actor_to_load)
+            self.drl_agent = DQNAgent(self.width_ob, 2, actor_to_load=actor_to_load)
             self.ob = []
 
             self.bikes_waiting_time = 0
@@ -206,7 +207,7 @@ class Structure:
                 if(ob[1][i][j] != 0):
                     ob[1][i][j]/=ob[0][i][j]
 
-        return ob
+        return np.array(ob)
         
 
 

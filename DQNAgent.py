@@ -1,14 +1,19 @@
-from random import sample
-from random import * 
+
+import random
+from random import sample, random, randint
+
 from torch.nn import MSELoss
+from torchrl import data
+
+import numpy as np
 
 import copy
 import numpy as np
 import torch
 
-from NeuralNetworks import Actor
+from NeuralNetworks import Actor, DuellingActor
 
-class DDQNHyperParams :
+class DQNHyperParams:
     def __init__(self):
         self.BUFFER_SIZE = 25000 
         self.ALPHA = 0.05 #
@@ -27,18 +32,23 @@ class DDQNHyperParams :
         self.MIN_EPSILON = 0.01
         self.EPSILON_DECAY = self.EPSILON/(self.EPISODE_COUNT*4/5)
 
-class DDQNAgent(object):
-    def __init__(self, observation_space, action_space, cuda=False, actor_to_load=None):
 
-        self.hyperParams = DDQNHyperParams()
+class DQNAgent(object):
+    def __init__(self, observation_space, action_space, test=False, double=True, duelling=False, PER=False, cnn=None, cuda=False, actor_to_load=None):
+
+        self.hyperParams = DQNHyperParams()
         
         if(actor_to_load != None): #use the good hyper parameters (loaded if it's a test, written in the code if it's a training)
             self.hyperParams.EPSILON = 0
 
-        self.action_space = action_space   
-
-        self.buffer = [] #replay buffer of the agent
-        self.buffer_max_size = self.hyperParams.BUFFER_SIZE
+        self.action_space = action_space 
+        
+        self.PER = PER
+        if(not test):
+            if(self.PER):  
+                self.buffer = data.PrioritizedReplayBuffer(int(self.hyperParams.BUFFER_SIZE), 0.2, 0.4)
+            else:
+                self.buffer = data.ReplayBuffer(int(self.hyperParams.BUFFER_SIZE))
 
         self.alpha = self.hyperParams.ALPHA
         self.epsilon = self.hyperParams.EPSILON
@@ -46,7 +56,11 @@ class DDQNAgent(object):
 
         self.device = torch.device("cuda" if cuda else "cpu")
 
-        self.actor = Actor(observation_space, action_space, self.hyperParams).to(self.device) #for cartpole
+        self.duelling = duelling
+        if(self.duelling):
+            self.actor = DuellingActor(observation_space, action_space).to(self.device) #for cartpole
+        else:
+            self.actor = Actor(observation_space, action_space).to(self.device) #for cartpole
 
         self.batch_size = self.hyperParams.BATCH_SIZE
 
@@ -61,11 +75,12 @@ class DDQNAgent(object):
 
         self.observation_space = observation_space
 
+        self.double = double
+        
         
 
 
     def act(self, observation):
-        #return self.action_space.sample()
         observation = torch.tensor(observation, device=self.device)
         tens_qvalue = self.actor(observation) #compute the qvalues for the observation
         tens_qvalue = tens_qvalue.squeeze()
@@ -77,14 +92,17 @@ class DDQNAgent(object):
 
     def sample(self):
         if(len(self.buffer) < self.batch_size):
-            return sample(self.buffer, len(self.buffer))
+            return self.buffer.sample(len(self.buffer))
         else:
-            return sample(self.buffer, self.batch_size)
+            return self.buffer.sample(self.batch_size)
 
     def memorize(self, ob_prec, action, ob, reward, done):
-        if(len(self.buffer) > self.buffer_max_size): #delete the first element if the buffer is at max size 
-            self.buffer.pop(0)
-        self.buffer.append([ob_prec, action, ob, reward, not(done)])
+        experience = copy.deepcopy(ob_prec).flatten()
+        experience = np.append(experience, action)
+        experience = np.append(experience, ob.flatten())
+        experience = np.append(experience, reward)
+        experience = np.append(experience, not(done))
+        self.buffer.add(torch.FloatTensor(experience, device=self.device))   
 
     def learn(self, n_iter=None):
 
@@ -103,34 +121,40 @@ class DDQNAgent(object):
         loss = MSELoss()
 
         spl = self.sample()  #create a batch of experiences
+        if(self.PER):
+            datas = spl[1]
+            spl = spl[0]
 
-        spl=list(zip(*spl))
 
-        tens_state=torch.tensor(spl[0], device=self.device)
+        spl = torch.split(spl, [np.prod(self.observation_space), 1, np.prod(self.observation_space), 1, 1], dim=1)
 
-        tens_action=torch.tensor(spl[1], device=self.device)
-        tens_action=tens_action.long()
+        tens_state = spl[0].view(spl[1].shape[0], self.observation_space[0], self.observation_space[1], self.observation_space[2])
 
-        tens_state_next=torch.tensor(spl[2], device=self.device)
+        tens_action = spl[1].squeeze().long()
 
-        tens_reward=torch.tensor(spl[3], device=self.device)
+        tens_state_next = tens_state = spl[0].view(tens_action.shape[0], self.observation_space[0], self.observation_space[1], self.observation_space[2])
 
-        tens_done=torch.tensor(spl[4], device=self.device)
+        tens_reward = spl[3].squeeze()
+
+        tens_done = spl[4].squeeze().bool()
 
         tens_qvalue = self.actor(tens_state) #compute the qvalues for all the actual states
 
         tens_qvalue = torch.index_select(tens_qvalue, 1, tens_action).diag() #select the qvalues corresponding to the chosen actions
 
-        '''
-        # Simple DQN
-        tens_next_qvalue = self.actor_target(tens_state_next) #compute all the qvalues for all the "next states"
-        (tens_next_qvalue, _) = torch.max(tens_next_qvalue, 1) #select the max qvalues for all the next states'''
+
         
-        # Double DQN
-        tens_next_qvalue = self.actor(tens_state_next) #compute all the qvalues for all the "next states" with the ppal network
-        (_, tens_next_action) = torch.max(tens_next_qvalue, 1) #returns the indices of the max qvalues for all the next states(to choose the next actions)
-        tens_next_qvalue = self.actor_target(tens_state_next) #compute all the qvalues for all the "next states" with the target network
-        tens_next_qvalue = torch.index_select(tens_next_qvalue, 1, tens_next_action).diag() #select the qvalues corresponding to the chosen next actions
+        if(self.double):
+            # Double DQN
+            tens_next_qvalue = self.actor(tens_state_next) #compute all the qvalues for all the "next states" with the ppal network
+            (_, tens_next_action) = torch.max(tens_next_qvalue, 1) #returns the indices of the max qvalues for all the next states(to choose the next actions)
+            tens_next_qvalue = self.actor_target(tens_state_next) #compute all the qvalues for all the "next states" with the target network
+            tens_next_qvalue = torch.index_select(tens_next_qvalue, 1, tens_next_action).diag() #select the qvalues corresponding to the chosen next actions          
+        else:
+            # Simple DQN
+            tens_next_qvalue = self.actor_target(tens_state_next) #compute all the qvalues for all the "next states"
+            (tens_next_qvalue, _) = torch.max(tens_next_qvalue, 1) #select the max qvalues for all the next states
+            
 
         self.optimizer.zero_grad() #reset the gradient
         tens_loss = loss(tens_qvalue, tens_reward+(self.gamma*tens_next_qvalue)*tens_done) #calculate the loss
