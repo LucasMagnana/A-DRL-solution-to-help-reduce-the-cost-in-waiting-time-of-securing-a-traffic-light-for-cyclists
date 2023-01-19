@@ -2,6 +2,7 @@ import threading
 import torch
 import numpy as np
 
+from DDQNAgent import DDQNAgent
 from DQNAgent import DQNAgent
 
 class Structure:
@@ -71,11 +72,11 @@ class Structure:
             self.width_ob = (2, 2, int(self.start_edge.getLength()//5+2))
 
             if(self.test):
-                actor_to_load = "files/w_model/config_"+str(self.config)+"/0.4/trained.n"
+                actor_to_load = "files/w_model/config_"+str(self.config)+"/0.5/trained.n"
             else:
                 actor_to_load = None
 
-            self.drl_agent = DQNAgent(self.width_ob, 2, actor_to_load=actor_to_load)
+            self.drl_agent = DDQNAgent(self.width_ob, 2, actor_to_load=actor_to_load)
             self.ob = []
 
             self.bikes_waiting_time = 0
@@ -194,8 +195,7 @@ class Structure:
 
     def create_observation(self):
         edge_start_x = self.start_edge.getFromNode().getCoord()[0]
-        self.width_ob = self.start_edge.getLength()//5+2
-        ob = [[[0]*int(self.width_ob),[0]*int(self.width_ob)], [[0]*int(self.width_ob),[0]*int(self.width_ob)]]
+        ob = [[[0]*int(self.width_ob[-1]),[0]*int(self.width_ob[-1])], [[0]*int(self.width_ob[-1]),[0]*int(self.width_ob[-1])]]
         for vehicle_id in self.module_traci.edge.getLastStepVehicleIDs(self.start_edge.getID()):
             index = int(self.module_traci.vehicle.getLaneID(vehicle_id)[-1])
             position_in_grid = int(round(self.module_traci.vehicle.getPosition(vehicle_id)[0]-edge_start_x))//5
@@ -218,9 +218,9 @@ class Structure:
         self.bikes_waiting_time = 0
         for vehicle_id in self.module_traci.vehicle.getIDList():
             if("_c" in vehicle_id):
-                self.cars_waiting_time += self.dict_scenario["cars"][vehicle_id[:-2]]["waiting_time"]
+                self.cars_waiting_time += self.dict_scenario["cars"][int(vehicle_id[:-2])]["waiting_time"]
             else:
-                self.bikes_waiting_time += self.dict_scenario["bikes"][vehicle_id]["waiting_time"]
+                self.bikes_waiting_time += self.dict_scenario["bikes"][int(vehicle_id)]["waiting_time"]
         return last_cars_wt, last_bikes_wt
 
         

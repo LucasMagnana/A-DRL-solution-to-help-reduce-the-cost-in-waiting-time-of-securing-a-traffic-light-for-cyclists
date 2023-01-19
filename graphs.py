@@ -3,20 +3,25 @@ import pickle
 import os
 from pprint import pprint
 
-def compute_graphs_data(dict_scenario, vehicle_type):
-    tab_travel_time = []
-    tab_speed = []
-    tab_distance_travelled = []
-    if(len(dict_scenario[vehicle_type])>0):
-        for v_id in dict_scenario[vehicle_type]:
-            tab_travel_time.append(dict_scenario[vehicle_type][v_id]["finish_step"]-dict_scenario[vehicle_type][v_id]["start_step"])
-            tab_speed.append(dict_scenario[vehicle_type][v_id]["distance_travelled"]/(dict_scenario[vehicle_type][v_id]["finish_step"]-dict_scenario[vehicle_type][v_id]["start_step"]))
-            tab_distance_travelled.append(dict_scenario[vehicle_type][v_id]["distance_travelled"])
+def compute_graphs_data_cyclists(dict_scenario):
+    if(len(dict_scenario["bikes"])>0):
+        tab_travel_time = [b["finish_step"]-b["start_step"] for b in dict_scenario["bikes"]]
+        tab_speed = [b["distance_travelled"]/(b["finish_step"]-b["start_step"]) for b in dict_scenario["bikes"]]
+        tab_distance_travelled = [b["distance_travelled"] for b in dict_scenario["bikes"]]
         
         return sum(tab_travel_time)/len(tab_travel_time), sum(tab_speed)/len(tab_speed) 
     else:
         return 0, 0
 
+
+
+def compute_graphs_data_cars(dict_scenario):
+    if(len(dict_scenario["cars"])>0):
+        tab_travel_time = [c["finish_step"]-c["start_step"] for c in dict_scenario["cars"]]
+        tab_speed = [b["distance_travelled"]/(b["finish_step"]-b["start_step"]) for b in dict_scenario["cars"]]
+        return sum(tab_travel_time)/len(tab_travel_time), sum(tab_speed)/len(tab_speed) 
+    else:
+        return 0, 0
 
 
 def plot_and_save_boxplot(data, file_title, labels=None, structure_was_open=None, sub_folders=""):
@@ -53,7 +58,7 @@ def plot_and_save_line(data, file_title, labels=None, sub_folders=""):
 if __name__ == "__main__": 
 
     config = 3
-    variable_fixed = 0.4
+    variable_fixed = 0.5
     drl = True
 
     if(drl):
@@ -73,8 +78,7 @@ if __name__ == "__main__":
                     for vehicle_type in d_scenarios[key][0]:
                         dict_graphs[vehicle_type] = [[],[]]
                         next_step_hour = 0
-                        for v_id in d_scenarios[key][0][vehicle_type]:
-                            vehicle = d_scenarios[key][0][vehicle_type][v_id]
+                        for vehicle in d_scenarios[key][0][vehicle_type]:
                             if(vehicle["start_step"]>=next_step_hour):
                                 if(len(dict_graphs[vehicle_type][0])>0):
                                     tab_mean_travel_time[vehicle_type_index].append(sum(dict_graphs[vehicle_type][0][-1])/len(dict_graphs[vehicle_type][0][-1]))
@@ -164,8 +168,8 @@ if __name__ == "__main__":
             for lam in d_scenarios:
                 dict_graphs["x_mean"].append(lam)
                 for i in range(len(d_scenarios[lam])):
-                    mean_cars_t_t, mean_cars_speed = compute_graphs_data(d_scenarios[lam][i], "cars")
-                    mean_bikes_t_t, mean_bikes_speed = compute_graphs_data(d_scenarios[lam][i], "bikes")
+                    mean_cars_t_t, mean_cars_speed = compute_graphs_data_cars(d_scenarios[lam][i])
+                    mean_bikes_t_t, mean_bikes_speed = compute_graphs_data_cyclists(d_scenarios[lam][i])
 
                     tab_mean_t_t[0].append(mean_cars_t_t)
                     tab_mean_t_t[1].append(mean_bikes_t_t)
