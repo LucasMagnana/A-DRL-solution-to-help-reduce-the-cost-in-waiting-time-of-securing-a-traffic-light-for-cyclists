@@ -72,7 +72,7 @@ class Structure:
             self.width_ob = (2, 2, int(self.start_edge.getLength()//5+2))
 
             if(self.test):
-                actor_to_load = "files/w_model/config_"+str(self.config)+"/0.5/trained.n"
+                actor_to_load = "files/w_model/config_"+str(self.config)+"/0.4/trained.n"
             else:
                 actor_to_load = None
 
@@ -86,6 +86,7 @@ class Structure:
 
             self.need_change_tls_program = False
             self.next_step_drl = 0
+            self.next_step_learning = self.drl_agent.hyperParams.LEARNING_STEP
 
             self.action = -1
 
@@ -94,68 +95,68 @@ class Structure:
     def step(self, step, edges):
         #print(step, self.id_cyclists_waiting, self.id_cyclists_crossing_struct)
 
-        if(self.use_drl and not self.test and len(self.drl_agent.buffer)>self.drl_agent.batch_size):
-            self.drl_agent.learn()
+        if(self.config == 3 and self.use_drl):
+            if(step > self.next_step_drl):
+                self.drl_decision_making(step)
+            if(step > self.drl_agent.hyperParams.LEARNING_START and not self.test and step>self.next_step_learning):
+                self.drl_agent.learn()
+                self.next_step_learning += self.drl_agent.hyperParams.LEARNING_STEP
 
-                
-        for i in self.module_traci.edge.getLastStepVehicleIDs(self.start_edge.getID()):
-            if("_c" not in i and i not in self.id_cyclists_waiting and i not in self.id_cyclists_crossing_struct and self.dict_cyclists[i].struct_candidate):
-                if(len(self.id_cyclists_waiting)==0):
-                    for j in range(len(self.id_cyclists_crossing_struct)-1, -1, -1):
-                        pos = self.module_traci.vehicle.getPosition(self.id_cyclists_crossing_struct[j])
-                        if(self.module_traci.vehicle.getDrivingDistance2D(i, pos[0], pos[1])>0 and self.module_traci.vehicle.getDrivingDistance2D(i, pos[0], pos[1])<=5):
+        else:            
+            for i in self.module_traci.edge.getLastStepVehicleIDs(self.start_edge.getID()):
+                if("_c" not in i and i not in self.id_cyclists_waiting and i not in self.id_cyclists_crossing_struct and self.dict_cyclists[i].struct_candidate):
+                    if(len(self.id_cyclists_waiting)==0):
+                        for j in range(len(self.id_cyclists_crossing_struct)-1, -1, -1):
+                            pos = self.module_traci.vehicle.getPosition(self.id_cyclists_crossing_struct[j])
+                            if(self.module_traci.vehicle.getDrivingDistance2D(i, pos[0], pos[1])>0 and self.module_traci.vehicle.getDrivingDistance2D(i, pos[0], pos[1])<=5):
+                                self.id_cyclists_waiting.append(i)
+                                self.dict_cyclists[i].step_cancel_struct_candidature = step+99999
+                                break
+                        if(i not in self.id_cyclists_waiting and self.module_traci.vehicle.getSpeed(i)<= 3):
                             self.id_cyclists_waiting.append(i)
                             self.dict_cyclists[i].step_cancel_struct_candidature = step+99999
-                            break
-                    if(i not in self.id_cyclists_waiting and self.module_traci.vehicle.getSpeed(i)<= 3):
-                        self.id_cyclists_waiting.append(i)
-                        self.dict_cyclists[i].step_cancel_struct_candidature = step+99999
-                    
-                else:
-                    for j in range(len(self.id_cyclists_waiting)-1, -1, -1):
-                        pos = self.module_traci.vehicle.getPosition(self.id_cyclists_waiting[j])
-                        if(self.module_traci.vehicle.getDrivingDistance2D(i, pos[0], pos[1])<=3):
-                            self.id_cyclists_waiting.append(i)
-                            self.dict_cyclists[i].step_cancel_struct_candidature = step+99999
-                            break
+                        
+                    else:
+                        for j in range(len(self.id_cyclists_waiting)-1, -1, -1):
+                            pos = self.module_traci.vehicle.getPosition(self.id_cyclists_waiting[j])
+                            if(self.module_traci.vehicle.getDrivingDistance2D(i, pos[0], pos[1])<=3):
+                                self.id_cyclists_waiting.append(i)
+                                self.dict_cyclists[i].step_cancel_struct_candidature = step+99999
+                                break
 
-        if(len(self.id_cyclists_waiting)>=self.min_group_size):
-            self.activated = True
-            min_max_speed = 100
-            for i in self.id_cyclists_waiting:
-                self.dict_cyclists[i].cross_struct()
-                if(self.dict_cyclists[i].max_speed < min_max_speed):
-                    min_max_speed = self.dict_cyclists[i].max_speed
-                #print(i, "crossing")
-                self.id_cyclists_crossing_struct.append(i)
-            self.id_cyclists_waiting = []
-
-            for i in self.id_cyclists_crossing_struct:
-                self.dict_cyclists[i].set_max_speed(min_max_speed)
-
-            #print("activated at step", step)
-
-        if(len(self.id_cyclists_crossing_struct)>0):
-
-            if(set(self.module_traci.edge.getLastStepVehicleIDs(self.start_edge.getID())) & set(self.id_cyclists_crossing_struct)):
+            if(len(self.id_cyclists_waiting)>=self.min_group_size):
+                self.activated = True
+                min_max_speed = 100
                 for i in self.id_cyclists_waiting:
-                    self.id_cyclists_crossing_struct.append(i)
                     self.dict_cyclists[i].cross_struct()
-                    self.dict_cyclists[i].set_max_speed(self.dict_cyclists[self.id_cyclists_crossing_struct[0]].max_speed)                  
+                    if(self.dict_cyclists[i].max_speed < min_max_speed):
+                        min_max_speed = self.dict_cyclists[i].max_speed
+                    #print(i, "crossing")
+                    self.id_cyclists_crossing_struct.append(i)
+                self.id_cyclists_waiting = []
+
+                for i in self.id_cyclists_crossing_struct:
+                    self.dict_cyclists[i].set_max_speed(min_max_speed)
+
+                #print("activated at step", step)
+
+            if(len(self.id_cyclists_crossing_struct)>0):
+
+                if(set(self.module_traci.edge.getLastStepVehicleIDs(self.start_edge.getID())) & set(self.id_cyclists_crossing_struct)):
+                    for i in self.id_cyclists_waiting:
+                        self.id_cyclists_crossing_struct.append(i)
+                        self.dict_cyclists[i].cross_struct()
+                        self.dict_cyclists[i].set_max_speed(self.dict_cyclists[self.id_cyclists_crossing_struct[0]].max_speed)                  
+                        self.id_cyclists_waiting.remove(i)
+
+
+            for i in self.id_cyclists_waiting:
+                if(i not in self.module_traci.edge.getLastStepVehicleIDs(self.start_edge.getID())):
                     self.id_cyclists_waiting.remove(i)
 
 
-        for i in self.id_cyclists_waiting:
-            if(i not in self.module_traci.edge.getLastStepVehicleIDs(self.start_edge.getID())):
-                self.id_cyclists_waiting.remove(i)
 
-        if(self.config == 0):
-            self.check_lights_1_program(step)
-        elif(self.config == 3):
-            if(self.use_drl):
-                self.drl_decision_making(step)
-            else:
-                self.static_decision_making(step)
+            self.static_decision_making(step)
 
 
 
@@ -164,22 +165,21 @@ class Structure:
 
     def drl_decision_making(self, step):
         e = self.path[0]
-        tls = self.net.getEdge(e).getTLS()       
-        if(step > self.next_step_drl):
-            self.create_observation()
-            self.ob_prec = self.ob
-            self.ob = self.create_observation()
+        tls = self.net.getEdge(e).getTLS()     
+        self.create_observation()
+        self.ob_prec = self.ob
+        self.ob = self.create_observation()
 
-            if(len(self.ob_prec) == 0):
-                self.calculate_sum_waiting_time()
-            else:
-                if(not self.test and self.action >= 0):
-                    reward = self.calculate_reward()
-                    self.drl_agent.memorize(self.ob_prec, self.action, self.ob, reward, False)  
-                self.action = self.drl_agent.act(self.ob)
-                if(self.action == 1):
-                    self.need_change_tls_program = True
-                    self.next_step_drl = step+1
+        if(len(self.ob_prec) == 0):
+            self.calculate_sum_waiting_time()
+        else:
+            if(not self.test and self.action >= 0):
+                reward = self.calculate_reward()
+                self.drl_agent.memorize(self.ob_prec, self.action, self.ob, reward, False)  
+            self.action = self.drl_agent.act(self.ob)
+            if(self.action == 1):
+                self.need_change_tls_program = True
+                self.next_step_drl = step+1
 
 
         if(self.need_change_tls_program):            

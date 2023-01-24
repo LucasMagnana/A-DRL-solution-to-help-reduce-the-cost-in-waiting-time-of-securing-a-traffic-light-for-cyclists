@@ -21,11 +21,12 @@ class DDQNHyperParams :
 
         self.EPISODE_COUNT = 25*3600
         self.MAX_STEPS = 1000
-        self.LEARNING_START = 0
+        self.LEARNING_START = 500
+        self.LEARNING_STEP = 10
 
         self.EPSILON = 1.0
         self.MIN_EPSILON = 0.01
-        self.EPSILON_DECAY = self.EPSILON/(self.EPISODE_COUNT*4/5)
+        self.EPSILON_DECAY = self.EPSILON/((self.EPISODE_COUNT//self.LEARNING_STEP)*4/5)
 
 class DDQNAgent(object):
     def __init__(self, observation_space, action_space, cuda=False, actor_to_load=None):
