@@ -13,25 +13,25 @@ import torch
 
 from NeuralNetworks import Actor, DuellingActor
 
-class DQNHyperParams:
+class DQNHyperParams :
     def __init__(self):
         self.BUFFER_SIZE = 25000 
         self.ALPHA = 0.05 #
         self.GAMMA = 0.99
-        self.LR = 0.01
-        self.BATCH_SIZE = 64
+        self.LR = 0.05
+        self.BATCH_SIZE = 128
 
         self.HIDDEN_SIZE = 16
         self.ACT_INTER = 16
 
         self.EPISODE_COUNT = 25*3600
         self.MAX_STEPS = 1000
-        self.LEARNING_START = 0
+        self.LEARNING_START = 500
+        self.LEARNING_STEP = 10
 
         self.EPSILON = 1.0
         self.MIN_EPSILON = 0.01
-        self.EPSILON_DECAY = self.EPSILON/(self.EPISODE_COUNT*4/5)
-
+        self.EPSILON_DECAY = self.EPSILON/((self.EPISODE_COUNT//self.LEARNING_STEP)*4/5)
 
 class DQNAgent(object):
     def __init__(self, observation_space, action_space, test=False, double=True, duelling=False, PER=False, cnn=None, cuda=False, actor_to_load=None):
@@ -132,7 +132,7 @@ class DQNAgent(object):
 
         tens_action = spl[1].squeeze().long()
 
-        tens_state_next = tens_state = spl[0].view(tens_action.shape[0], self.observation_space[0], self.observation_space[1], self.observation_space[2])
+        tens_state_next = spl[2].view(tens_action.shape[0], self.observation_space[0], self.observation_space[1], self.observation_space[2])
 
         tens_reward = spl[3].squeeze()
 

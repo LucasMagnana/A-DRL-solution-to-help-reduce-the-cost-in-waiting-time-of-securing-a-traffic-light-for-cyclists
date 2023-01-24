@@ -2,7 +2,6 @@ import threading
 import torch
 import numpy as np
 
-from DDQNAgent import DDQNAgent
 from DQNAgent import DQNAgent
 
 class Structure:
@@ -76,7 +75,7 @@ class Structure:
             else:
                 actor_to_load = None
 
-            self.drl_agent = DDQNAgent(self.width_ob, 2, actor_to_load=actor_to_load)
+            self.drl_agent = DQNAgent(self.width_ob, 2, actor_to_load=actor_to_load)
             self.ob = []
 
             self.bikes_waiting_time = 0
@@ -93,7 +92,6 @@ class Structure:
 
 
     def step(self, step, edges):
-        #print(step, self.id_cyclists_waiting, self.id_cyclists_crossing_struct)
 
         if(self.config == 3 and self.use_drl):
             if(step > self.next_step_drl):
