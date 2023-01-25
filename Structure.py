@@ -6,7 +6,7 @@ from DQNAgent import DQNAgent
 
 class Structure:
     def __init__(self, start_edge, end_edge, edges, net, dict_cyclists, traci, config, dict_scenario, simu_length,\
-    dict_edges_index=None, open=True, min_group_size=5, batch_size=32, learning=True, use_drl=False, test=False):
+    dict_edges_index=None, open=True, min_group_size=5, use_drl=False, test=False):
 
         for e in edges:
             id = e.getID()
@@ -25,12 +25,6 @@ class Structure:
         self.id_cyclists_crossing_struct = []
         self.id_cyclists_waiting = []
 
-        '''self.model = model
-        self.learning = learning
-        self.batch_size=batch_size
-        if(self.model != None and self.learning):
-            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
-            self.loss = torch.nn.BCELoss()'''
         self.dict_edges_index = dict_edges_index
         self.dict_model_input = {}
         self.list_input_to_learn = []

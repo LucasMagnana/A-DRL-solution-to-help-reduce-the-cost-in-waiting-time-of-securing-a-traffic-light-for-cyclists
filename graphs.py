@@ -47,12 +47,19 @@ def plot_and_save_bar(data, file_title, labels=None, sub_folders=""):
     plt.savefig("images/"+sub_folders+file_title+".png")
 
 
-def plot_and_save_line(data, file_title, labels=None, sub_folders=""):
+def plot_data(data, file_title, title, labels, axis_labels, sub_folders=""):
     plt.clf()
-    fig1, ax1 = plt.subplots()
-    ax1.set_title('')
-    ax1.bar(range(len(data)), data, tick_label=labels)
-    plt.savefig("images/"+sub_folders+file_title+".png")
+    if(len(labels)>1):
+        tab_x = range(len(data[0]))
+    else:
+        tab_x = range(len(data))
+    for i in range(len(labels)):
+        plt.plot(tab_x, data[i], label=labels[i])
+    plt.xlabel(axis_labels[0])
+    plt.ylabel(axis_labels[1])
+    plt.title(title)
+    plt.legend()
+    plt.savefig("images/"+sub_folders+file_title)
 
 
 if __name__ == "__main__": 
@@ -62,73 +69,62 @@ if __name__ == "__main__":
     drl = True
 
     if(drl):
+        cars_waiting_time = []
+        bikes_waiting_time = []
+        cars_travel_time = []
+        bikes_travel_time = []
+        tot_waiting_time = []
+
         sub_folders = "w_model/"
         sub_folders+="config_"+str(config)+"/"+str(variable_fixed)+"/"
-        for filename in os.listdir("./files/" + sub_folders):
-            if("scenarios" in filename):
-                with open("files/"+sub_folders+filename, 'rb') as infile:
-                    d_scenarios = pickle.load(infile)
-                dict_graphs = {}
-                for key in d_scenarios:
-                    vehicle_type_index = 0
-                    tab_mean_waiting_time = [[], []]
-                    tab_mean_travel_time = [[], []]
-                    tab_cumulative_reward = [0]
-                    tab_waiting_time = [[],[]]
-                    for vehicle_type in d_scenarios[key][0]:
-                        dict_graphs[vehicle_type] = [[],[]]
-                        next_step_hour = 0
-                        for vehicle in d_scenarios[key][0][vehicle_type]:
-                            if(vehicle["start_step"]>=next_step_hour):
-                                if(len(dict_graphs[vehicle_type][0])>0):
-                                    tab_mean_travel_time[vehicle_type_index].append(sum(dict_graphs[vehicle_type][0][-1])/len(dict_graphs[vehicle_type][0][-1]))
-                                    tab_mean_waiting_time[vehicle_type_index].append(sum(dict_graphs[vehicle_type][1][-1])/len(dict_graphs[vehicle_type][1][-1]))
-                                    tab_waiting_time[vehicle_type_index].append(sum(dict_graphs[vehicle_type][1][-1]))
-                                dict_graphs[vehicle_type][0].append([])
-                                dict_graphs[vehicle_type][1].append([])
-                                next_step_hour += 3600
-                            dict_graphs[vehicle_type][0][-1].append(vehicle["finish_step"]-vehicle["start_step"])
-                            dict_graphs[vehicle_type][1][-1].append(vehicle["waiting_time"])
-                        vehicle_type_index+=1
+        for root, dirs, files in os.walk("files/"+sub_folders):
+            for filename in files:
+                if("scenarios" in filename):
+                    with open("files/"+sub_folders+filename, 'rb') as infile:
+                        d_scenarios = pickle.load(infile)
+                    dict_graphs = {}
+                    for key in d_scenarios:
+                        vehicle_type_index = 0
+                        tab_mean_waiting_time = [[], []]
+                        tab_mean_travel_time = [[], []]
+                        tab_cumulative_reward = [0]
+                        tab_waiting_time = [[],[]]
+                        for vehicle_type in d_scenarios[key][0]:
+                            dict_graphs[vehicle_type] = [[],[]]
+                            next_step_hour = 0
+                            for vehicle in d_scenarios[key][0][vehicle_type]:
+                                if(vehicle["start_step"]>=next_step_hour):
+                                    if(len(dict_graphs[vehicle_type][0])>0):
+                                        tab_mean_travel_time[vehicle_type_index].append(sum(dict_graphs[vehicle_type][0][-1])/len(dict_graphs[vehicle_type][0][-1]))
+                                        tab_mean_waiting_time[vehicle_type_index].append(sum(dict_graphs[vehicle_type][1][-1])/len(dict_graphs[vehicle_type][1][-1]))
+                                        tab_waiting_time[vehicle_type_index].append(sum(dict_graphs[vehicle_type][1][-1]))
+                                    dict_graphs[vehicle_type][0].append([])
+                                    dict_graphs[vehicle_type][1].append([])
+                                    next_step_hour += 3600
+                                dict_graphs[vehicle_type][0][-1].append(vehicle["finish_step"]-vehicle["start_step"])
+                                dict_graphs[vehicle_type][1][-1].append(vehicle["waiting_time"])
+                            vehicle_type_index+=1
 
-                    if(not os.path.exists("images/"+sub_folders)):
-                        os.makedirs("images/"+sub_folders)
+                        if(not os.path.exists("images/"+sub_folders)):
+                            os.makedirs("images/"+sub_folders)
 
-                    tab_x = range(len(tab_mean_waiting_time[0]))
+                        tab_reward = []
 
-                    tab_reward = []
+                        for i in range(len(tab_waiting_time[0])):
+                            tab_reward.append(0.5*tab_waiting_time[0][i]+0.5*tab_waiting_time[1][i])
+                    cars_waiting_time.append(tab_mean_waiting_time[0])
+                    bikes_waiting_time.append(tab_mean_waiting_time[1])
+                    cars_travel_time.append(tab_mean_travel_time[0])
+                    bikes_travel_time.append(tab_mean_travel_time[1])
+                    tot_waiting_time.append(tab_reward)
 
-                    for i in range(len(tab_waiting_time[0])):
-                        tab_reward.append(0.5*tab_waiting_time[0][i]+0.5*tab_waiting_time[1][i])
+            plot_data(cars_travel_time, "cars_evolution_mean_time_travel.png", "Cars mean travel time", ["DQN", "Static"], ["Hours", "Travel Time"], sub_folders)
+            plot_data(bikes_travel_time, "bikes_evolution_mean_time_travel.png", "Bikes mean travel time", ["DQN", "Static"], ["Hours", "Travel Time"], sub_folders)
 
-                    plt.clf()
-                    plt.plot(tab_x, tab_mean_travel_time[0], label=list(d_scenarios[key][0].keys())[0])
-                    plt.plot(tab_x, tab_mean_travel_time[1], label=list(d_scenarios[key][0].keys())[1])
-                    plt.xlabel("Hour")
-                    plt.ylabel("Travel Time")
-                    plt.legend()
-                    plt.savefig("images/"+sub_folders+"evolution_mean_time_travel.png")
+            plot_data(cars_waiting_time, "cars_evolution_mean_waiting_time.png", "Cars mean waiting time",["DQN", "Static"], ["Hours", "Waiting Time"], sub_folders)
+            plot_data(bikes_waiting_time, "bikes_evolution_mean_waiting_time.png", "Bikes mean waiting time",["DQN", "Static"], ["Hours", "Waiting Time"], sub_folders)
 
-                    plt.clf()
-                    plt.plot(tab_x, tab_mean_waiting_time[0], label=list(d_scenarios[key][0].keys())[0])
-                    plt.plot(tab_x, tab_mean_waiting_time[1], label=list(d_scenarios[key][0].keys())[1])
-                    plt.xlabel("Hour")
-                    plt.ylabel("Waiting Time")
-                    plt.legend()
-                    plt.savefig("images/"+sub_folders+"evolution_mean_waiting_time.png")
-
-                    plt.clf()
-                    plt.plot(tab_x, tab_reward)
-                    plt.xlabel("Hour")
-                    plt.ylabel("Waiting time")
-                    plt.savefig("images/"+sub_folders+"evolution_waiting_time.png")
-
-                    '''plt.clf()
-                    plt.plot(tab_x, tab_cumulative_reward)
-                    plt.xlabel("Hour")
-                    plt.ylabel("Cumulative Waiting Time")
-                    plt.savefig("images/"+sub_folders+"cumulative_waiting_time.png")'''
-                    
+            plot_data(tot_waiting_time, "evolution_mean_waiting_time.png", "Total mean waiting time", ["DQN", "Static"], ["Hours", "Waiting Time"], sub_folders)
 
 
 
