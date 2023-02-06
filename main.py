@@ -57,8 +57,8 @@ elif(config == 2):
     bike_poisson_lambda = poisson_lambda
     evoluting = "bikes"
 elif(config == 3):
-    car_poisson_lambda = 0.2
-    bike_poisson_lambda = 0.4
+    car_poisson_lambda = 0.1
+    bike_poisson_lambda = 0.2
     evoluting = "cars"
     struct_open = True
 
