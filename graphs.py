@@ -3,25 +3,15 @@ import pickle
 import os
 from pprint import pprint
 
-def compute_graphs_data_cyclists(dict_scenario):
-    if(len(dict_scenario["bikes"])>0):
-        tab_travel_time = [b["finish_step"]-b["start_step"] for b in dict_scenario["bikes"]]
-        tab_speed = [b["distance_travelled"]/(b["finish_step"]-b["start_step"]) for b in dict_scenario["bikes"]]
-        tab_distance_travelled = [b["distance_travelled"] for b in dict_scenario["bikes"]]
+def compute_data(dict_scenario):
+    if(len(dict_scenario)>0):
+        tab_travel_time = [b["finish_step"]-b["start_step"] for b in dict_scenario]
+        tab_waiting_time = [b["waiting_time"] for b in dict_scenario]
         
-        return sum(tab_travel_time)/len(tab_travel_time), sum(tab_speed)/len(tab_speed) 
+        return sum(tab_travel_time)/len(tab_travel_time), sum(tab_waiting_time)/len(tab_waiting_time)
     else:
         return 0, 0
 
-
-
-def compute_graphs_data_cars(dict_scenario):
-    if(len(dict_scenario["cars"])>0):
-        tab_travel_time = [c["finish_step"]-c["start_step"] for c in dict_scenario["cars"]]
-        tab_speed = [b["distance_travelled"]/(b["finish_step"]-b["start_step"]) for b in dict_scenario["cars"]]
-        return sum(tab_travel_time)/len(tab_travel_time), sum(tab_speed)/len(tab_speed) 
-    else:
-        return 0, 0
 
 
 def plot_and_save_boxplot(data, file_title, labels=None, structure_was_open=None, sub_folders=""):

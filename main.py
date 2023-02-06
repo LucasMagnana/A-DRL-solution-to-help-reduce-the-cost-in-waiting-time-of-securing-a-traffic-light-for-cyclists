@@ -19,7 +19,6 @@ if __name__ == "__main__":
     use_drl = False
     test = False
     save_scenario = False
-    new_scenario = False
 
     poisson_lambda = 0.2
     min_group_size = 5
@@ -35,13 +34,14 @@ if __name__ == "__main__":
         test = True
     if('--save-scenario' in arguments):
         save_scenario = True
-    if('--new-scenario' in arguments):
-        new_scenario = True
     
+new_scenario = False
+if(use_drl or test):
+    new_scenario = True
 
 
 step_length = 0.2
-simu_length = 25*3600
+simu_length = 1*3600
 speed_threshold = 0.5
 
 if(config == 0):
@@ -211,8 +211,6 @@ while(step<simu_length or len(dict_cyclists) != 0 or len(dict_cars) != 0):
     traci.simulationStep() 
 
     for i in copy.deepcopy(list(dict_cyclists.keys())):
-        if(dict_scenario["bikes"][int(i)]["start_step"]<0 and i in traci.vehicle.getIDList() and traci.vehicle.getRoadID(i) == "E_start"):
-            dict_scenario["bikes"][int(i)]["start_step"] = step
         dict_cyclists[i].step(step)
         if(not dict_cyclists[i].alive):
             if(dict_cyclists[i].finish_step > 0):
@@ -233,8 +231,6 @@ while(step<simu_length or len(dict_cyclists) != 0 or len(dict_cars) != 0):
 
     for i in copy.deepcopy(list(dict_cars.keys())):
         sumo_id = i+"_c"
-        if(dict_scenario["cars"][int(i)]["start_step"]<0 and sumo_id in traci.vehicle.getIDList() and traci.vehicle.getRoadID(sumo_id) == "E_start"):
-            dict_scenario["cars"][int(i)]["start_step"] = step
         if(sumo_id in traci.simulation.getArrivedIDList()):
             dict_scenario["cars"][int(i)]["finish_step"] = step
             del dict_cars[i]
@@ -246,8 +242,8 @@ while(step<simu_length or len(dict_cyclists) != 0 or len(dict_cars) != 0):
     if(structure.open):
         structure.step(step, edges)
 
-    print(f"\rStep {int(step)}: {len(traci.vehicle.getIDList())} cyclists in simu, {id_cyclist} cyclists spawned since start,\
-{structure.num_cyclists_crossed} cyclists crossed the struct.", end="")
+    print(f"\rStep {int(step)}: {len(traci.vehicle.getIDList())} vehicles in simu, {id_cyclist} cyclists spawned since start,\
+    {id_car} cars spawned since start.", end="")
 
     step += step_length
 
@@ -286,7 +282,8 @@ if(len(structure.list_input_to_learn)>0):
 print("\ndata number:", len(dict_cyclists_arrived), ",", structure.num_cyclists_crossed, "cyclits used struct, last step:", step)
 
 
-mean_cars_travel_time = compute_graphs_data_cars(dict_scenario)
-mean_cyclists_travel_time = compute_graphs_data_cyclists(dict_scenario)
+bikes_data = compute_data(dict_scenario["bikes"])
+cars_data = compute_data(dict_scenario["cars"])
 
-print(f"mean car travel time: {mean_cars_travel_time}, mean cyclists travel time: {mean_cyclists_travel_time}")
+print(f"mean cars travel time: {cars_data[0]}, mean cars waiting time: {cars_data[1]}")
+print(f"mean bikes travel time: {bikes_data[0]}, mean bikes waiting time: {bikes_data[1]}")

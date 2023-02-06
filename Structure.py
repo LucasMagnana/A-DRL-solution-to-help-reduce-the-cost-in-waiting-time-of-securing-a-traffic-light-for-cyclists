@@ -59,6 +59,8 @@ class Structure:
         self.module_traci.trafficlight.setProgram(tls.getID(), 0)
         self.module_traci.trafficlight.setPhase(tls.getID(), 2)
 
+        self.next_step_decision = 0
+
         self.use_drl = use_drl
         if(self.use_drl):
             self.test = test
@@ -78,7 +80,6 @@ class Structure:
             self.cars_waiting_time_coeff = 1-self.bikes_waiting_time_coeff
 
             self.need_change_tls_program = False
-            self.next_step_drl = 0
             self.next_step_learning = self.drl_agent.hyperParams.LEARNING_STEP
 
             self.action = -1
@@ -88,7 +89,7 @@ class Structure:
     def step(self, step, edges):
 
         if(self.config == 3 and self.use_drl):
-            if(step > self.next_step_drl):
+            if(step > self.next_step_decision):
                 self.drl_decision_making(step)
             if(step > self.drl_agent.hyperParams.LEARNING_START and not self.test and step>self.next_step_learning):
                 self.drl_agent.learn()
@@ -147,8 +148,8 @@ class Structure:
                     self.id_cyclists_waiting.remove(i)
 
 
-
-            self.static_decision_making(step)
+            if(step > self.next_step_decision):
+                self.static_decision_making(step)
 
 
 
@@ -171,7 +172,7 @@ class Structure:
             self.action = self.drl_agent.act(self.ob)
             if(self.action == 1):
                 self.need_change_tls_program = True
-                self.next_step_drl = step+1
+                self.next_step_decision = step+1
 
 
         if(self.need_change_tls_program):            
@@ -179,9 +180,9 @@ class Structure:
             self.change_light_program()
             if(last_program != self.module_traci.trafficlight.getProgram(tls.getID())):
                 self.need_change_tls_program = False
-                self.next_step_drl = step+5
+                self.next_step_decision = step+5
             else:
-                self.next_step_drl = step+1
+                self.next_step_decision = step+1
 
 
 
@@ -254,11 +255,13 @@ class Structure:
                     self.module_traci.trafficlight.setPhase(tls.getID(), 3)
                 elif(self.module_traci.trafficlight.getPhase(tls.getID()) == 0):
                     self.module_traci.trafficlight.setProgram(tls.getID(), 1)
+                    self.next_step_decision = step + 5
         
         elif(len(set(self.module_traci.edge.getLastStepVehicleIDs(e)) & set(self.id_cyclists_crossing_struct)) == 0):
             if(self.module_traci.trafficlight.getProgram(tls.getID()) == "1"):
                 self.module_traci.trafficlight.setProgram(tls.getID(), 0)
                 self.module_traci.trafficlight.setPhase(tls.getID(), 0)
+                self.next_step_decision = step + 5
 
         
 
