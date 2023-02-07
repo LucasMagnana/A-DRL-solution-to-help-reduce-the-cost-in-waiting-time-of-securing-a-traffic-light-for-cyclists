@@ -5,8 +5,7 @@ import numpy as np
 from DQNAgent import DQNAgent
 
 class Structure:
-    def __init__(self, start_edge, end_edge, edges, net, dict_cyclists, traci, config, dict_scenario, simu_length,\
-    dict_edges_index=None, open=True, min_group_size=5, use_drl=False, test=False):
+    def __init__(self, start_edge, end_edge, edges, net, dict_cyclists, traci, config, dict_scenario, simu_length, use_drl, actuated, test, min_group_size, open=True):
 
         for e in edges:
             id = e.getID()
@@ -25,7 +24,6 @@ class Structure:
         self.id_cyclists_crossing_struct = []
         self.id_cyclists_waiting = []
 
-        self.dict_edges_index = dict_edges_index
         self.dict_model_input = {}
         self.list_input_to_learn = []
         self.list_target = []
@@ -39,13 +37,16 @@ class Structure:
         self.num_cyclists_crossed = 0
         self.num_cyclists_canceled = 0
 
-        self.open = open
-
         self.config = config
 
         self.dict_scenario = dict_scenario
 
         self.simu_length = simu_length
+
+        self.actuated = actuated
+        if(self.actuated):
+            self.actuated_next_change_step = 5
+        self.open = open
 
         for e in self.path:
             tls = self.net.getEdge(e).getTLS()
@@ -91,15 +92,16 @@ class Structure:
     def step(self, step, edges):
 
         self.update_next_step_decision(step)
-        self.actuated_decision_making()
         
-        if(self.config == 3 and self.use_drl):
+        if(self.use_drl):
             if(step > self.next_step_decision):
                 self.drl_decision_making(step)
             if(step > self.drl_agent.hyperParams.LEARNING_START and not self.test and step>self.next_step_learning):
                 self.drl_agent.learn()
                 self.next_step_learning += self.drl_agent.hyperParams.LEARNING_STEP
-
+        elif(self.actuated):
+            if(step > self.next_step_decision):
+                self.actuated_decision_making(step)
         else:            
             for i in self.module_traci.edge.getLastStepVehicleIDs(self.start_edge.getID()):
                 if("_c" not in i and i not in self.id_cyclists_waiting and i not in self.id_cyclists_crossing_struct and self.dict_cyclists[i].struct_candidate):
@@ -190,7 +192,12 @@ class Structure:
                 self.next_step_decision = step+1
 
 
-    def actuated_decision_making(self):
+    def actuated_decision_making(self, step):
+        e = self.path[0]
+        tls = self.net.getEdge(e).getTLS()  
+
+        detector_distance = 5
+
         min_distance_car = 9999
         min_distance_bike = 9999
         for i in self.module_traci.edge.getLastStepVehicleIDs(self.start_edge.getID()):
@@ -199,6 +206,13 @@ class Structure:
                 min_distance_car = dist
             elif("_c" not in i and dist < min_distance_bike):
                 min_distance_bike = dist
+        if(self.module_traci.trafficlight.getPhase(tls.getID()) == 0 and min_distance_car < detector_distance or\
+        self.module_traci.trafficlight.getPhase(tls.getID()) == 2 and min_distance_bike < detector_distance):
+            self.actuated_next_change_step = step + 5
+
+        if(step > self.actuated_next_change_step):
+            self.change_light_phase()
+
 
 
 

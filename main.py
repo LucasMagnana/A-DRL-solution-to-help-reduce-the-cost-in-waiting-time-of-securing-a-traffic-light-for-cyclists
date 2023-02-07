@@ -19,6 +19,7 @@ if __name__ == "__main__":
     use_drl = False
     test = False
     save_scenario = False
+    actuated = False
 
     poisson_lambda = 0.2
     min_group_size = 5
@@ -34,6 +35,8 @@ if __name__ == "__main__":
         test = True
     if('--save-scenario' in arguments):
         save_scenario = True
+    if('--actuated' in arguments):
+        actuated = True
     
 new_scenario = False
 if(use_drl or test):
@@ -154,8 +157,7 @@ dict_cyclists= {}
 dict_cars = {}
 dict_cyclists_arrived = {}
 
-structure = Structure("E_start", "E2", edges, net, dict_cyclists, traci, config, dict_scenario, simu_length, dict_edges_index=dict_edges_index,\
-open=struct_open, min_group_size=min_group_size, use_drl=use_drl, test=test)
+structure = Structure("E_start", "E2", edges, net, dict_cyclists, traci, config, dict_scenario, simu_length, use_drl, actuated, test, min_group_size)
 
 
 id_cyclist = 0
