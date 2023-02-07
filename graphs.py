@@ -5,8 +5,8 @@ from pprint import pprint
 
 def compute_data(dict_scenario):
     if(len(dict_scenario)>0):
-        tab_travel_time = [b["finish_step"]-b["start_step"] for b in dict_scenario]
-        tab_waiting_time = [b["waiting_time"] for b in dict_scenario]
+        tab_travel_time = [dict_scenario[b]["finish_step"]-dict_scenario[b]["start_step"] for b in dict_scenario]
+        tab_waiting_time = [dict_scenario[b]["waiting_time"] for b in dict_scenario]
         
         return sum(tab_travel_time)/len(tab_travel_time), sum(tab_waiting_time)/len(tab_waiting_time)
     else:
@@ -39,10 +39,7 @@ def plot_and_save_bar(data, file_title, labels=None, sub_folders=""):
 
 def plot_data(data, file_title, title, labels, axis_labels, sub_folders=""):
     plt.clf()
-    if(len(labels)>1):
-        tab_x = range(len(data[0]))
-    else:
-        tab_x = range(len(data))
+    tab_x = range(len(data[0]))
     for i in range(len(labels)):
         plt.plot(tab_x, data[i], label=labels[i])
     plt.xlabel(axis_labels[0])
@@ -55,7 +52,7 @@ def plot_data(data, file_title, title, labels, axis_labels, sub_folders=""):
 if __name__ == "__main__": 
 
     config = 3
-    variable_fixed = 0.4
+    variable_fixed = 0.2
     drl = True
 
     if(drl):
@@ -82,7 +79,8 @@ if __name__ == "__main__":
                         for vehicle_type in d_scenarios[key][0]:
                             dict_graphs[vehicle_type] = [[],[]]
                             next_step_hour = 0
-                            for vehicle in d_scenarios[key][0][vehicle_type]:
+                            for v in d_scenarios[key][0][vehicle_type]:
+                                vehicle = d_scenarios[key][0][vehicle_type][v]
                                 if(vehicle["start_step"]>=next_step_hour):
                                     if(len(dict_graphs[vehicle_type][0])>0):
                                         tab_mean_travel_time[vehicle_type_index].append(sum(dict_graphs[vehicle_type][0][-1])/len(dict_graphs[vehicle_type][0][-1]))
@@ -93,6 +91,7 @@ if __name__ == "__main__":
                                     next_step_hour += 3600
                                 dict_graphs[vehicle_type][0][-1].append(vehicle["finish_step"]-vehicle["start_step"])
                                 dict_graphs[vehicle_type][1][-1].append(vehicle["waiting_time"])
+                            
                             vehicle_type_index+=1
 
                         if(not os.path.exists("images/"+sub_folders)):
@@ -108,13 +107,13 @@ if __name__ == "__main__":
                     bikes_travel_time.append(tab_mean_travel_time[1])
                     tot_waiting_time.append(tab_reward)
 
-            plot_data(cars_travel_time, "cars_evolution_mean_time_travel.png", "Cars mean travel time", ["DQN", "Static"], ["Hours", "Travel Time"], sub_folders)
-            plot_data(bikes_travel_time, "bikes_evolution_mean_time_travel.png", "Bikes mean travel time", ["DQN", "Static"], ["Hours", "Travel Time"], sub_folders)
+            plot_data(cars_travel_time, "cars_evolution_mean_time_travel.png", "Cars mean travel time", ["DQN"], ["Hours", "Travel Time"], sub_folders)
+            plot_data(bikes_travel_time, "bikes_evolution_mean_time_travel.png", "Bikes mean travel time", ["DQN"], ["Hours", "Travel Time"], sub_folders)
 
-            plot_data(cars_waiting_time, "cars_evolution_mean_waiting_time.png", "Cars mean waiting time",["DQN", "Static"], ["Hours", "Waiting Time"], sub_folders)
-            plot_data(bikes_waiting_time, "bikes_evolution_mean_waiting_time.png", "Bikes mean waiting time",["DQN", "Static"], ["Hours", "Waiting Time"], sub_folders)
+            plot_data(cars_waiting_time, "cars_evolution_mean_waiting_time.png", "Cars mean waiting time",["DQN"], ["Hours", "Waiting Time"], sub_folders)
+            plot_data(bikes_waiting_time, "bikes_evolution_mean_waiting_time.png", "Bikes mean waiting time",["DQN"], ["Hours", "Waiting Time"], sub_folders)
 
-            plot_data(tot_waiting_time, "evolution_mean_waiting_time.png", "Total mean waiting time", ["DQN", "Static"], ["Hours", "Waiting Time"], sub_folders)
+            plot_data(tot_waiting_time, "evolution_mean_waiting_time.png", "Total mean waiting time", ["DQN"], ["Hours", "Waiting Time"], sub_folders)
 
 
 

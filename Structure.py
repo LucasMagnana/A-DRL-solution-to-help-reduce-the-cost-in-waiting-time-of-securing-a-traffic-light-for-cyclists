@@ -48,19 +48,6 @@ class Structure:
             self.actuated_next_change_step = 5
         self.open = open
 
-        for e in self.path:
-            tls = self.net.getEdge(e).getTLS()
-            if(tls):
-                self.module_traci.trafficlight.setPhase(tls.getID(), 2)
-
-        tls = self.net.getEdge(self.path[0]).getTLS()
-        self.module_traci.trafficlight.setProgramLogic(tls.getID(), self.module_traci.trafficlight.Logic(1, 0, 0, \
-            phases=[self.module_traci.trafficlight.Phase(duration=3, state="rrrrrrrrrrrrrrryyyrrrrrr", minDur=3, maxDur=3),\
-                self.module_traci.trafficlight.Phase(duration=99999, state="rrrrrrrrrrrrGGGrrrrrrrrr", minDur=9999, maxDur=9999),\
-                self.module_traci.trafficlight.Phase(duration=3, state="rrrrrrrrrrrryyyrrrrrrrrr", minDur=3, maxDur=3)]))
-
-        self.module_traci.trafficlight.setProgram(tls.getID(), 0)
-        self.module_traci.trafficlight.setPhase(tls.getID(), 2)
 
         self.next_step_decision = 0
 
@@ -70,7 +57,7 @@ class Structure:
             self.width_ob = (2, 2, int(self.start_edge.getLength()//5+2))
 
             if(self.test):
-                actor_to_load = "files/w_model/config_"+str(self.config)+"/0.4/trained.n"
+                actor_to_load = "files/w_model/config_"+str(self.config)+"/0.2/trained.n"
             else:
                 actor_to_load = None
 
@@ -178,18 +165,7 @@ class Structure:
                 self.drl_agent.memorize(self.ob_prec, self.action, self.ob, reward, False)  
             self.action = self.drl_agent.act(self.ob)
             if(self.action == 1):
-                self.need_change_tls_program = True
-                self.next_step_decision = step+1
-
-
-        if(self.need_change_tls_program):            
-            last_program = self.module_traci.trafficlight.getProgram(tls.getID())
-            self.change_light_program()
-            if(last_program != self.module_traci.trafficlight.getProgram(tls.getID())):
-                self.need_change_tls_program = False
-                self.next_step_decision = step+5
-            else:
-                self.next_step_decision = step+1
+                self.change_light_phase()
 
 
     def actuated_decision_making(self, step):

@@ -29,7 +29,7 @@ if __name__ == "__main__":
         gui = True
     if('--struct-open' in arguments):
         struct_open = True
-    if('--use-drl' in arguments):
+    if('--drl' in arguments):
         use_drl = True
     if('--test' in arguments):
         test = True
@@ -44,7 +44,7 @@ if(use_drl or test):
 
 
 step_length = 0.2
-simu_length = 1*3600
+simu_length = 25*3600
 speed_threshold = 0.5
 
 if(config == 0):
@@ -92,7 +92,7 @@ else:
 sumoBinary = "/usr/bin/sumo"
 if(gui):
     sumoBinary += "-gui"
-sumoCmd = [sumoBinary, "-c", "sumo_files/sumo_"+str(config)+".sumocfg", "--extrapolate-departpos", "--quit-on-end", "--waiting-time-memory", '10000', '--start', '--delay', '0', '--step-length', str(step_length), '--no-warnings']
+sumoCmd = [sumoBinary, "-c", "sumo_files/sumo_"+str(config)+".sumocfg", "--max-depart-delay", "10", "--extrapolate-departpos", "--quit-on-end", "--waiting-time-memory", '10000', '--start', '--delay', '0', '--step-length', str(step_length), '--no-warnings']
 
 
 
@@ -101,12 +101,12 @@ import sumolib
 import traci.constants as tc
 
 
-def spawn_cyclist(id_cyclist, step, path, net, structure, step_length, max_speed, struct_candidate, dict_cyclists):
+def spawn_cyclist(id_cyclist, step, path, net, structure, step_length, max_speed, struct_candidate, dict_bikes):
     if(struct_open or num_cyclists-id_cyclist+max(len(structure.id_cyclists_waiting), len(traci.edge.getLastStepVehicleIDs(structure.start_edge.getID())))<structure.min_group_size):
         struct_candidate = True
     
     c = Cyclist(str(id_cyclist), step, path, net, structure, max_speed, traci, sumolib, step_length, struct_candidate=struct_candidate)
-    dict_cyclists[str(id_cyclist)]=c
+    dict_bikes[str(id_cyclist)]=c
 
 
 def spawn_car(id_car, step, path, net, dict_cars):
@@ -144,7 +144,7 @@ else:
     num_cyclists = len(old_dict_scenario["bikes"])
     num_cars = len(old_dict_scenario["cars"])
 
-dict_scenario={"cars": [], "bikes": []}
+dict_scenario={"cars": {}, "bikes": {}}
     
 print("num_cyclists: ", num_cyclists, ", num_cars :", num_cars)
 
@@ -153,18 +153,16 @@ for i, e in enumerate(edges) :
     dict_edges_index[e.getID()] = i
 
 
-dict_cyclists= {}
-dict_cars = {}
-dict_cyclists_arrived = {}
+dict_vehicles = {"bikes": {}, "cars": {}}
 
-structure = Structure("E_start", "E2", edges, net, dict_cyclists, traci, config, dict_scenario, simu_length, use_drl, actuated, test, min_group_size)
+structure = Structure("E_start", "E2", edges, net, dict_vehicles["bikes"], traci, config, dict_scenario, simu_length, use_drl, actuated, test, min_group_size)
 
 
 id_cyclist = 0
 id_car = 0
 step = 0
 
-while(step<simu_length or len(dict_cyclists) != 0 or len(dict_cars) != 0):
+while(step<simu_length or len(dict_vehicles["bikes"]) != 0 or len(dict_vehicles["cars"]) != 0):
     if(new_scenario): #new_scenario
         if(step<simu_length):
             for _ in range(bike_poisson_distrib[int(step)]):
@@ -172,9 +170,9 @@ while(step<simu_length or len(dict_cyclists) != 0 or len(dict_cars) != 0):
                 e2 = net.getEdge("E"+str(randint(3, 9)))
                 path = net.getShortestPath(e1, e2, vClass='bicycle')[0]
                 max_speed = np.random.normal(15, 3)
-                dict_scenario["bikes"].append({"start_step": step, "start_edge": e1.getID(), "end_edge": e2.getID(), "max_speed": max_speed,
-                "distance_travelled": net.getShortestPath(net.getEdge("E_start"), e2, vClass='bicycle', fromPos=0)[1], "waiting_time": 0})
-                spawn_cyclist(id_cyclist, step, path, net, structure, step_length, max_speed, False, dict_cyclists)
+                dict_scenario["bikes"][id_cyclist] = {"start_step": step, "start_edge": e1.getID(), "end_edge": e2.getID(), "max_speed": max_speed,
+                "distance_travelled": net.getShortestPath(net.getEdge("E_start"), e2, vClass='bicycle', fromPos=0)[1], "waiting_time": 0}
+                spawn_cyclist(id_cyclist, step, path, net, structure, step_length, max_speed, False, dict_vehicles["bikes"])
                 id_cyclist+=1
             bike_poisson_distrib[int(step)] = 0
         if(step<simu_length):  
@@ -182,9 +180,9 @@ while(step<simu_length or len(dict_cyclists) != 0 or len(dict_cars) != 0):
                 e1 = net.getEdge("E0")
                 e2 = net.getEdge("E"+str(randint(3, 9)))
                 path = net.getShortestPath(e1, e2, vClass='passenger')[0]
-                dict_scenario["cars"].append({"start_step": step, "start_edge": e1.getID(), "end_edge": e2.getID(),
-                "distance_travelled": net.getShortestPath(net.getEdge("E_start"), e2, vClass='passenger', fromPos=0)[1], "waiting_time": 0})
-                spawn_car(id_car, step, path, net, dict_cars)
+                dict_scenario["cars"][id_car] = {"start_step": step, "start_edge": e1.getID(), "end_edge": e2.getID(),
+                "distance_travelled": net.getShortestPath(net.getEdge("E_start"), e2, vClass='passenger', fromPos=0)[1], "waiting_time": 0}
+                spawn_car(id_car, step, path, net, dict_vehicles["cars"])
                 id_car+=1
                 car_poisson_distrib[int(step)] = 0
 
@@ -195,9 +193,9 @@ while(step<simu_length or len(dict_cyclists) != 0 or len(dict_cars) != 0):
             e1 = net.getEdge(start_edge_id)
             e2 = net.getEdge(end_edge_id)
             path = net.getShortestPath(e1, e2, vClass='bicycle')[0]
-            dict_scenario["bikes"].append({"start_step": step, "start_edge": e1.getID(), "end_edge": e2.getID(), "max_speed": old_dict_scenario["bikes"][id_cyclist]["max_speed"],
-            "distance_travelled": net.getShortestPath(net.getEdge("E_start"), e2, vClass='bicycle', fromPos=0)[1], "waiting_time": 0})
-            spawn_cyclist(id_cyclist, step, path, net, structure, step_length, old_dict_scenario["bikes"][id_cyclist]["max_speed"], False, dict_cyclists)
+            dict_scenario["bikes"][id_cyclist] = {"start_step": step, "start_edge": e1.getID(), "end_edge": e2.getID(), "max_speed": old_dict_scenario["bikes"][id_cyclist]["max_speed"],
+            "distance_travelled": net.getShortestPath(net.getEdge("E_start"), e2, vClass='bicycle', fromPos=0)[1], "waiting_time": 0}
+            spawn_cyclist(id_cyclist, step, path, net, structure, step_length, old_dict_scenario["bikes"][id_cyclist]["max_speed"], False, dict_vehicles["bikes"])
             id_cyclist+=1
         if(id_car<len(old_dict_scenario["cars"]) and step >= old_dict_scenario["cars"][id_car]["start_step"]):
             start_edge_id=old_dict_scenario["bikes"][id_cyclist]["start_edge"]
@@ -205,40 +203,30 @@ while(step<simu_length or len(dict_cyclists) != 0 or len(dict_cars) != 0):
             e1 = net.getEdge(start_edge_id)
             e2 = net.getEdge(end_edge_id)
             path = net.getShortestPath(e1, e2, vClass='passenger')[0]
-            dict_scenario["cars"].append({"start_step": step, "start_edge": e1.getID(), "end_edge": e2.getID(),
-            "distance_travelled": net.getShortestPath(net.getEdge("E_start"), e2, vClass='passenger', fromPos=0)[1], "waiting_time": 0})
-            spawn_car(id_car, step, path, net, dict_cars)
+            dict_scenario["cars"][id_car] = {"start_step": step, "start_edge": e1.getID(), "end_edge": e2.getID(),
+            "distance_travelled": net.getShortestPath(net.getEdge("E_start"), e2, vClass='passenger', fromPos=0)[1], "waiting_time": 0}
+            spawn_car(id_car, step, path, net, dict_vehicles["cars"])
             id_car+=1
 
     traci.simulationStep() 
 
-    for i in copy.deepcopy(list(dict_cyclists.keys())):
-        dict_cyclists[i].step(step)
-        if(not dict_cyclists[i].alive):
-            if(dict_cyclists[i].finish_step > 0):
-                dict_cyclists_arrived[i] = dict_cyclists[i]
-                target = None
-                if(i in structure.dict_model_input and target != None):
-                    structure.list_input_to_learn.append(structure.dict_model_input[i])
-                    structure.list_target.append(target)                  
-                    del structure.dict_model_input[i]
-
-                dict_scenario["bikes"][int(dict_cyclists[i].id)]["finish_step"] = step              
+    for vehicle_type in dict_vehicles:
+        for i in copy.deepcopy(list(dict_vehicles[vehicle_type].keys())):
+            sumo_id = i
+            if(vehicle_type == "cars"):
+                sumo_id+="_c"
+            if(sumo_id in traci.simulation.getArrivedIDList()):
+                dict_scenario[vehicle_type][int(i)]["finish_step"] = step
+                del dict_vehicles[vehicle_type][i]
             else:
-                traci.vehicle.remove(i)
-            del dict_cyclists[i]
-        else:
-            if(traci.vehicle.getSpeed(i)< speed_threshold):
-                dict_scenario["bikes"][int(dict_cyclists[i].id)]["waiting_time"] += 1
+                try:
+                    if(traci.vehicle.getSpeed(sumo_id)< speed_threshold):
+                        dict_scenario[vehicle_type][int(i)]["waiting_time"] += 1
+                except traci.exceptions.TraCIException:
+                    del dict_scenario[vehicle_type][int(i)]
+                    del dict_vehicles[vehicle_type][i]
 
-    for i in copy.deepcopy(list(dict_cars.keys())):
-        sumo_id = i+"_c"
-        if(sumo_id in traci.simulation.getArrivedIDList()):
-            dict_scenario["cars"][int(i)]["finish_step"] = step
-            del dict_cars[i]
-        else:
-            if(traci.vehicle.getSpeed(sumo_id)< speed_threshold):
-                dict_scenario["cars"][int(i)]["waiting_time"] += 1
+
 
     #(step%1, step%1<=step_length)
     if(structure.open):
@@ -281,7 +269,7 @@ traci.close()
 if(len(structure.list_input_to_learn)>0):
     structure.learn()
     
-print("\ndata number:", len(dict_cyclists_arrived), ",", structure.num_cyclists_crossed, "cyclits used struct, last step:", step)
+print("\ndata number:", len(dict_scenario["bikes"])+len(dict_scenario["cars"]), ",", structure.num_cyclists_crossed, "cyclits used struct, last step:", step)
 
 
 bikes_data = compute_data(dict_scenario["bikes"])
