@@ -151,7 +151,7 @@ for _ in range(num_simu):
     id_car = 0
     step = 0
 
-    while(step<simu_length or len(dict_vehicles["bikes"]) != 0 or len(dict_vehicles["cars"]) != 0):
+    while(step<=simu_length):
         if(new_scenario): #new_scenario
             if(step<simu_length):
                 for _ in range(bike_poisson_distrib[int(step)]):
@@ -233,7 +233,6 @@ for _ in range(num_simu):
         for i in copy.deepcopy(list(dict_scenario[vehicle_type].keys())):
             if("finish_step" not in dict_scenario[vehicle_type][i]):
                 del dict_scenario[vehicle_type][i]
-                print(i)
 
 
     if(save_scenario):

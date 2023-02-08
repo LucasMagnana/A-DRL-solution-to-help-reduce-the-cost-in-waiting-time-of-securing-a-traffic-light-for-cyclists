@@ -49,7 +49,7 @@ class Structure:
 
             self.drl_agent = DQNAgent(self.width_ob, 2, actor_to_load=actor_to_load)
 
-            self.bikes_waiting_time_coeff = 0.5
+            self.bikes_waiting_time_coeff = 0.2
             self.cars_waiting_time_coeff = 1-self.bikes_waiting_time_coeff
 
 
