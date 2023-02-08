@@ -105,7 +105,7 @@ class DQNAgent(object):
         self.buffer.add(torch.FloatTensor(experience, device=self.device))   
 
     def learn(self, n_iter=None):
-
+        
         #previous noise decaying method, works well with cartpole
         '''if(self.epsilon > self.hyperParams.MIN_EPSILON):
             self.epsilon *= self.hyperParams.EPSILON_DECAY

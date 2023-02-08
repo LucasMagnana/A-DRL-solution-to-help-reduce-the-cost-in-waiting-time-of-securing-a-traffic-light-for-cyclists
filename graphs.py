@@ -52,7 +52,6 @@ def plot_data(data, file_title, title, labels, axis_labels, sub_folders=""):
 if __name__ == "__main__": 
 
     config = 3
-    variable_fixed = 0.2
     drl = True
 
     if(drl):
@@ -63,7 +62,7 @@ if __name__ == "__main__":
         tot_waiting_time = []
 
         sub_folders = "w_model/"
-        sub_folders+="config_"+str(config)+"/"+str(variable_fixed)+"/"
+        sub_folders+="config_"+str(config)+"/"
         for root, dirs, files in os.walk("files/"+sub_folders):
             for filename in files:
                 if("scenarios" in filename):

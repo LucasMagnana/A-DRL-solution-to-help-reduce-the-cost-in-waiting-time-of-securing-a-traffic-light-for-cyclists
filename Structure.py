@@ -43,7 +43,7 @@ class Structure:
             self.width_ob = (2, 2, int(self.start_edge.getLength()//5+2))
 
             if(self.test):
-                actor_to_load = "files/w_model/config_"+str(self.config)+"/0.2/trained.n"
+                actor_to_load = "files/w_model/config_"+str(self.config)+"/trained.n"
             else:
                 actor_to_load = None
 
@@ -61,6 +61,8 @@ class Structure:
         self.id_cyclists_waiting = []
         self.num_cyclists_crossed = 0
         self.num_cyclists_canceled = 0
+
+        self.next_step_decision = 0
 
         if(self.use_drl):
             self.next_step_learning = self.drl_agent.hyperParams.LEARNING_STEP

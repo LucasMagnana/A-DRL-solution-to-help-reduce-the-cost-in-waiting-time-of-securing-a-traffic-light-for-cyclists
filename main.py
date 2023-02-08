@@ -95,13 +95,13 @@ else:
     sub_folders = "wou_model/"
 
 if(evoluting=="bikes"):
-    sub_folders+="config_"+str(config)+"/"+str(car_poisson_lambda)+"/"
+    sub_folders+="config_"+str(config)+"/"
     variable_evoluting = poisson_lambda
 elif(evoluting=="cars"):
-    sub_folders+="config_"+str(config)+"/"+str(bike_poisson_lambda)+"/"
+    sub_folders+="config_"+str(config)+"/"
     variable_evoluting = poisson_lambda
 else:
-    sub_folders+="config_"+str(config)+"/"+str(bike_poisson_lambda)+"/"
+    sub_folders+="config_"+str(config)+"/"
     variable_evoluting = min_group_size
 
 
@@ -116,9 +116,6 @@ structure = Structure("E_start", "E2", edges, net, traci, config, simu_length, u
 for _ in range(num_simu):
 
     traci.start(sumoCmd)
-
-
-
 
     if(new_scenario):
         print("WARNING : Creating a new scenario...")
@@ -230,6 +227,15 @@ for _ in range(num_simu):
         step += step_length
 
 
+    traci.close()
+
+    for vehicle_type in dict_scenario:
+        for i in copy.deepcopy(list(dict_scenario[vehicle_type].keys())):
+            if("finish_step" not in dict_scenario[vehicle_type][i]):
+                del dict_scenario[vehicle_type][i]
+                print(i)
+
+
     if(save_scenario):
         pre_file_name = ""
         if(use_drl):
@@ -257,13 +263,6 @@ for _ in range(num_simu):
 
         with open("files/"+sub_folders+pre_file_name+"scenarios.tab", 'wb') as outfile:
             pickle.dump(tab_dict_scenarios, outfile)
-
-    if(use_drl and not test):
-        torch.save(structure.drl_agent.actor_target.state_dict(), "files/"+sub_folders+"trained_target.n")
-        torch.save(structure.drl_agent.actor.state_dict(), "files/"+sub_folders+"trained.n")
-
-
-    traci.close()
         
     print("\ndata number:", len(dict_scenario["bikes"])+len(dict_scenario["cars"]), ",", structure.num_cyclists_crossed, "cyclits used struct, last step:", step)
 
@@ -273,3 +272,7 @@ for _ in range(num_simu):
 
     print(f"mean cars travel time: {cars_data[0]}, mean cars waiting time: {cars_data[1]}")
     print(f"mean bikes travel time: {bikes_data[0]}, mean bikes waiting time: {bikes_data[1]}")
+
+if(use_drl and not test):
+    torch.save(structure.drl_agent.actor_target.state_dict(), "files/"+sub_folders+"trained_target.n")
+    torch.save(structure.drl_agent.actor.state_dict(), "files/"+sub_folders+"trained.n")
