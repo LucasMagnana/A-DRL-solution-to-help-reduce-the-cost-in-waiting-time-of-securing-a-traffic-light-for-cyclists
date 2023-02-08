@@ -68,30 +68,23 @@ if __name__ == "__main__":
             for filename in files:
                 if("scenarios" in filename):
                     with open("files/"+sub_folders+filename, 'rb') as infile:
-                        d_scenarios = pickle.load(infile)
-                    dict_graphs = {}
-                    for key in d_scenarios:
+                        tab_scenarios = pickle.load(infile)
+
+                    tab_mean_waiting_time = [[], []]
+                    tab_mean_travel_time = [[], []]
+                    tab_waiting_time = [[],[]]
+                    for num_simu in range(len(tab_scenarios)):
                         vehicle_type_index = 0
-                        tab_mean_waiting_time = [[], []]
-                        tab_mean_travel_time = [[], []]
-                        tab_cumulative_reward = [0]
-                        tab_waiting_time = [[],[]]
-                        for vehicle_type in d_scenarios[key][0]:
-                            dict_graphs[vehicle_type] = [[],[]]
-                            next_step_hour = 0
-                            for v in d_scenarios[key][0][vehicle_type]:
-                                vehicle = d_scenarios[key][0][vehicle_type][v]
-                                if(vehicle["start_step"]>=next_step_hour):
-                                    if(len(dict_graphs[vehicle_type][0])>0):
-                                        tab_mean_travel_time[vehicle_type_index].append(sum(dict_graphs[vehicle_type][0][-1])/len(dict_graphs[vehicle_type][0][-1]))
-                                        tab_mean_waiting_time[vehicle_type_index].append(sum(dict_graphs[vehicle_type][1][-1])/len(dict_graphs[vehicle_type][1][-1]))
-                                        tab_waiting_time[vehicle_type_index].append(sum(dict_graphs[vehicle_type][1][-1]))
-                                    dict_graphs[vehicle_type][0].append([])
-                                    dict_graphs[vehicle_type][1].append([])
-                                    next_step_hour += 3600
-                                dict_graphs[vehicle_type][0][-1].append(vehicle["finish_step"]-vehicle["start_step"])
-                                dict_graphs[vehicle_type][1][-1].append(vehicle["waiting_time"])
-                            
+
+                        for vehicle_type in tab_scenarios[num_simu]:
+                            tab_graphs_temp = [[], []]
+                            for v in tab_scenarios[num_simu][vehicle_type]:
+                                vehicle = tab_scenarios[num_simu][vehicle_type][v]
+                                tab_graphs_temp[0].append(vehicle["finish_step"]-vehicle["start_step"])
+                                tab_graphs_temp[1].append(vehicle["waiting_time"])
+                            tab_mean_travel_time[vehicle_type_index].append(sum(tab_graphs_temp[0])/len(tab_graphs_temp[0]))
+                            tab_mean_waiting_time[vehicle_type_index].append(sum(tab_graphs_temp[1])/len(tab_graphs_temp[1]))
+                            tab_waiting_time[vehicle_type_index].append(sum(tab_graphs_temp[1]))                           
                             vehicle_type_index+=1
 
                         if(not os.path.exists("images/"+sub_folders)):
@@ -101,11 +94,12 @@ if __name__ == "__main__":
 
                         for i in range(len(tab_waiting_time[0])):
                             tab_reward.append(0.5*tab_waiting_time[0][i]+0.5*tab_waiting_time[1][i])
-                    cars_waiting_time.append(tab_mean_waiting_time[0])
-                    bikes_waiting_time.append(tab_mean_waiting_time[1])
-                    cars_travel_time.append(tab_mean_travel_time[0])
-                    bikes_travel_time.append(tab_mean_travel_time[1])
-                    tot_waiting_time.append(tab_reward)
+
+                    cars_waiting_time.append(tab_mean_waiting_time[0][1:])
+                    bikes_waiting_time.append(tab_mean_waiting_time[1][1:])
+                    cars_travel_time.append(tab_mean_travel_time[0][1:])
+                    bikes_travel_time.append(tab_mean_travel_time[1][1:])
+                    tot_waiting_time.append(tab_reward[1:])
 
             plot_data(cars_travel_time, "cars_evolution_mean_time_travel.png", "Cars mean travel time", ["DQN"], ["Hours", "Travel Time"], sub_folders)
             plot_data(bikes_travel_time, "bikes_evolution_mean_time_travel.png", "Bikes mean travel time", ["DQN"], ["Hours", "Travel Time"], sub_folders)
@@ -139,7 +133,7 @@ if __name__ == "__main__":
                 name_complement = "_struct_open"
 
             with open("files/"+sub_folders+filename, 'rb') as infile:
-                d_scenarios = pickle.load(infile)
+                tab_scenarios = pickle.load(infile)
 
             print("Computing graphs for files/"+sub_folders+filename)
             
@@ -150,17 +144,17 @@ if __name__ == "__main__":
             tab_flows = [[],[]]
             tab_flows_on_speed = [[],[]]
 
-            for lam in d_scenarios:
+            for lam in tab_scenarios:
                 dict_graphs["x_mean"].append(lam)
-                for i in range(len(d_scenarios[lam])):
-                    mean_cars_t_t, mean_cars_speed = compute_graphs_data_cars(d_scenarios[lam][i])
-                    mean_bikes_t_t, mean_bikes_speed = compute_graphs_data_cyclists(d_scenarios[lam][i])
+                for i in range(len(tab_scenarios[lam])):
+                    mean_cars_t_t, mean_cars_speed = compute_graphs_data_cars(tab_scenarios[lam][i])
+                    mean_bikes_t_t, mean_bikes_speed = compute_graphs_data_cyclists(tab_scenarios[lam][i])
 
                     tab_mean_t_t[0].append(mean_cars_t_t)
                     tab_mean_t_t[1].append(mean_bikes_t_t)
                     
-                    tab_flows[0].append(len(d_scenarios[lam][i]["cars"])/1000)
-                    tab_flows[1].append(len(d_scenarios[lam][i]["bikes"])/1000)
+                    tab_flows[0].append(len(tab_scenarios[lam][i]["cars"])/1000)
+                    tab_flows[1].append(len(tab_scenarios[lam][i]["bikes"])/1000)
 
                     tab_flows_on_speed[0].append(tab_flows[0][-1]/mean_cars_speed)
                     tab_flows_on_speed[1].append(tab_flows[1][-1]/mean_bikes_speed)

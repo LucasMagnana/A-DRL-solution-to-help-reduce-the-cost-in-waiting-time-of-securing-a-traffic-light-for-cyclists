@@ -5,7 +5,7 @@ import numpy as np
 from DQNAgent import DQNAgent
 
 class Structure:
-    def __init__(self, start_edge, end_edge, edges, net, dict_cyclists, traci, config, dict_scenario, simu_length, use_drl, actuated, test, min_group_size, open=True):
+    def __init__(self, start_edge, end_edge, edges, net, traci, config, simu_length, use_drl, actuated, test, min_group_size, open=True):
 
         for e in edges:
             id = e.getID()
@@ -17,29 +17,15 @@ class Structure:
         self.path = net.getShortestPath(self.start_edge, self.end_edge, vClass='bicycle')[0]
         self.path = [e.getID() for e in self.path]
 
-        self.dict_cyclists = dict_cyclists
-
         self.module_traci = traci
-
-        self.id_cyclists_crossing_struct = []
-        self.id_cyclists_waiting = []
-
-        self.dict_model_input = {}
-        self.list_input_to_learn = []
-        self.list_target = []
-        self.list_loss = []
         
         self.min_group_size = min_group_size
         self.activated = False
 
         self.net = net
 
-        self.num_cyclists_crossed = 0
-        self.num_cyclists_canceled = 0
-
         self.config = config
 
-        self.dict_scenario = dict_scenario
 
         self.simu_length = simu_length
 
@@ -62,17 +48,26 @@ class Structure:
                 actor_to_load = None
 
             self.drl_agent = DQNAgent(self.width_ob, 2, actor_to_load=actor_to_load)
-            self.ob = []
 
-            self.bikes_waiting_time = 0
-            self.cars_waiting_time = 0
             self.bikes_waiting_time_coeff = 0.5
             self.cars_waiting_time_coeff = 1-self.bikes_waiting_time_coeff
 
-            self.need_change_tls_program = False
-            self.next_step_learning = self.drl_agent.hyperParams.LEARNING_STEP
 
+    def reset(self, dict_cyclists, dict_scenario):
+        self.dict_cyclists = dict_cyclists
+        self.dict_scenario = dict_scenario
+
+        self.id_cyclists_crossing_struct = []
+        self.id_cyclists_waiting = []
+        self.num_cyclists_crossed = 0
+        self.num_cyclists_canceled = 0
+
+        if(self.use_drl):
+            self.next_step_learning = self.drl_agent.hyperParams.LEARNING_STEP
             self.action = -1
+            self.ob = []
+            self.bikes_waiting_time = 0
+            self.cars_waiting_time = 0
 
 
 
@@ -282,19 +277,4 @@ class Structure:
                     if(self.module_traci.trafficlight.getNextSwitch(tls.getID())-step > 10000):
                         self.module_traci.trafficlight.setPhase(tls.getID(), (self.module_traci.trafficlight.getPhase(tls.getID())+1)%4)
 
-
-
-    '''def learn(self):
-        self.optimizer.zero_grad()
-        tens_edges_occupation = torch.stack([i[0] for i in self.list_input_to_learn])
-        tens_actual_edge = torch.stack([i[1] for i in self.list_input_to_learn])
-        tens_target = torch.FloatTensor(self.list_target).unsqueeze(1)
-        #out = self.model(tens_edges_occupation, tens_actual_edge)
-        out = self.model(tens_actual_edge)
-        l = self.loss(out, tens_target)
-        self.list_loss.append(l.item())
-        l.backward()
-        self.optimizer.step()
-        self.list_input_to_learn = []
-        self.list_target = []     '''
 
