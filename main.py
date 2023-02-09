@@ -111,9 +111,11 @@ edges = net.getEdges()
 structure = Structure("E_start", "E2", edges, net, traci, config, simu_length, use_drl, actuated, test, min_group_size)
 
 
+if(not new_scenario):
+    with open("files/"+sub_folders+"2DQN_cars_evolv_scenarios.tab", 'rb') as infile:
+        tab_dict_old_scenarios = pickle.load(infile)
 
-
-for _ in range(num_simu):
+for s in range(num_simu):
 
     next_step_wt_update = 0
 
@@ -127,14 +129,7 @@ for _ in range(num_simu):
         num_cars = sum(car_poisson_distrib)
     else:
         print("WARNING : Loading the scenario...")
-        print("files/"+sub_folders)
-        for root, dirs, files in os.walk("files/"+sub_folders):
-            for name in files:
-                if("DQN" in name and ".dict" in name):
-                    with open("files/"+sub_folders+"/"+name, 'rb') as infile:
-                        old_dict_scenario = pickle.load(infile)
-                        old_dict_scenario = old_dict_scenario[car_poisson_lambda][0]
-                        break
+        old_dict_scenario = tab_dict_old_scenarios[s]
 
         num_cyclists = len(old_dict_scenario["bikes"])
         num_cars = len(old_dict_scenario["cars"])
@@ -178,6 +173,8 @@ for _ in range(num_simu):
                     car_poisson_distrib[int(step)] = 0
 
         else:
+            while(id_cyclist not in old_dict_scenario["bikes"] and id_cyclist < len(old_dict_scenario["bikes"])):
+                id_cyclist += 1
             if(id_cyclist<len(old_dict_scenario["bikes"]) and step >= old_dict_scenario["bikes"][id_cyclist]["start_step"]):
                 start_edge_id=old_dict_scenario["bikes"][id_cyclist]["start_edge"]
                 end_edge_id=old_dict_scenario["bikes"][id_cyclist]["end_edge"]
@@ -188,9 +185,12 @@ for _ in range(num_simu):
                 "distance_travelled": net.getShortestPath(net.getEdge("E_start"), e2, vClass='bicycle', fromPos=0)[1], "waiting_time": 0}
                 spawn_cyclist(id_cyclist, step, path, net, structure, step_length, old_dict_scenario["bikes"][id_cyclist]["max_speed"], False, dict_vehicles["bikes"])
                 id_cyclist+=1
+
+            while(id_car not in old_dict_scenario["cars"] and id_car < len(old_dict_scenario["cars"])):
+                id_car += 1
             if(id_car<len(old_dict_scenario["cars"]) and step >= old_dict_scenario["cars"][id_car]["start_step"]):
-                start_edge_id=old_dict_scenario["bikes"][id_cyclist]["start_edge"]
-                end_edge_id=old_dict_scenario["bikes"][id_cyclist]["end_edge"]
+                start_edge_id=old_dict_scenario["cars"][id_car]["start_edge"]
+                end_edge_id=old_dict_scenario["cars"][id_car]["end_edge"]
                 e1 = net.getEdge(start_edge_id)
                 e2 = net.getEdge(end_edge_id)
                 path = net.getShortestPath(e1, e2, vClass='passenger')[0]
@@ -252,6 +252,8 @@ for _ in range(num_simu):
             if(structure.drl_agent.duelling):
                 n_d += 1
             pre_file_name = str(n_d)+"DQN_"
+        elif(actuated):
+            pre_file_name += "actuated_"
             
         pre_file_name += evoluting+"_evolv_"
 
