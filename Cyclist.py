@@ -20,7 +20,9 @@ class Cyclist:
         
         d_speed = traci.vehicletype.getMaxSpeed('bicycle')-2
         self.module_traci.vehicle.add(str(self.id), str(self.id)+"_sp", departLane="0", typeID='bicycle', departPos="last", departSpeed="avg")
-        
+
+        self.module_traci.vehicle.changeLane(str(self.id), 0, 99999)
+
         self.set_max_speed(max_speed)
         self.max_speed = self.module_traci.vehicle.getMaxSpeed(str(self.id))
 

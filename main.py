@@ -115,6 +115,8 @@ structure = Structure("E_start", "E2", edges, net, traci, config, simu_length, u
 
 for _ in range(num_simu):
 
+    next_step_wt_update = 0
+
     traci.start(sumoCmd)
 
     if(new_scenario):
@@ -199,21 +201,26 @@ for _ in range(num_simu):
 
         traci.simulationStep() 
 
+        
         for vehicle_type in dict_vehicles:
             for i in copy.deepcopy(list(dict_vehicles[vehicle_type].keys())):
                 sumo_id = i
                 if(vehicle_type == "cars"):
-                    sumo_id+="_c"
+                    sumo_id+="_c"                   
                 if(sumo_id in traci.simulation.getArrivedIDList()):
                     dict_scenario[vehicle_type][int(i)]["finish_step"] = step
                     del dict_vehicles[vehicle_type][i]
                 else:
-                    try:
-                        if(traci.vehicle.getSpeed(sumo_id)< speed_threshold):
-                            dict_scenario[vehicle_type][int(i)]["waiting_time"] += 1
-                    except traci.exceptions.TraCIException:
-                        del dict_scenario[vehicle_type][int(i)]
-                        del dict_vehicles[vehicle_type][i]
+                    if(step >= next_step_wt_update):
+                        try:
+                            if(traci.vehicle.getSpeed(sumo_id)< speed_threshold):
+                                dict_scenario[vehicle_type][int(i)]["waiting_time"] += 1
+                        except traci.exceptions.TraCIException:
+                            del dict_scenario[vehicle_type][int(i)]
+                            del dict_vehicles[vehicle_type][i]
+                            
+        if(step >= next_step_wt_update):
+            next_step_wt_update += 1
 
 
 
@@ -223,6 +230,7 @@ for _ in range(num_simu):
 
         print(f"\rStep {int(step)}: {len(traci.vehicle.getIDList())} vehicles in simu, {id_cyclist} cyclists spawned since start,\
         {id_car} cars spawned since start.", end="")
+
 
         step += step_length
 
