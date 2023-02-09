@@ -49,8 +49,8 @@ class Structure:
 
             self.drl_agent = DQNAgent(self.width_ob, 2, actor_to_load=actor_to_load)
 
-            self.bikes_waiting_time_coeff = 0.5
-            self.cars_waiting_time_coeff = 1-self.bikes_waiting_time_coeff
+            self.bikes_waiting_time_coeff = 0.2
+            self.cars_waiting_time_coeff = 1
 
 
     def reset(self, dict_cyclists, dict_scenario):
@@ -223,9 +223,9 @@ class Structure:
 
     def calculate_reward(self):
         last_cars_wt, last_bikes_wt = self.calculate_sum_waiting_time()
-        #return last_cars_wt - self.cars_waiting_time
-        return (self.cars_waiting_time_coeff*last_cars_wt + self.bikes_waiting_time_coeff*last_bikes_wt)-\
-        (self.cars_waiting_time_coeff*self.cars_waiting_time + self.bikes_waiting_time_coeff*self.bikes_waiting_time)
+        diff_cars =  last_cars_wt - self.cars_waiting_time
+        diff_bikes = last_bikes_wt - self.bikes_waiting_time
+        return self.bikes_waiting_time_coeff*diff_bikes+self.cars_waiting_time_coeff*diff_cars
 
     def update_next_step_decision(self, step):
         e = self.path[0]
