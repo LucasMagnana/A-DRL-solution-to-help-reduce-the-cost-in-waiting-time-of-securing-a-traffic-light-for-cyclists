@@ -94,6 +94,19 @@ if(use_drl or not new_scenario):
 else:
     sub_folders = "wou_model/"
 
+pre_file_name = ""
+if(use_drl):
+    n_d = 1
+    if(structure.drl_agent.double):
+        n_d += 1
+    if(structure.drl_agent.duelling):
+        n_d += 1
+    pre_file_name = str(n_d)+"DQN_"
+elif(actuated):
+    pre_file_name += "actuated_"
+    
+pre_file_name += evoluting+"_evolv_"
+
 if(evoluting=="bikes"):
     sub_folders+="config_"+str(config)+"/"
     variable_evoluting = poisson_lambda
@@ -110,12 +123,21 @@ edges = net.getEdges()
 
 structure = Structure("E_start", "E2", edges, net, traci, config, simu_length, use_drl, actuated, test, min_group_size)
 
+start_num_simu = 0
 
 if(not new_scenario):
     with open("files/"+sub_folders+"2DQN_cars_evolv_scenarios.tab", 'rb') as infile:
         tab_dict_old_scenarios = pickle.load(infile)
+        num_simu = len(tab_dict_old_scenarios)
 
-for s in range(num_simu):
+    if(os.path.exists("files/"+sub_folders+pre_file_name+"scenarios.tab")):
+        with open("files/"+sub_folders+pre_file_name+"scenarios.tab", 'rb') as infile:
+            tab_dict_scenarios = pickle.load(infile)
+            start_num_simu = len(tab_dict_scenarios)
+
+print("Starting at ", start_num_simu)
+
+for s in range(start_num_simu, num_simu):
 
     next_step_wt_update = 0
 
@@ -134,10 +156,15 @@ for s in range(num_simu):
         num_cyclists = len(old_dict_scenario["bikes"])
         num_cars = len(old_dict_scenario["cars"])
 
-    dict_scenario={"cars": {}, "bikes": {}}
-        
-    print("num_cyclists: ", num_cyclists, ", num_cars :", num_cars)
+        max_id_cyclist = max(old_dict_scenario["bikes"].keys())
+        max_id_car = max(old_dict_scenario["cars"].keys())
 
+    num_data = num_cyclists + num_cars
+        
+    print("num_cyclists: ", num_cyclists, ", num_cars :", num_cars, ", num_data :", num_data)
+
+
+    dict_scenario={"cars": {}, "bikes": {}}
 
     dict_vehicles = {"bikes": {}, "cars": {}}
 
@@ -148,7 +175,9 @@ for s in range(num_simu):
     id_car = 0
     step = 0
 
-    while(step<=simu_length):
+    continue_simu = True
+
+    while(continue_simu):
         if(new_scenario): #new_scenario
             if(step<simu_length):
                 for _ in range(bike_poisson_distrib[int(step)]):
@@ -173,9 +202,9 @@ for s in range(num_simu):
                     car_poisson_distrib[int(step)] = 0
 
         else:
-            while(id_cyclist not in old_dict_scenario["bikes"] and id_cyclist < len(old_dict_scenario["bikes"])):
+            while(id_cyclist not in old_dict_scenario["bikes"] and id_cyclist <= max_id_cyclist):
                 id_cyclist += 1
-            if(id_cyclist<len(old_dict_scenario["bikes"]) and step >= old_dict_scenario["bikes"][id_cyclist]["start_step"]):
+            if(id_cyclist in old_dict_scenario["bikes"] and step >= old_dict_scenario["bikes"][id_cyclist]["start_step"]):
                 start_edge_id=old_dict_scenario["bikes"][id_cyclist]["start_edge"]
                 end_edge_id=old_dict_scenario["bikes"][id_cyclist]["end_edge"]
                 e1 = net.getEdge(start_edge_id)
@@ -186,9 +215,9 @@ for s in range(num_simu):
                 spawn_cyclist(id_cyclist, step, path, net, structure, step_length, old_dict_scenario["bikes"][id_cyclist]["max_speed"], False, dict_vehicles["bikes"])
                 id_cyclist+=1
 
-            while(id_car not in old_dict_scenario["cars"] and id_car < len(old_dict_scenario["cars"])):
+            while(id_car not in old_dict_scenario["cars"] and id_car <= max_id_car):
                 id_car += 1
-            if(id_car<len(old_dict_scenario["cars"]) and step >= old_dict_scenario["cars"][id_car]["start_step"]):
+            if(id_car in old_dict_scenario["cars"] and step >= old_dict_scenario["cars"][id_car]["start_step"]):
                 start_edge_id=old_dict_scenario["cars"][id_car]["start_edge"]
                 end_edge_id=old_dict_scenario["cars"][id_car]["end_edge"]
                 e1 = net.getEdge(start_edge_id)
@@ -234,6 +263,10 @@ for s in range(num_simu):
 
         step += step_length
 
+        if(new_scenario):
+            continue_simu = step<=simu_length
+        else:
+            continue_simu = (step<=simu_length or len(traci.vehicle.getIDList()) != 0)
 
     traci.close()
 
@@ -243,20 +276,19 @@ for s in range(num_simu):
                 del dict_scenario[vehicle_type][i]
 
 
-    if(save_scenario):
-        pre_file_name = ""
-        if(use_drl):
-            n_d = 1
-            if(structure.drl_agent.double):
-                n_d += 1
-            if(structure.drl_agent.duelling):
-                n_d += 1
-            pre_file_name = str(n_d)+"DQN_"
-        elif(actuated):
-            pre_file_name += "actuated_"
-            
-        pre_file_name += evoluting+"_evolv_"
+    print("\ndata number:", len(dict_scenario["bikes"])+len(dict_scenario["cars"]), ",", structure.num_cyclists_crossed, "cyclits used struct, last step:", step)
 
+
+    if(len(dict_scenario["bikes"])+len(dict_scenario["cars"]) != num_data):
+        for vt in old_dict_scenario:
+            for v in old_dict_scenario[vt]:
+                if v not in dict_scenario[vt]:
+                    print(vt, v,old_dict_scenario[vt][v])
+        print("ERROR : Some data of the ", s, "th old scenario have not been used, results are flawed !")
+        break 
+
+
+    if(save_scenario):
         print("WARNING: Saving scenario...")
         if(not os.path.exists("files/"+sub_folders)):
             os.makedirs("files/"+sub_folders)
@@ -272,8 +304,6 @@ for s in range(num_simu):
 
         with open("files/"+sub_folders+pre_file_name+"scenarios.tab", 'wb') as outfile:
             pickle.dump(tab_dict_scenarios, outfile)
-        
-    print("\ndata number:", len(dict_scenario["bikes"])+len(dict_scenario["cars"]), ",", structure.num_cyclists_crossed, "cyclits used struct, last step:", step)
 
 
     bikes_data = compute_data(dict_scenario["bikes"])
