@@ -64,12 +64,18 @@ class Structure:
 
         self.next_step_decision = 0
 
+        e = self.path[0]
+        tls = self.net.getEdge(e).getTLS()       
+        self.module_traci.trafficlight.setPhase(tls.getID(), 0)
+
         if(self.use_drl):
             self.next_step_learning = self.drl_agent.hyperParams.LEARNING_STEP
             self.action = -1
             self.ob = []
             self.bikes_waiting_time = 0
             self.cars_waiting_time = 0
+        elif(self.actuated):
+            self.actuated_next_change_step = 5
 
 
 

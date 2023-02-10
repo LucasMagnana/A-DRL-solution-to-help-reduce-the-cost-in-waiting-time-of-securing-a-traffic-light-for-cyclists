@@ -140,7 +140,6 @@ if(not new_scenario):
 print("Starting at ", start_num_simu)
 
 for s in range(start_num_simu, num_simu):
-
     next_step_wt_update = 0
 
     traci.start(sumoCmd)
