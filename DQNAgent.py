@@ -30,8 +30,8 @@ class DQNHyperParams :
         self.LEARNING_STEP = 30
 
         self.EPSILON = 1.0
-        self.MIN_EPSILON = 0.01
-        self.EPSILON_DECAY = self.EPSILON/((self.EPISODE_COUNT//self.LEARNING_STEP)*4/5)
+        self.MIN_EPSILON = 0.001
+        self.EPSILON_DECAY = self.EPSILON/((self.EPISODE_COUNT//self.LEARNING_STEP)*1/2)
 
 class DQNAgent(object):
     def __init__(self, observation_space, action_space, test=False, double=True, duelling=False, PER=False, cnn=None, cuda=False, actor_to_load=None):
