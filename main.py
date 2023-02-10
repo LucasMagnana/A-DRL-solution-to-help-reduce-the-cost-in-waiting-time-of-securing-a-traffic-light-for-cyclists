@@ -33,6 +33,7 @@ use_drl = False
 test = False
 save_scenario = False
 actuated = False
+new_scenario = True
 
 poisson_lambda = 0.2
 min_group_size = 5
@@ -50,17 +51,19 @@ if __name__ == "__main__":
         struct_open = True
     if('--drl' in arguments):
         use_drl = True
-    if('--test' in arguments):
-        test = True
-        num_simu = 2
     if('--save-scenario' in arguments):
         save_scenario = True
+    if('--test' in arguments):
+        test = True
+        if(save_scenario):
+            num_simu = 20
+        else:
+            num_simu = 2
+    if("--load-scenario" in arguments):
+        new_scenario = False
     if('--actuated' in arguments):
         actuated = True
     
-new_scenario = False
-if(use_drl or test):
-    new_scenario = True
 
 
 step_length = 0.2
@@ -89,10 +92,16 @@ import sumolib
 
 
 
-if(use_drl or not new_scenario):
-    sub_folders = "w_model/"
+if(test):
+    sub_folders = "test/"
 else:
-    sub_folders = "wou_model/"
+    sub_folders = "train/"
+
+
+net = sumolib.net.readNet("sumo_files/net_"+str(config)+".net.xml")
+edges = net.getEdges()
+
+structure = Structure("E_start", "E2", edges, net, traci, config, simu_length, use_drl, actuated, test, min_group_size)
 
 pre_file_name = ""
 if(use_drl):
@@ -117,14 +126,7 @@ else:
     sub_folders+="config_"+str(config)+"/"
     variable_evoluting = min_group_size
 
-
-net = sumolib.net.readNet("sumo_files/net_"+str(config)+".net.xml")
-edges = net.getEdges()
-
-structure = Structure("E_start", "E2", edges, net, traci, config, simu_length, use_drl, actuated, test, min_group_size)
-
 start_num_simu = 0
-
 if(not new_scenario):
     with open("files/"+sub_folders+"2DQN_cars_evolv_scenarios.tab", 'rb') as infile:
         tab_dict_old_scenarios = pickle.load(infile)
@@ -279,7 +281,7 @@ for s in range(start_num_simu, num_simu):
     print("\ndata number:", len(dict_scenario["bikes"])+len(dict_scenario["cars"]), ",", structure.num_cyclists_crossed, "cyclits used struct, last step:", step)
 
 
-    if(len(dict_scenario["bikes"])+len(dict_scenario["cars"]) != num_data):
+    if(not new_scenario and len(dict_scenario["bikes"])+len(dict_scenario["cars"]) != num_data):
         for vt in old_dict_scenario:
             for v in old_dict_scenario[vt]:
                 if v not in dict_scenario[vt]:

@@ -43,7 +43,7 @@ class Structure:
             self.width_ob = (2, 2, int(self.start_edge.getLength()//5+2))
 
             if(self.test):
-                actor_to_load = "files/w_model/config_"+str(self.config)+"/trained.n"
+                actor_to_load = "files/train/config_"+str(self.config)+"/trained.n"
             else:
                 actor_to_load = None
 
