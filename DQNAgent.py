@@ -24,17 +24,17 @@ class DQNHyperParams :
         self.HIDDEN_SIZE = 16
         self.ACT_INTER = 16
 
-        self.EPISODE_COUNT = 25*3600
+        self.EPISODE_COUNT = 150*1800
         self.MAX_STEPS = 1000
         self.LEARNING_START = 500
         self.LEARNING_STEP = 30
 
         self.EPSILON = 1.0
         self.MIN_EPSILON = 0.001
-        self.EPSILON_DECAY = self.EPSILON/((self.EPISODE_COUNT//self.LEARNING_STEP)*1/2)
+        self.EPSILON_DECAY = self.EPSILON/((self.EPISODE_COUNT//self.LEARNING_STEP)*1/3)
 
 class DQNAgent(object):
-    def __init__(self, observation_space, action_space, test=False, double=True, duelling=False, PER=False, cnn=None, cuda=False, actor_to_load=None):
+    def __init__(self, observation_space, action_space, test=False, double=True, duelling=True, PER=True, cnn=None, cuda=False, actor_to_load=None):
 
         self.hyperParams = DQNHyperParams()
         
@@ -46,7 +46,7 @@ class DQNAgent(object):
         self.PER = PER
         if(not test):
             if(self.PER):  
-                self.buffer = data.PrioritizedReplayBuffer(int(self.hyperParams.BUFFER_SIZE), 0.2, 0.4)
+                self.buffer = data.PrioritizedReplayBuffer(int(self.hyperParams.BUFFER_SIZE), 0.1, 0.2)
             else:
                 self.buffer = data.ReplayBuffer(int(self.hyperParams.BUFFER_SIZE))
 

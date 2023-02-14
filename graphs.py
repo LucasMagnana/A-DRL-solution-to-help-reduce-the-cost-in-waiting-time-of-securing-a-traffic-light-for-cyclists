@@ -5,8 +5,12 @@ import sys
 
 def compute_data(dict_scenario):
     if(len(dict_scenario)>0):
-        tab_travel_time = [dict_scenario[b]["finish_step"]-dict_scenario[b]["start_step"] for b in dict_scenario]
-        tab_waiting_time = [dict_scenario[b]["waiting_time"] for b in dict_scenario]
+        tab_travel_time = []
+        tab_waiting_time = []
+        for v in dict_scenario:
+            if("finish_step" in dict_scenario[v]):
+                tab_travel_time.append(dict_scenario[v]["finish_step"]-dict_scenario[v]["start_step"])
+                tab_waiting_time.append(dict_scenario[v]["waiting_time"])
         
         return sum(tab_travel_time)/len(tab_travel_time), sum(tab_waiting_time)/len(tab_waiting_time)
     else:
@@ -67,6 +71,8 @@ if __name__ == "__main__":
 
     labels = []
 
+    possible_labels = ["actuated", "2DQN", "3DQN", "DQN"]
+
     sub_folders+="config_"+str(config)+"/"
     for root, dirs, files in os.walk("files/"+sub_folders):
         for filename in files:
@@ -74,10 +80,10 @@ if __name__ == "__main__":
                 with open("files/"+sub_folders+filename, 'rb') as infile:
                     tab_scenarios = pickle.load(infile)
 
-                if("actuated" in filename):
-                    labels.append("Actuated")
-                elif("DQN" in filename):
-                    labels.append("DQN")
+                for l in possible_labels:
+                    if(l in filename):
+                        labels.append(l)
+                        break
 
                 tab_mean_waiting_time = [[], []]
                 tab_mean_travel_time = [[], []]
@@ -92,8 +98,9 @@ if __name__ == "__main__":
                         tab_graphs_temp = [[], []]
                         for v in tab_scenarios[num_simu][vehicle_type]:
                             vehicle = tab_scenarios[num_simu][vehicle_type][v]
-                            tab_graphs_temp[0].append(vehicle["finish_step"]-vehicle["start_step"])
-                            tab_graphs_temp[1].append(vehicle["waiting_time"])
+                            if("finish_step" in vehicle):   
+                                tab_graphs_temp[0].append(vehicle["finish_step"]-vehicle["start_step"])
+                                tab_graphs_temp[1].append(vehicle["waiting_time"])
                         tab_mean_travel_time[vehicle_type_index].append(sum(tab_graphs_temp[0])/len(tab_graphs_temp[0]))
                         tab_mean_waiting_time[vehicle_type_index].append(sum(tab_graphs_temp[1])/len(tab_graphs_temp[1]))
                         tab_waiting_time[vehicle_type_index].append(sum(tab_graphs_temp[1]))                           

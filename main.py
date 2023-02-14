@@ -39,7 +39,7 @@ poisson_lambda = 0.2
 min_group_size = 5
 config = 3
 
-num_simu = 50
+num_simu = 150
 simu_length = 1800
 
 if __name__ == "__main__": 
@@ -128,7 +128,7 @@ else:
 
 start_num_simu = 0
 if(not new_scenario):
-    with open("files/"+sub_folders+"2DQN_cars_evolv_scenarios.tab", 'rb') as infile:
+    with open("files/"+sub_folders+"3DQN_cars_evolv_scenarios.tab", 'rb') as infile:
         tab_dict_old_scenarios = pickle.load(infile)
         num_simu = len(tab_dict_old_scenarios)
 
@@ -141,6 +141,9 @@ print("Starting at ", start_num_simu)
 
 for s in range(start_num_simu, num_simu):
     next_step_wt_update = 0
+
+    num_cyclists_real = 0
+    num_cars_real = 0
 
     traci.start(sumoCmd)
 
@@ -178,7 +181,7 @@ for s in range(start_num_simu, num_simu):
 
     continue_simu = True
 
-    while(continue_simu):
+    while(step<=simu_length):
         if(new_scenario): #new_scenario
             if(step<simu_length):
                 for _ in range(bike_poisson_distrib[int(step)]):
@@ -238,6 +241,10 @@ for s in range(start_num_simu, num_simu):
                 if(vehicle_type == "cars"):
                     sumo_id+="_c"                   
                 if(sumo_id in traci.simulation.getArrivedIDList()):
+                    if(vehicle_type == "cars"):
+                        num_cars_real += 1
+                    else:
+                        num_cyclists_real += 1
                     dict_scenario[vehicle_type][int(i)]["finish_step"] = step
                     del dict_vehicles[vehicle_type][i]
                 else:
@@ -264,29 +271,16 @@ for s in range(start_num_simu, num_simu):
 
         step += step_length
 
-        if(new_scenario):
-            continue_simu = step<=simu_length
-        else:
-            continue_simu = (step<=simu_length or len(traci.vehicle.getIDList()) != 0)
-
     traci.close()
 
-    for vehicle_type in dict_scenario:
+    '''for vehicle_type in dict_scenario:
         for i in copy.deepcopy(list(dict_scenario[vehicle_type].keys())):
             if("finish_step" not in dict_scenario[vehicle_type][i]):
-                del dict_scenario[vehicle_type][i]
+                del dict_scenario[vehicle_type][i]'''
 
 
-    print("\ndata number:", len(dict_scenario["bikes"])+len(dict_scenario["cars"]), ",", structure.num_cyclists_crossed, "cyclits used struct, last step:", step)
+    print("\ndata number:", num_cars_real+num_cyclists_real, ",", structure.num_cyclists_crossed, "cyclits used struct, last step:", step)
 
-
-    if(not new_scenario and len(dict_scenario["bikes"])+len(dict_scenario["cars"]) != num_data):
-        for vt in old_dict_scenario:
-            for v in old_dict_scenario[vt]:
-                if v not in dict_scenario[vt]:
-                    print(vt, v,old_dict_scenario[vt][v])
-        print("ERROR : Some data of the ", s, "th old scenario have not been used, results are flawed !")
-        break 
 
 
     if(save_scenario):
