@@ -121,10 +121,10 @@ if __name__ == "__main__":
                 tot_waiting_time.append(tab_reward)
 
 
-        plot_data(cars_travel_time, "cars_evolution_mean_time_travel.png", "Cars mean travel time", labels, ["Hours", "Travel Time"], sub_folders)
-        plot_data(bikes_travel_time, "bikes_evolution_mean_time_travel.png", "Bikes mean travel time", labels, ["Hours", "Travel Time"], sub_folders)
+        plot_data(cars_travel_time, "cars_evolution_mean_time_travel.png", "Cars mean travel time", labels, ["Simulations", "Travel Time"], sub_folders)
+        plot_data(bikes_travel_time, "bikes_evolution_mean_time_travel.png", "Bikes mean travel time", labels, ["Simulations", "Travel Time"], sub_folders)
 
-        plot_data(cars_waiting_time, "cars_evolution_mean_waiting_time.png", "Cars mean waiting time",labels, ["Hours", "Waiting Time"], sub_folders)
-        plot_data(bikes_waiting_time, "bikes_evolution_mean_waiting_time.png", "Bikes mean waiting time",labels, ["Hours", "Waiting Time"], sub_folders)
+        plot_data(cars_waiting_time, "cars_evolution_mean_waiting_time.png", "Cars mean waiting time",labels, ["Simulations", "Waiting Time"], sub_folders)
+        plot_data(bikes_waiting_time, "bikes_evolution_mean_waiting_time.png", "Bikes mean waiting time",labels, ["Simulations", "Waiting Time"], sub_folders)
 
-        plot_data(tot_waiting_time, "evolution_mean_waiting_time.png", "Total mean waiting time", labels, ["Hours", "Waiting Time"], sub_folders)
+        plot_data(tot_waiting_time, "evolution_mean_waiting_time.png", "Total mean waiting time", labels, ["Simulations", "Waiting Time"], sub_folders)

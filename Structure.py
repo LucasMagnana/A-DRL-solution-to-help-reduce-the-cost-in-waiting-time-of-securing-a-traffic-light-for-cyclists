@@ -49,8 +49,8 @@ class Structure:
 
             self.drl_agent = DQNAgent(self.width_ob, 2, actor_to_load=actor_to_load)
 
-            self.bikes_waiting_time_coeff = 0.2
-            self.cars_waiting_time_coeff = 0.8
+            self.bikes_waiting_time_coeff = 0.3
+            self.cars_waiting_time_coeff = 0.7
 
 
     def reset(self, dict_cyclists, dict_scenario):
