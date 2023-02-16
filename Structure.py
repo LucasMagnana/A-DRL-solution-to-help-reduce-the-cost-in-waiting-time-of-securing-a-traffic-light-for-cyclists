@@ -1,6 +1,7 @@
 import threading
 import torch
 import numpy as np
+import os
 
 from DQNAgent import DQNAgent
 from PPOAgent import PPOAgent
@@ -55,6 +56,8 @@ class Structure:
             elif(self.method == "3DQN"):
                 self.drl_agent = DQNAgent(self.width_ob, 2, double=True, duelling=True, model_to_load=model_to_load)
             elif(self.method == "PPO"):
+                if(os.path.exists("files/train/config_"+str(self.config)+"/"+self.method+"_trained.n")):
+                    model_to_load = "files/train/config_"+str(self.config)+"/"+self.method+"_trained.n"
                 self.drl_agent = PPOAgent(self.width_ob, 2, model_to_load=model_to_load)
                 self.val = None
                 self.action_probs = None

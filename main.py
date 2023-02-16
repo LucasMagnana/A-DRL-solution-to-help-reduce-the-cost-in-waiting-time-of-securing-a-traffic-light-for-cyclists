@@ -312,5 +312,6 @@ for s in range(start_num_simu, num_simu):
     print(f"mean bikes travel time: {bikes_data[0]}, mean bikes waiting time: {bikes_data[1]}")
 
 if(not test and ("DQN" in method or "PPO" in method)):
-    torch.save(structure.drl_agent.model_target.state_dict(), "files/"+sub_folders+pre_file_name+"trained_target.n")
     torch.save(structure.drl_agent.model.state_dict(), "files/"+sub_folders+pre_file_name+"trained.n")
+    if("DQN" in method):
+        torch.save(structure.drl_agent.model_target.state_dict(), "files/"+sub_folders+pre_file_name+"trained_target.n")

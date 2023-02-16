@@ -75,10 +75,10 @@ class PPOAgent():
         if(model_to_load != None):
             self.model.load_state_dict(torch.load(model_to_load))
             self.model.eval()
-        else: 
-            # Define optimizer
-            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.hyperParams.LR)
-            self.mse = torch.nn.MSELoss()
+
+        # Define optimizer
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.hyperParams.LR)
+        self.mse = torch.nn.MSELoss()
 
         self.ac_space = ac_space
 
