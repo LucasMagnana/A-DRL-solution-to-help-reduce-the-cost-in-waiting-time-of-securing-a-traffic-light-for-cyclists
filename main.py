@@ -29,10 +29,9 @@ def spawn_car(id_car, step, path, net, dict_cars):
 
 gui = False
 struct_open = False
-use_drl = False
+method = ""
 test = False
 save_scenario = False
-actuated = False
 new_scenario = True
 
 poisson_lambda = 0.2
@@ -47,22 +46,29 @@ if __name__ == "__main__":
 
     if('--gui' in arguments):
         gui = True
+
     if('--struct-open' in arguments):
         struct_open = True
-    if('--drl' in arguments):
-        use_drl = True
+
+    if('--dqn' in arguments):
+        method = "DQN"
+    elif('--3dqn' in arguments):
+        method = "3DQN"
+    elif("--ppo" in arguments):
+        method = "PPO"
+
     if('--save-scenario' in arguments):
         save_scenario = True
+
     if('--test' in arguments):
         test = True
         if(save_scenario):
             num_simu = 20
         else:
             num_simu = 2
+
     if("--load-scenario" in arguments):
         new_scenario = False
-    if('--actuated' in arguments):
-        actuated = True
     
 
 
@@ -101,18 +107,9 @@ else:
 net = sumolib.net.readNet("sumo_files/net_"+str(config)+".net.xml")
 edges = net.getEdges()
 
-structure = Structure("E_start", "E2", edges, net, traci, config, simu_length, use_drl, actuated, test, min_group_size)
+structure = Structure("E_start", "E2", edges, net, traci, config, simu_length, method, test, min_group_size)
 
-pre_file_name = ""
-if(use_drl):
-    n_d = 1
-    if(structure.drl_agent.double):
-        n_d += 1
-    if(structure.drl_agent.duelling):
-        n_d += 1
-    pre_file_name = str(n_d)+"DQN_"
-elif(actuated):
-    pre_file_name += "actuated_"
+pre_file_name = method+"_"
 
 if(evoluting=="bikes"):
     sub_folders+="config_"+str(config)+"/"
@@ -126,7 +123,7 @@ else:
 
 start_num_simu = 0
 if(not new_scenario):
-    with open("files/"+sub_folders+"3DQN_scenarios.tab", 'rb') as infile:
+    with open("files/"+sub_folders+"PPO_scenarios.tab", 'rb') as infile:
         tab_dict_old_scenarios = pickle.load(infile)
         num_simu = len(tab_dict_old_scenarios)
 
@@ -138,6 +135,12 @@ if(not new_scenario):
 print("Starting at ", start_num_simu)
 
 for s in range(start_num_simu, num_simu):
+
+    if("PPO" in method):
+        structure.drl_agent.start_episode()
+        if(s != 0 and s%structure.drl_agent.hyperParams.LEARNING_EP == 0):
+            structure.drl_agent.learn()
+
     next_step_wt_update = 0
 
     num_cyclists_real = 0
@@ -271,6 +274,9 @@ for s in range(start_num_simu, num_simu):
 
     traci.close()
 
+    if("PPO" in method):
+        structure.drl_agent.end_episode()
+
     '''for vehicle_type in dict_scenario:
         for i in copy.deepcopy(list(dict_scenario[vehicle_type].keys())):
             if("finish_step" not in dict_scenario[vehicle_type][i]):
@@ -305,6 +311,6 @@ for s in range(start_num_simu, num_simu):
     print(f"mean cars travel time: {cars_data[0]}, mean cars waiting time: {cars_data[1]}")
     print(f"mean bikes travel time: {bikes_data[0]}, mean bikes waiting time: {bikes_data[1]}")
 
-if(use_drl and not test):
-    torch.save(structure.drl_agent.actor_target.state_dict(), "files/"+sub_folders+pre_file_name+"trained_target.n")
-    torch.save(structure.drl_agent.actor.state_dict(), "files/"+sub_folders+pre_file_name+"trained.n")
+if(not test and ("DQN" in method or "PPO" in method)):
+    torch.save(structure.drl_agent.model_target.state_dict(), "files/"+sub_folders+pre_file_name+"trained_target.n")
+    torch.save(structure.drl_agent.model.state_dict(), "files/"+sub_folders+pre_file_name+"trained.n")

@@ -3,9 +3,10 @@ import torch
 import numpy as np
 
 from DQNAgent import DQNAgent
+from PPOAgent import PPOAgent
 
 class Structure:
-    def __init__(self, start_edge, end_edge, edges, net, traci, config, simu_length, use_drl, actuated, test, min_group_size, open=True):
+    def __init__(self, start_edge, end_edge, edges, net, traci, config, simu_length, method, test, min_group_size, open=True):
 
         for e in edges:
             id = e.getID()
@@ -29,25 +30,35 @@ class Structure:
 
         self.simu_length = simu_length
 
-        self.actuated = actuated
-        if(self.actuated):
+        self.method = method
+
+        if(self.method == "actuated"):
             self.actuated_next_change_step = 5
         self.open = open
 
 
         self.next_step_decision = 0
 
-        self.use_drl = use_drl
+        self.use_drl = "DQN" in self.method or "PPO" in self.method
+
         if(self.use_drl):
             self.test = test
             self.width_ob = (2, 2, int(self.start_edge.getLength()//5+2))
 
             if(self.test):
-                actor_to_load = "files/train/config_"+str(self.config)+"/3DQN_trained.n"
+                model_to_load = "files/train/config_"+str(self.config)+"/"+self.method+"_trained.n"
             else:
-                actor_to_load = None
+                model_to_load = None
 
-            self.drl_agent = DQNAgent(self.width_ob, 2, actor_to_load=actor_to_load)
+            if(self.method == "DQN"):
+                self.drl_agent = DQNAgent(self.width_ob, 2, model_to_load=model_to_load)
+            elif(self.method == "3DQN"):
+                self.drl_agent = DQNAgent(self.width_ob, 2, double=True, duelling=True, model_to_load=model_to_load)
+            elif(self.method == "PPO"):
+                self.drl_agent = PPOAgent(self.width_ob, 2, model_to_load=model_to_load)
+                self.val = None
+                self.action_probs = None
+
 
             self.bikes_waiting_time_coeff = 0.3
             self.cars_waiting_time_coeff = 0.7
@@ -69,12 +80,16 @@ class Structure:
         self.module_traci.trafficlight.setPhase(tls.getID(), 0)
 
         if(self.use_drl):
-            self.next_step_learning = self.drl_agent.hyperParams.LEARNING_STEP
             self.action = -1
             self.ob = []
             self.bikes_waiting_time = 0
             self.cars_waiting_time = 0
-        elif(self.actuated):
+            if(self.method == "PPO"):
+                self.val = None
+                self.action_probs = None
+            elif("DQN" in self.method):
+                self.next_step_learning = self.drl_agent.hyperParams.LEARNING_STEP
+        elif(self.method == "actuated"):
             self.actuated_next_change_step = 5
 
 
@@ -86,10 +101,10 @@ class Structure:
         if(self.use_drl):
             if(step > self.next_step_decision):
                 self.drl_decision_making(step)
-            if(step > self.drl_agent.hyperParams.LEARNING_START and not self.test and step>self.next_step_learning):
+            if("DQN" in self.method and step > self.drl_agent.hyperParams.LEARNING_START and not self.test and step>self.next_step_learning):
                 self.drl_agent.learn()
                 self.next_step_learning += self.drl_agent.hyperParams.LEARNING_STEP
-        elif(self.actuated):
+        elif(self.method == "actuated"):
             if(step > self.next_step_decision):
                 self.actuated_decision_making(step)
         else:            
@@ -165,8 +180,16 @@ class Structure:
         else:
             if(not self.test and self.action >= 0):
                 reward = self.calculate_reward()
-                self.drl_agent.memorize(self.ob_prec, self.action, self.ob, reward, False)  
-            self.action = self.drl_agent.act(self.ob)
+                if("DQN" in self.method):
+                    self.drl_agent.memorize(self.ob_prec, self.action, self.ob, reward, False)  
+                elif(self.method == "PPO"):                   
+                    self.drl_agent.memorize(self.ob_prec, self.val, self.action_probs, self.action, self.ob, reward, False)  
+
+            if("DQN" in self.method):
+                self.action = self.drl_agent.act(self.ob)
+            elif(self.method == "PPO"):  
+                self.action, self.val, self.action_probs = self.drl_agent.act(self.ob)
+
             if(self.action == 1):
                 self.change_light_phase()
 

@@ -71,7 +71,7 @@ if __name__ == "__main__":
 
     labels = []
 
-    possible_labels = ["actuated", "2DQN", "3DQN", "DQN"]
+    possible_labels = ["actuated", "2DQN", "3DQN", "DQN", "PPO"]
 
     sub_folders+="config_"+str(config)+"/"
     for root, dirs, files in os.walk("files/"+sub_folders):

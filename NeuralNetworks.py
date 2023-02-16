@@ -59,3 +59,29 @@ class DuellingActor(nn.Module):
 
         return values + (advantages - advantages.mean())
 
+
+        
+
+
+class PPO_Model(nn.Module):
+    def __init__(self, size_ob, size_action):
+        super(PPO_Model, self).__init__()
+
+        self.conv1 = nn.Conv2d(size_ob[0], 16, 2)
+        out_shape = shape_after_conv_and_flatten(size_ob[2], self.conv1)
+
+        self.actor = nn.Sequential(
+            nn.Linear(out_shape, size_action),
+            nn.Softmax(dim=-1))
+
+        self.critic = nn.Linear(out_shape, 1)
+    
+    def forward(self, ob):
+        ob = ob.float()
+        features = nn.functional.relu(self.conv1(ob))
+        if(len(features.shape) == 3):
+            features = torch.flatten(features)
+        elif(len(features.shape) == 4):
+            features = torch.flatten(features, start_dim=1)
+        return self.actor(features), self.critic(features)
+
