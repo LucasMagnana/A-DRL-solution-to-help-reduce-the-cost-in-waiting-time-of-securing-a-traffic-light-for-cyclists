@@ -113,8 +113,6 @@ if(use_drl):
     pre_file_name = str(n_d)+"DQN_"
 elif(actuated):
     pre_file_name += "actuated_"
-    
-pre_file_name += evoluting+"_evolv_"
 
 if(evoluting=="bikes"):
     sub_folders+="config_"+str(config)+"/"
@@ -128,7 +126,7 @@ else:
 
 start_num_simu = 0
 if(not new_scenario):
-    with open("files/"+sub_folders+"3DQN_cars_evolv_scenarios.tab", 'rb') as infile:
+    with open("files/"+sub_folders+"3DQN_scenarios.tab", 'rb') as infile:
         tab_dict_old_scenarios = pickle.load(infile)
         num_simu = len(tab_dict_old_scenarios)
 
@@ -308,5 +306,5 @@ for s in range(start_num_simu, num_simu):
     print(f"mean bikes travel time: {bikes_data[0]}, mean bikes waiting time: {bikes_data[1]}")
 
 if(use_drl and not test):
-    torch.save(structure.drl_agent.actor_target.state_dict(), "files/"+sub_folders+"trained_target.n")
-    torch.save(structure.drl_agent.actor.state_dict(), "files/"+sub_folders+"trained.n")
+    torch.save(structure.drl_agent.actor_target.state_dict(), "files/"+sub_folders+pre_file_name+"trained_target.n")
+    torch.save(structure.drl_agent.actor.state_dict(), "files/"+sub_folders+pre_file_name+"trained.n")
