@@ -136,7 +136,7 @@ print("Starting at ", start_num_simu)
 
 for s in range(start_num_simu, num_simu):
 
-    if("PPO" in method):
+    if(not test and "PPO" in method):
         structure.drl_agent.start_episode()
         if(s != 0 and s%structure.drl_agent.hyperParams.LEARNING_EP == 0):
             structure.drl_agent.learn()
@@ -274,7 +274,7 @@ for s in range(start_num_simu, num_simu):
 
     traci.close()
 
-    if("PPO" in method):
+    if(not test and "PPO" in method):
         structure.drl_agent.end_episode()
 
     '''for vehicle_type in dict_scenario:
