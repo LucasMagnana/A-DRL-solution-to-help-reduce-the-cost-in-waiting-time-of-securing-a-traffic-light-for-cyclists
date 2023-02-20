@@ -68,6 +68,7 @@ if __name__ == "__main__":
     cars_travel_time = []
     bikes_travel_time = []
     tot_waiting_time = []
+    estimated_reward = []
 
     labels = []
 
@@ -101,24 +102,35 @@ if __name__ == "__main__":
                             if("finish_step" in vehicle):   
                                 tab_graphs_temp[0].append(vehicle["finish_step"]-vehicle["start_step"])
                                 tab_graphs_temp[1].append(vehicle["waiting_time"])
-                        tab_mean_travel_time[vehicle_type_index].append(sum(tab_graphs_temp[0])/len(tab_graphs_temp[0]))
-                        tab_mean_waiting_time[vehicle_type_index].append(sum(tab_graphs_temp[1])/len(tab_graphs_temp[1]))
-                        tab_waiting_time[vehicle_type_index].append(sum(tab_graphs_temp[1]))                           
+                        if(len(tab_graphs_temp[0]) == 0):
+                            tab_mean_travel_time[vehicle_type_index].append(0)
+                        else:                          
+                            tab_mean_travel_time[vehicle_type_index].append(sum(tab_graphs_temp[0])/len(tab_graphs_temp[0]))
+                        if(len(tab_graphs_temp[1]) == 0):
+                            tab_mean_waiting_time[vehicle_type_index].append(0)
+                            tab_waiting_time[vehicle_type_index].append(0)                           
+                        else:
+                            tab_mean_waiting_time[vehicle_type_index].append(sum(tab_graphs_temp[1])/len(tab_graphs_temp[1]))
+                            tab_waiting_time[vehicle_type_index].append(sum(tab_graphs_temp[1]))                           
                         vehicle_type_index+=1
 
                     if(not os.path.exists("images/"+sub_folders)):
                         os.makedirs("images/"+sub_folders)
 
                     tab_reward = []
-
                     for i in range(len(tab_waiting_time[0])):
-                        tab_reward.append(0.5*tab_waiting_time[0][i]+0.5*tab_waiting_time[1][i])
+                        tab_reward.append(0.3*tab_waiting_time[0][i]+0.7*tab_waiting_time[1][i])
+
+                    tab_wt = []
+                    for i in range(len(tab_waiting_time[0])):
+                        tab_wt.append(tab_waiting_time[0][i]+tab_waiting_time[1][i])
 
                 cars_waiting_time.append(tab_mean_waiting_time[0])
                 bikes_waiting_time.append(tab_mean_waiting_time[1])
                 cars_travel_time.append(tab_mean_travel_time[0])
                 bikes_travel_time.append(tab_mean_travel_time[1])
-                tot_waiting_time.append(tab_reward)
+                tot_waiting_time.append(tab_wt)
+                estimated_reward.append(tab_reward)
 
 
         plot_data(cars_travel_time, "cars_evolution_mean_time_travel.png", "Cars mean travel time", labels, ["Simulations", "Travel Time"], sub_folders)
@@ -128,3 +140,4 @@ if __name__ == "__main__":
         plot_data(bikes_waiting_time, "bikes_evolution_mean_waiting_time.png", "Bikes mean waiting time",labels, ["Simulations", "Waiting Time"], sub_folders)
 
         plot_data(tot_waiting_time, "evolution_mean_waiting_time.png", "Total mean waiting time", labels, ["Simulations", "Waiting Time"], sub_folders)
+        plot_data(estimated_reward, "evolution_estimated_reward.png", "Estimated reward", labels, ["Simulations", "Estimated reward"], sub_folders)

@@ -5,6 +5,7 @@ import pickle
 import copy
 import torch
 import argparse
+import random
 
 
 from Cyclist import Cyclist
@@ -38,7 +39,7 @@ poisson_lambda = 0.2
 min_group_size = 5
 config = 3
 
-num_simu = 200
+num_simu = 200000
 simu_length = 1800
 
 if __name__ == "__main__": 
@@ -56,6 +57,8 @@ if __name__ == "__main__":
         method = "3DQN"
     elif("--ppo" in arguments):
         method = "PPO"
+    elif("--actuated" in arguments):
+        method = "actuated"
 
     if('--save-scenario' in arguments):
         save_scenario = True
@@ -75,8 +78,6 @@ if __name__ == "__main__":
 step_length = 0.2
 speed_threshold = 0.5
 
-car_poisson_lambda = 0.1
-bike_poisson_lambda = 0.2
 evoluting = "cars"
 struct_open = True
 
@@ -123,7 +124,7 @@ else:
 
 start_num_simu = 0
 if(not new_scenario):
-    with open("files/"+sub_folders+"PPO_scenarios.tab", 'rb') as infile:
+    with open("files/"+sub_folders+"actuated_scenarios.tab", 'rb') as infile:
         tab_dict_old_scenarios = pickle.load(infile)
         num_simu = len(tab_dict_old_scenarios)
 
@@ -135,6 +136,9 @@ if(not new_scenario):
 print("Starting at ", start_num_simu)
 
 for s in range(start_num_simu, num_simu):
+
+    car_poisson_lambda = 0.2
+    bike_poisson_lambda = random.uniform(0,0.4) 
 
     if(not test and "PPO" in method):
         structure.drl_agent.start_episode()
@@ -161,8 +165,15 @@ for s in range(start_num_simu, num_simu):
         num_cyclists = len(old_dict_scenario["bikes"])
         num_cars = len(old_dict_scenario["cars"])
 
-        max_id_cyclist = max(old_dict_scenario["bikes"].keys())
-        max_id_car = max(old_dict_scenario["cars"].keys())
+        if(len(old_dict_scenario["bikes"].keys()) == 0):
+            max_id_cyclist = 0
+        else:
+            max_id_cyclist = max(old_dict_scenario["bikes"].keys())
+
+        if(len(old_dict_scenario["cars"].keys()) == 0):
+            max_id_car = 0  
+        else:
+            max_id_car = max(old_dict_scenario["cars"].keys())
 
     num_data = num_cyclists + num_cars
         

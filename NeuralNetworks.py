@@ -69,12 +69,13 @@ class PPO_Model(nn.Module):
 
         self.conv1 = nn.Conv2d(size_ob[0], 16, 2)
         out_shape = shape_after_conv_and_flatten(size_ob[2], self.conv1)
+        self.out = nn.Linear(out_shape, 32)
 
         self.actor = nn.Sequential(
-            nn.Linear(out_shape, size_action),
+            nn.Linear(32, size_action),
             nn.Softmax(dim=-1))
 
-        self.critic = nn.Linear(out_shape, 1)
+        self.critic = nn.Linear(32, 1)
     
     def forward(self, ob):
         ob = ob.float()
@@ -83,5 +84,6 @@ class PPO_Model(nn.Module):
             features = torch.flatten(features)
         elif(len(features.shape) == 4):
             features = torch.flatten(features, start_dim=1)
+        features = nn.functional.relu(self.out(features))
         return self.actor(features), self.critic(features)
 
