@@ -119,7 +119,7 @@ if __name__ == "__main__":
 
                     tab_reward = []
                     for i in range(len(tab_waiting_time[0])):
-                        tab_reward.append(0.3*tab_waiting_time[0][i]+0.7*tab_waiting_time[1][i])
+                        tab_reward.append(0.5*tab_waiting_time[0][i]+0.5*tab_waiting_time[1][i])
 
                     tab_wt = []
                     for i in range(len(tab_waiting_time[0])):

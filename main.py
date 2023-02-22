@@ -6,6 +6,8 @@ import copy
 import torch
 import argparse
 import random
+import json
+from datetime import datetime
 
 
 from Cyclist import Cyclist
@@ -66,9 +68,7 @@ if __name__ == "__main__":
     if('--test' in arguments):
         test = True
         if(save_scenario):
-            num_simu = 20
-        else:
-            num_simu = 2
+            num_simu = 1
 
     if("--load-scenario" in arguments):
         new_scenario = False
@@ -133,8 +133,6 @@ if(not new_scenario):
             tab_dict_scenarios = pickle.load(infile)
             start_num_simu = len(tab_dict_scenarios)
 
-print("Starting at ", start_num_simu)
-
 for s in range(start_num_simu, num_simu):
 
     car_poisson_lambda = 0.2
@@ -153,11 +151,31 @@ for s in range(start_num_simu, num_simu):
     traci.start(sumoCmd)
 
     if(new_scenario):
-        print("WARNING : Creating a new scenario...")
-        bike_poisson_distrib = np.random.poisson(bike_poisson_lambda, simu_length)
-        car_poisson_distrib = np.random.poisson(car_poisson_lambda, simu_length)
+        if(test):
+            print("WARNING : Creating a new scenario using real data...")
+            bike_poisson_distrib = []
+            car_poisson_distrib = []
+            with open("./real_data.json", "rb") as infile:
+                count_data = json.load(infile)
+            
+            first_day_number = None
+            for data in count_data["data"]["values"]:
+                d = datetime.strptime(data["time"], '%Y-%m-%dT%H:%M:%S.%f%z')
+                if(first_day_number == None):
+                    first_day_number = d.day
+                elif(d.day != first_day_number):
+                    if(data["id"] == "S-N"):
+                        bike_poisson_distrib = np.concatenate((bike_poisson_distrib, np.random.poisson(data["count"]/simu_length, simu_length)), axis=0)
+                        car_poisson_distrib = np.concatenate((car_poisson_distrib, np.random.poisson(0.2, simu_length)), axis=0)
+        else:
+            print("WARNING : Creating a new scenario...")
+            bike_poisson_distrib = np.random.poisson(bike_poisson_lambda, simu_length)
+            car_poisson_distrib = np.random.poisson(car_poisson_lambda, simu_length)
+
         num_cyclists = sum(bike_poisson_distrib)
         num_cars = sum(car_poisson_distrib)
+        simu_length = len(bike_poisson_distrib)
+        
     else:
         print("WARNING : Loading the scenario...")
         old_dict_scenario = tab_dict_old_scenarios[s]
@@ -193,10 +211,12 @@ for s in range(start_num_simu, num_simu):
 
     continue_simu = True
 
+    print(simu_length)
+
     while(step<=simu_length):
         if(new_scenario): #new_scenario
             if(step<simu_length):
-                for _ in range(bike_poisson_distrib[int(step)]):
+                for _ in range(int(bike_poisson_distrib[int(step)])):
                     e1 = net.getEdge("E0")
                     e2 = net.getEdge("E"+str(randint(3, 9)))
                     path = net.getShortestPath(e1, e2, vClass='bicycle')[0]
@@ -207,7 +227,7 @@ for s in range(start_num_simu, num_simu):
                     id_cyclist+=1
                 bike_poisson_distrib[int(step)] = 0
             if(step<simu_length):  
-                for _ in range(car_poisson_distrib[int(step)]):
+                for _ in range(int(car_poisson_distrib[int(step)])):
                     e1 = net.getEdge("E0")
                     e2 = net.getEdge("E"+str(randint(3, 9)))
                     path = net.getShortestPath(e1, e2, vClass='passenger')[0]
