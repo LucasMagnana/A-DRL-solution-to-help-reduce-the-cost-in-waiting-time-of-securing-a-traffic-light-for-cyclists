@@ -68,7 +68,7 @@ if __name__ == "__main__":
     if('--test' in arguments):
         test = True
         if(save_scenario):
-            num_simu = 1
+            num_simu = 24
 
     if("--load-scenario" in arguments):
         new_scenario = False
@@ -133,10 +133,23 @@ if(not new_scenario):
             tab_dict_scenarios = pickle.load(infile)
             start_num_simu = len(tab_dict_scenarios)
 
-for s in range(start_num_simu, num_simu):
+elif(test):
+    list_bike_poisson_lambdas = []
+    list_car_poisson_lambdas = []
+    with open("./real_data.json", "rb") as infile:
+        count_data = json.load(infile)
+    
+    first_day_number = None
+    for data in count_data["data"]["values"]:
+        d = datetime.strptime(data["time"], '%Y-%m-%dT%H:%M:%S.%f%z')
+        if(first_day_number == None):
+            first_day_number = d.day
+        elif(d.day != first_day_number):
+            if(data["id"] == "S-N"):
+                list_bike_poisson_lambdas.append(data["count"]*0.5/simu_length)
+                list_car_poisson_lambdas.append(data["count"]*0.5/simu_length)
 
-    car_poisson_lambda = 0.2
-    bike_poisson_lambda = random.uniform(0,0.4) 
+for s in range(start_num_simu, num_simu):
 
     if(not test and "PPO" in method):
         structure.drl_agent.start_episode()
@@ -153,24 +166,15 @@ for s in range(start_num_simu, num_simu):
     if(new_scenario):
         if(test):
             print("WARNING : Creating a new scenario using real data...")
-            bike_poisson_distrib = []
-            car_poisson_distrib = []
-            with open("./real_data.json", "rb") as infile:
-                count_data = json.load(infile)
-            
-            first_day_number = None
-            for data in count_data["data"]["values"]:
-                d = datetime.strptime(data["time"], '%Y-%m-%dT%H:%M:%S.%f%z')
-                if(first_day_number == None):
-                    first_day_number = d.day
-                elif(d.day != first_day_number):
-                    if(data["id"] == "S-N"):
-                        bike_poisson_distrib = np.concatenate((bike_poisson_distrib, np.random.poisson(data["count"]/simu_length, simu_length)), axis=0)
-                        car_poisson_distrib = np.concatenate((car_poisson_distrib, np.random.poisson(0.2, simu_length)), axis=0)
+            car_poisson_lambda = list_bike_poisson_lambdas[s]
+            bike_poisson_lambda = list_car_poisson_lambdas[s]
         else:
             print("WARNING : Creating a new scenario...")
-            bike_poisson_distrib = np.random.poisson(bike_poisson_lambda, simu_length)
-            car_poisson_distrib = np.random.poisson(car_poisson_lambda, simu_length)
+            car_poisson_lambda = 0.2
+            bike_poisson_lambda = random.uniform(0,0.4) 
+
+        bike_poisson_distrib = np.random.poisson(bike_poisson_lambda, simu_length)
+        car_poisson_distrib = np.random.poisson(car_poisson_lambda, simu_length)
 
         num_cyclists = sum(bike_poisson_distrib)
         num_cars = sum(car_poisson_distrib)
