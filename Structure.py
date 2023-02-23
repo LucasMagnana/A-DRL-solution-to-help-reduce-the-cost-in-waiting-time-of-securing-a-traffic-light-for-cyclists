@@ -63,8 +63,8 @@ class Structure:
                 self.action_probs = None
 
 
-            self.bikes_waiting_time_coeff = 0.5
-            self.cars_waiting_time_coeff = 0.5
+            self.bikes_waiting_time_coeff = 0.4
+            self.cars_waiting_time_coeff = 0.6
 
 
     def reset(self, dict_cyclists, dict_scenario):

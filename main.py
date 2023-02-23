@@ -133,21 +133,21 @@ if(not new_scenario):
             tab_dict_scenarios = pickle.load(infile)
             start_num_simu = len(tab_dict_scenarios)
 
-elif(test):
-    list_bike_poisson_lambdas = []
-    list_car_poisson_lambdas = []
-    with open("./real_data.json", "rb") as infile:
-        count_data = json.load(infile)
-    
-    first_day_number = None
-    for data in count_data["data"]["values"]:
-        d = datetime.strptime(data["time"], '%Y-%m-%dT%H:%M:%S.%f%z')
-        if(first_day_number == None):
-            first_day_number = d.day
-        elif(d.day != first_day_number):
-            if(data["id"] == "S-N"):
-                list_bike_poisson_lambdas.append(data["count"]*0.5/simu_length)
-                list_car_poisson_lambdas.append(data["count"]*0.5/simu_length)
+
+list_bike_poisson_lambdas = []
+list_car_poisson_lambdas = []
+with open("./real_data.json", "rb") as infile:
+    count_data = json.load(infile)
+
+first_day_number = None
+for data in count_data["data"]["values"]:
+    d = datetime.strptime(data["time"], '%Y-%m-%dT%H:%M:%S.%f%z')
+    if(first_day_number == None):
+        first_day_number = d.day
+    elif(d.day != first_day_number):
+        if(data["id"] == "S-N"):
+            list_bike_poisson_lambdas.append(data["count"]*0.5/simu_length)
+            list_car_poisson_lambdas.append(data["count"]*0.5/simu_length)
 
 for s in range(start_num_simu, num_simu):
 
@@ -170,8 +170,9 @@ for s in range(start_num_simu, num_simu):
             bike_poisson_lambda = list_car_poisson_lambdas[s]
         else:
             print("WARNING : Creating a new scenario...")
-            car_poisson_lambda = 0.2
-            bike_poisson_lambda = random.uniform(0,0.4) 
+            bike_poisson_lambda = random.uniform(0,max(list_bike_poisson_lambdas))
+            car_poisson_lambda = bike_poisson_lambda
+            
 
         bike_poisson_distrib = np.random.poisson(bike_poisson_lambda, simu_length)
         car_poisson_distrib = np.random.poisson(car_poisson_lambda, simu_length)
@@ -346,7 +347,7 @@ for s in range(start_num_simu, num_simu):
     print(f"mean cars travel time: {cars_data[0]}, mean cars waiting time: {cars_data[1]}")
     print(f"mean bikes travel time: {bikes_data[0]}, mean bikes waiting time: {bikes_data[1]}")
 
-    if(not test and s%100 == 0 and ("DQN" in method or "PPO" in method)):
+    if(not test and s%50 == 0 and ("DQN" in method or "PPO" in method)):
         torch.save(structure.drl_agent.model.state_dict(), "files/"+sub_folders+pre_file_name+"trained.n")
         if("DQN" in method):
             torch.save(structure.drl_agent.model_target.state_dict(), "files/"+sub_folders+pre_file_name+"trained_target.n")
