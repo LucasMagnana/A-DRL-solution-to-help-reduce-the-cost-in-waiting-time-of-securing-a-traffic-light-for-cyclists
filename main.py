@@ -41,7 +41,7 @@ poisson_lambda = 0.2
 min_group_size = 5
 config = 3
 
-num_simu = 200000
+num_simu = 400
 simu_length = 1800
 
 if __name__ == "__main__": 
