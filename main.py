@@ -41,7 +41,7 @@ poisson_lambda = 0.2
 min_group_size = 5
 config = 3
 
-num_simu = 400
+num_simu = 200
 simu_length = 1800
 
 if __name__ == "__main__": 
@@ -166,12 +166,12 @@ for s in range(start_num_simu, num_simu):
     if(new_scenario):
         if(test):
             print("WARNING : Creating a new scenario using real data...")
-            car_poisson_lambda = list_bike_poisson_lambdas[s]
+            car_poisson_lambda = 0.1
             bike_poisson_lambda = list_car_poisson_lambdas[s]
         else:
             print("WARNING : Creating a new scenario...")
-            bike_poisson_lambda = random.uniform(0,max(list_bike_poisson_lambdas))
-            car_poisson_lambda = bike_poisson_lambda
+            bike_poisson_lambda = 0.2 #random.uniform(0,max(list_bike_poisson_lambdas))
+            car_poisson_lambda = 0.1
             
 
         bike_poisson_distrib = np.random.poisson(bike_poisson_lambda, simu_length)

@@ -81,13 +81,18 @@ if __name__ == "__main__":
                 with open("files/"+sub_folders+filename, 'rb') as infile:
                     tab_scenarios = pickle.load(infile)
 
+                tab_scenarios = tab_scenarios[:200]
+                
+                with open("files/"+sub_folders+filename, 'wb') as outfile:
+                    pickle.dump(tab_scenarios, outfile)
+
                 for l in possible_labels:
                     if(l in filename):
                         labels.append(l)
                         break
-                if("DQN" in labels[-1]):
+                '''if("DQN" in labels[-1]):
                     labels.pop()
-                    continue
+                    continue'''
                 tab_mean_waiting_time = [[], []]
                 tab_mean_travel_time = [[], []]
                 tab_waiting_time = [[],[]]
