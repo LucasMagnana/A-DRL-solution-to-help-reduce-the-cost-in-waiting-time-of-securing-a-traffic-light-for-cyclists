@@ -81,11 +81,6 @@ if __name__ == "__main__":
                 with open("files/"+sub_folders+filename, 'rb') as infile:
                     tab_scenarios = pickle.load(infile)
 
-                tab_scenarios = tab_scenarios[:200]
-                
-                with open("files/"+sub_folders+filename, 'wb') as outfile:
-                    pickle.dump(tab_scenarios, outfile)
-
                 for l in possible_labels:
                     if(l in filename):
                         labels.append(l)
