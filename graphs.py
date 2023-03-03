@@ -98,9 +98,9 @@ if __name__ == "__main__":
                     if(l in filename):
                         labels.append(l)
                         break
-                '''if("DQN" in labels[-1]):
+                if("07" in filename):
                     labels.pop()
-                    continue'''
+                    continue
                 tab_mean_waiting_time = [[], []]
                 tab_mean_travel_time = [[], []]
                 tab_waiting_time = [[],[]]
