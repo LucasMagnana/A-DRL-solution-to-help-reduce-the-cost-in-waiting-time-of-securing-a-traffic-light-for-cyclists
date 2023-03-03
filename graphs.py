@@ -11,10 +11,10 @@ def compute_data(dict_scenario):
             if("finish_step" in dict_scenario[v]):
                 tab_travel_time.append(dict_scenario[v]["finish_step"]-dict_scenario[v]["start_step"])
                 tab_waiting_time.append(dict_scenario[v]["waiting_time"])
-        
-        return sum(tab_travel_time)/len(tab_travel_time), sum(tab_waiting_time)/len(tab_waiting_time)
-    else:
-        return 0, 0
+        if(len(tab_travel_time)>0):
+            return sum(tab_travel_time)/len(tab_travel_time), sum(tab_waiting_time)/len(tab_waiting_time)
+
+    return 0, 0
 
 
 
@@ -59,8 +59,10 @@ if __name__ == "__main__":
     arguments = str(sys.argv)
 
     if("--test" in arguments):
+        test = True
         sub_folders = "test/"
     else:   
+        test = False
         sub_folders = "train/"
     
     cars_waiting_time = []
@@ -80,6 +82,17 @@ if __name__ == "__main__":
             if("scenarios" in filename):
                 with open("files/"+sub_folders+filename, 'rb') as infile:
                     tab_scenarios = pickle.load(infile)
+
+                if(test and len(tab_scenarios) == 1):
+                    cutted_tab_scenarios = [{"bikes": {}, "cars": {}} for _ in range(24)]
+
+                    for vehicule_type in tab_scenarios[0]:
+                        for vehicle_id in tab_scenarios[0][vehicule_type]:
+                            data = tab_scenarios[0][vehicule_type][vehicle_id]
+                            cutted_tab_scenarios[int(data["start_step"]//1800)][vehicule_type][vehicle_id] = data
+
+                    tab_scenarios = cutted_tab_scenarios
+                        
 
                 for l in possible_labels:
                     if(l in filename):

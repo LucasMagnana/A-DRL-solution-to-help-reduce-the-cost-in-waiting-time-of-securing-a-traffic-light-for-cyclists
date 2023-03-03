@@ -36,6 +36,7 @@ method = ""
 test = False
 save_scenario = False
 new_scenario = True
+real_data = False
 
 poisson_lambda = 0.2
 min_group_size = 5
@@ -65,13 +66,43 @@ if __name__ == "__main__":
     if('--save-scenario' in arguments):
         save_scenario = True
 
-    if('--test' in arguments):
-        test = True
-        if(save_scenario):
-            num_simu = 24
+    if("--real-data" in arguments):
+        real_data = True
 
+    
     if("--load-scenario" in arguments):
         new_scenario = False
+
+    if('--test' in arguments):
+        test = True
+        if(new_scenario):
+            num_simu = 20
+            if(real_data):
+                num_simu = 1
+                list_bike_poisson_lambdas = []
+                list_car_poisson_lambdas = []
+                with open("./real_data.json", "rb") as infile:
+                    count_data = json.load(infile)
+
+                first_day_number = None
+                for data in count_data["data"]["values"]:
+                    d = datetime.strptime(data["time"], '%Y-%m-%dT%H:%M:%S.%f%z')
+                    if(first_day_number == None):
+                        first_day_number = d.day
+                    elif(d.day != first_day_number):
+                        if(data["id"] == "S-N"):
+                            list_bike_poisson_lambdas.append(data["count"]*0.5/simu_length)
+                            list_car_poisson_lambdas.append(data["count"]*0.5/simu_length)
+
+                print("WARNING : Creating a new scenario using real data...")
+                bike_poisson_distrib = np.empty(0)
+                car_poisson_distrib = np.empty(0)
+                for i in range(len(list_bike_poisson_lambdas)):
+                    car_poisson_lambda = 0.1
+                    bike_poisson_lambda = 0.2 #list_bike_poisson_lambdas[i]
+
+                    bike_poisson_distrib = np.concatenate((bike_poisson_distrib, np.random.poisson(bike_poisson_lambda, simu_length)))
+                    car_poisson_distrib = np.concatenate((car_poisson_distrib, np.random.poisson(car_poisson_lambda, simu_length)))
     
 
 
@@ -123,6 +154,7 @@ else:
     variable_evoluting = min_group_size
 
 start_num_simu = 0
+
 if(not new_scenario):
     with open("files/"+sub_folders+"actuated_scenarios.tab", 'rb') as infile:
         tab_dict_old_scenarios = pickle.load(infile)
@@ -133,21 +165,6 @@ if(not new_scenario):
             tab_dict_scenarios = pickle.load(infile)
             start_num_simu = len(tab_dict_scenarios)
 
-
-list_bike_poisson_lambdas = []
-list_car_poisson_lambdas = []
-with open("./real_data.json", "rb") as infile:
-    count_data = json.load(infile)
-
-first_day_number = None
-for data in count_data["data"]["values"]:
-    d = datetime.strptime(data["time"], '%Y-%m-%dT%H:%M:%S.%f%z')
-    if(first_day_number == None):
-        first_day_number = d.day
-    elif(d.day != first_day_number):
-        if(data["id"] == "S-N"):
-            list_bike_poisson_lambdas.append(data["count"]*0.5/simu_length)
-            list_car_poisson_lambdas.append(data["count"]*0.5/simu_length)
 
 for s in range(start_num_simu, num_simu):
 
@@ -164,18 +181,13 @@ for s in range(start_num_simu, num_simu):
     traci.start(sumoCmd)
 
     if(new_scenario):
-        if(test):
-            print("WARNING : Creating a new scenario using real data...")
-            car_poisson_lambda = 0.1
-            bike_poisson_lambda = list_car_poisson_lambdas[s]
-        else:
+        if(not real_data):
             print("WARNING : Creating a new scenario...")
             bike_poisson_lambda = 0.2 #random.uniform(0,max(list_bike_poisson_lambdas))
             car_poisson_lambda = 0.1
             
-
-        bike_poisson_distrib = np.random.poisson(bike_poisson_lambda, simu_length)
-        car_poisson_distrib = np.random.poisson(car_poisson_lambda, simu_length)
+            bike_poisson_distrib = np.random.poisson(bike_poisson_lambda, simu_length)
+            car_poisson_distrib = np.random.poisson(car_poisson_lambda, simu_length)
 
         num_cyclists = sum(bike_poisson_distrib)
         num_cars = sum(car_poisson_distrib)
@@ -187,6 +199,9 @@ for s in range(start_num_simu, num_simu):
 
         num_cyclists = len(old_dict_scenario["bikes"])
         num_cars = len(old_dict_scenario["cars"])
+
+        if(real_data or num_simu == 1):
+            simu_length *= 24
 
         if(len(old_dict_scenario["bikes"].keys()) == 0):
             max_id_cyclist = 0

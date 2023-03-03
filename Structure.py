@@ -198,10 +198,13 @@ class Structure:
 
 
     def actuated_decision_making(self, step):
+
+        if(self.actuated_next_change_step < self.next_step_decision):
+            self.actuated_next_change_step = step+5
         e = self.path[0]
         tls = self.net.getEdge(e).getTLS()  
 
-        detector_distance = 5
+        detector_distance = 10
 
         min_distance_car = 9999
         min_distance_bike = 9999
@@ -211,6 +214,7 @@ class Structure:
                 min_distance_car = dist
             elif("_c" not in i and dist < min_distance_bike):
                 min_distance_bike = dist
+
         if(self.module_traci.trafficlight.getPhase(tls.getID()) == 0 and min_distance_car < detector_distance or\
         self.module_traci.trafficlight.getPhase(tls.getID()) == 2 and min_distance_bike < detector_distance):
             self.actuated_next_change_step = step + 5
@@ -266,7 +270,10 @@ class Structure:
             if(self.module_traci.trafficlight.getPhase(tls.getID()) == 1):
                 self.next_step_decision = step + 8
             elif(self.module_traci.trafficlight.getPhase(tls.getID()) == 3):
-                self.next_step_decision = step + 54
+                if(self.method == "actuated"):
+                    self.next_step_decision = step + 49
+                else:
+                    self.next_step_decision = step + 54
 
             
 
