@@ -7,7 +7,7 @@ from DQNAgent import DQNAgent
 from PPOAgent import PPOAgent
 
 class Structure:
-    def __init__(self, start_edge, end_edge, edges, net, traci, config, simu_length, method, test, min_group_size, open=True):
+    def __init__(self, start_edge, end_edge, edges, net, traci, simu_length, method, test, min_group_size, alpha_bike, open=True):
 
         for e in edges:
             id = e.getID()
@@ -25,8 +25,6 @@ class Structure:
         self.activated = False
 
         self.net = net
-
-        self.config = config
 
 
         self.simu_length = simu_length
@@ -47,7 +45,7 @@ class Structure:
             self.width_ob = (2, 2, int(self.start_edge.getLength()//5+2))
 
             if(self.test):
-                model_to_load = "files/train/config_"+str(self.config)+"/"+self.method+"_trained.n"
+                model_to_load = "files/train/"+str(alpha_bike)+"/"+self.method+"_trained.n"
             else:
                 model_to_load = None
 
@@ -56,15 +54,15 @@ class Structure:
             elif(self.method == "3DQN"):
                 self.drl_agent = DQNAgent(self.width_ob, 2, double=True, duelling=True, model_to_load=model_to_load)
             elif(self.method == "PPO"):
-                if(os.path.exists("files/train/config_"+str(self.config)+"/"+self.method+"_trained.n")):
-                    model_to_load = "files/train/config_"+str(self.config)+"/"+self.method+"_trained.n"
+                if(os.path.exists("files/train/"+str(alpha_bike)+"/"+self.method+"_trained.n")):
+                    model_to_load = "files/train/"+str(alpha_bike)+"/"+self.method+"_trained.n"
                 self.drl_agent = PPOAgent(self.width_ob, 2, model_to_load=model_to_load)
                 self.val = None
                 self.action_probs = None
 
 
-            self.bikes_waiting_time_coeff = 1
-            self.cars_waiting_time_coeff = 1
+            self.bikes_waiting_time_coeff = alpha_bike
+            self.cars_waiting_time_coeff = 1-alpha_bike
 
 
     def reset(self, dict_cyclists, dict_scenario):
@@ -270,10 +268,7 @@ class Structure:
             if(self.module_traci.trafficlight.getPhase(tls.getID()) == 1):
                 self.next_step_decision = step + 8
             elif(self.module_traci.trafficlight.getPhase(tls.getID()) == 3):
-                if(self.method == "actuated"):
-                    self.next_step_decision = step + 49
-                else:
-                    self.next_step_decision = step + 54
+                self.next_step_decision = step + 54
 
             
 

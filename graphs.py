@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import pickle
 import os
 import sys
+import argparse
 
 def compute_data(dict_scenario):
     if(len(dict_scenario)>0):
@@ -53,16 +54,31 @@ def plot_data(data, file_title, title, labels, axis_labels, sub_folders=""):
     plt.savefig("images/"+sub_folders+file_title)
 
 
+def cut_tab_scenarios(tab_scenarios):
+    cutted_tab_scenarios = [{"bikes": {}, "cars": {}} for _ in range(24)]
+
+    for vehicule_type in tab_scenarios[0]:
+        for vehicle_id in tab_scenarios[0][vehicule_type]:
+            data = tab_scenarios[0][vehicule_type][vehicle_id]
+            cutted_tab_scenarios[int(data["start_step"]//1800)][vehicule_type][vehicle_id] = data
+
+    return cutted_tab_scenarios
+
+
 if __name__ == "__main__": 
 
-    config = 3
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("-a", "--alpha", type=float, default=0.5)
+    parser.add_argument("--test", action="store_true")
+
+    args = parser.parse_args()
+
     arguments = str(sys.argv)
 
-    if("--test" in arguments):
-        test = True
+    if(args.test):
         sub_folders = "test/"
     else:   
-        test = False
         sub_folders = "train/"
     
     cars_waiting_time = []
@@ -72,87 +88,76 @@ if __name__ == "__main__":
     tot_waiting_time = []
     estimated_reward = []
 
-    labels = []
+    labels = ["actuated"]
 
-    possible_labels = ["actuated", "2DQN", "3DQN", "DQN", "PPO"]
+    possible_labels = ["2DQN", "3DQN", "DQN", "PPO"]
 
-    sub_folders+="config_"+str(config)+"/"
+    with open("files/"+sub_folders+"actuated_scenarios.tab", 'rb') as infile:
+        tab_scenarios_actuated = pickle.load(infile)
+
+    if(args.test and len(tab_scenarios_actuated) == 1):
+        tab_scenarios_actuated = cut_tab_scenarios(tab_scenarios_actuated)
+
+
+    list_tab_scenarios = [tab_scenarios_actuated]
+
+
+    sub_folders += str(args.alpha)+"/"
+
     for root, dirs, files in os.walk("files/"+sub_folders):
         for filename in files:
             if("scenarios" in filename):
                 with open("files/"+sub_folders+filename, 'rb') as infile:
                     tab_scenarios = pickle.load(infile)
-
-                if(test and len(tab_scenarios) == 1):
-                    cutted_tab_scenarios = [{"bikes": {}, "cars": {}} for _ in range(24)]
-
-                    for vehicule_type in tab_scenarios[0]:
-                        for vehicle_id in tab_scenarios[0][vehicule_type]:
-                            data = tab_scenarios[0][vehicule_type][vehicle_id]
-                            cutted_tab_scenarios[int(data["start_step"]//1800)][vehicule_type][vehicle_id] = data
-
-                    tab_scenarios = cutted_tab_scenarios
+            
+                if(args.test and len(tab_scenarios) == 1):
+                    tab_scenarios = cut_tab_scenarios(tab_scenarios)
                         
 
                 for l in possible_labels:
                     if(l in filename):
                         labels.append(l)
                         break
-                if("07" in filename):
-                    labels.pop()
-                    continue
-                tab_mean_waiting_time = [[], []]
-                tab_mean_travel_time = [[], []]
-                tab_waiting_time = [[],[]]
-                for num_simu in range(len(tab_scenarios)):
-                    vehicle_type_index = 0
 
-                    bikes_data = compute_data(tab_scenarios[num_simu]["bikes"])
-                    cars_data = compute_data(tab_scenarios[num_simu]["cars"])
+                list_tab_scenarios.append(tab_scenarios)
+                #list_tab_scenarios.append(tab_scenarios[400:])
+                
 
-                    for vehicle_type in tab_scenarios[num_simu]:
-                        tab_graphs_temp = [[], []]
-                        for v in tab_scenarios[num_simu][vehicle_type]:
-                            vehicle = tab_scenarios[num_simu][vehicle_type][v]
-                            if("finish_step" in vehicle):   
-                                tab_graphs_temp[0].append(vehicle["finish_step"]-vehicle["start_step"])
-                                tab_graphs_temp[1].append(vehicle["waiting_time"])
-                        if(len(tab_graphs_temp[0]) == 0):
-                            tab_mean_travel_time[vehicle_type_index].append(0)
-                        else:                          
-                            tab_mean_travel_time[vehicle_type_index].append(sum(tab_graphs_temp[0])/len(tab_graphs_temp[0]))
-                        if(len(tab_graphs_temp[1]) == 0):
-                            tab_mean_waiting_time[vehicle_type_index].append(0)
-                            tab_waiting_time[vehicle_type_index].append(0)                           
-                        else:
-                            tab_mean_waiting_time[vehicle_type_index].append(sum(tab_graphs_temp[1])/len(tab_graphs_temp[1]))
-                            tab_waiting_time[vehicle_type_index].append(sum(tab_graphs_temp[1]))                           
-                        vehicle_type_index+=1
+    for tab_scenarios in list_tab_scenarios:
+        
+        tab_mean_waiting_time = [[], []]
+        tab_mean_travel_time = [[], []]
+        tab_waiting_time = [[],[]]
+        tab_reward = []
+        tab_wt = []
+        for num_simu in range(len(tab_scenarios)):
 
-                    if(not os.path.exists("images/"+sub_folders)):
-                        os.makedirs("images/"+sub_folders)
+            mean_travel_time_bikes, mean_waiting_time_bikes = compute_data(tab_scenarios[num_simu]["bikes"])
+            tab_mean_waiting_time[0].append(mean_waiting_time_bikes)
+            tab_mean_travel_time[0].append(mean_travel_time_bikes)
 
-                    tab_reward = []
-                    for i in range(len(tab_waiting_time[0])):
-                        tab_reward.append(0.5*tab_waiting_time[0][i]+0.5*tab_waiting_time[1][i])
+            mean_travel_time_cars, mean_waiting_time_cars = compute_data(tab_scenarios[num_simu]["cars"])
+            tab_mean_waiting_time[1].append(mean_waiting_time_cars)
+            tab_mean_travel_time[1].append(mean_travel_time_cars)
 
-                    tab_wt = []
-                    for i in range(len(tab_waiting_time[0])):
-                        tab_wt.append(tab_waiting_time[0][i]+tab_waiting_time[1][i])
+            tab_reward.append((1-args.alpha)*mean_waiting_time_cars+args.alpha*mean_waiting_time_bikes)
+            tab_wt.append(mean_waiting_time_cars+mean_waiting_time_bikes)
 
-                cars_waiting_time.append(tab_mean_waiting_time[0])
-                bikes_waiting_time.append(tab_mean_waiting_time[1])
-                cars_travel_time.append(tab_mean_travel_time[0])
-                bikes_travel_time.append(tab_mean_travel_time[1])
-                tot_waiting_time.append(tab_wt)
-                estimated_reward.append(tab_reward)
+        cars_waiting_time.append(tab_mean_waiting_time[0])
+        bikes_waiting_time.append(tab_mean_waiting_time[1])
+        cars_travel_time.append(tab_mean_travel_time[0])
+        bikes_travel_time.append(tab_mean_travel_time[1])
+        tot_waiting_time.append(tab_wt)
+        estimated_reward.append(tab_reward)
 
+    if(not os.path.exists("images/"+sub_folders)):
+        os.makedirs("images/"+sub_folders)
 
-        plot_data(cars_travel_time, "cars_evolution_mean_time_travel.png", "Cars mean travel time", labels, ["Simulations", "Travel Time"], sub_folders)
-        plot_data(bikes_travel_time, "bikes_evolution_mean_time_travel.png", "Bikes mean travel time", labels, ["Simulations", "Travel Time"], sub_folders)
+    #plot_data(cars_travel_time, "cars_evolution_mean_time_travel.png", "Cars mean travel time", labels, ["Simulations", "Travel Time"], sub_folders)
+    #plot_data(bikes_travel_time, "bikes_evolution_mean_time_travel.png", "Bikes mean travel time", labels, ["Simulations", "Travel Time"], sub_folders)
 
-        plot_data(cars_waiting_time, "cars_evolution_mean_waiting_time.png", "Cars mean waiting time",labels, ["Simulations", "Waiting Time"], sub_folders)
-        plot_data(bikes_waiting_time, "bikes_evolution_mean_waiting_time.png", "Bikes mean waiting time",labels, ["Simulations", "Waiting Time"], sub_folders)
+    plot_data(cars_waiting_time, "cars_evolution_mean_waiting_time.png", "Cars mean waiting time",labels, ["Simulations", "Waiting Time"], sub_folders)
+    plot_data(bikes_waiting_time, "bikes_evolution_mean_waiting_time.png", "Bikes mean waiting time",labels, ["Simulations", "Waiting Time"], sub_folders)
 
-        plot_data(tot_waiting_time, "evolution_mean_waiting_time.png", "Total mean waiting time", labels, ["Simulations", "Waiting Time"], sub_folders)
-        plot_data(estimated_reward, "evolution_estimated_reward.png", "Estimated reward", labels, ["Simulations", "Estimated reward"], sub_folders)
+    plot_data(tot_waiting_time, "evolution_mean_waiting_time.png", "Total mean waiting time", labels, ["Simulations", "Waiting Time"], sub_folders)
+    plot_data(estimated_reward, "evolution_estimated_reward.png", "Estimated reward", labels, ["Simulations", "Estimated reward"], sub_folders)

@@ -16,7 +16,7 @@ from graphs import *
 from Model import Model
 
 def spawn_cyclist(id_cyclist, step, path, net, structure, step_length, max_speed, struct_candidate, dict_bikes):
-    if(struct_open or num_cyclists-id_cyclist+max(len(structure.id_cyclists_waiting), len(traci.edge.getLastStepVehicleIDs(structure.start_edge.getID())))<structure.min_group_size):
+    if(num_cyclists-id_cyclist+max(len(structure.id_cyclists_waiting), len(traci.edge.getLastStepVehicleIDs(structure.start_edge.getID())))<structure.min_group_size):
         struct_candidate = True
     
     c = Cyclist(str(id_cyclist), step, path, net, structure, max_speed, traci, sumolib, step_length, struct_candidate=struct_candidate)
@@ -30,54 +30,35 @@ def spawn_car(id_car, step, path, net, dict_cars):
     dict_cars[str(id_car)]=[]
 
 
-gui = False
-struct_open = False
-method = ""
-test = False
-save_scenario = False
-new_scenario = True
-real_data = False
-
-poisson_lambda = 0.2
 min_group_size = 5
-config = 3
 
-num_simu = 200
+num_simu = 600
 simu_length = 1800
 
+save_scenario = True
+
 if __name__ == "__main__": 
-    arguments = str(sys.argv)
+    parser = argparse.ArgumentParser()
 
-    if('--gui' in arguments):
-        gui = True
+    parser.add_argument("--gui", action="store_true")
 
-    if('--struct-open' in arguments):
-        struct_open = True
+    parser.add_argument("-m", "--method", type=str, default="actuated")
 
-    if('--dqn' in arguments):
-        method = "DQN"
-    elif('--3dqn' in arguments):
-        method = "3DQN"
-    elif("--ppo" in arguments):
-        method = "PPO"
-    elif("--actuated" in arguments):
-        method = "actuated"
+    parser.add_argument("-a", "--alpha", type=float, default=0.5)
 
-    if('--save-scenario' in arguments):
-        save_scenario = True
+    parser.add_argument("--save-scenario", action="store_true")
+    parser.add_argument("--load-scenario", action="store_true")
 
-    if("--real-data" in arguments):
-        real_data = True
+    parser.add_argument("--test", action="store_true")
+    parser.add_argument("--real-data", action="store_true")
 
-    
-    if("--load-scenario" in arguments):
-        new_scenario = False
+    args = parser.parse_args()
 
-    if('--test' in arguments):
-        test = True
-        if(new_scenario):
+
+    if(args.test):
+        if(not args.load_scenario):
             num_simu = 20
-            if(real_data):
+            if(args.real_data):
                 num_simu = 1
                 list_bike_poisson_lambdas = []
                 list_car_poisson_lambdas = []
@@ -109,9 +90,6 @@ if __name__ == "__main__":
 step_length = 0.2
 speed_threshold = 0.5
 
-evoluting = "cars"
-struct_open = True
-
 
 if 'SUMO_HOME' in os.environ:
     tools = os.path.join(os.environ['SUMO_HOME'], 'tools')
@@ -120,9 +98,9 @@ else:
     sys.exit("please declare environment variable 'SUMO_HOME'")
 
 sumoBinary = "/usr/bin/sumo"
-if(gui):
+if(args.gui):
     sumoBinary += "-gui"
-sumoCmd = [sumoBinary, "-c", "sumo_files/sumo_"+str(config)+".sumocfg", "--extrapolate-departpos", "--quit-on-end", "--waiting-time-memory", '10000', '--start', '--delay', '0', '--step-length', str(step_length), '--no-warnings']
+sumoCmd = [sumoBinary, "-c", "sumo_files/sumo_3.sumocfg", "--extrapolate-departpos", "--quit-on-end", "--waiting-time-memory", '10000', '--start', '--delay', '0', '--step-length', str(step_length), '--no-warnings']
 
 import traci
 import traci.constants as tc
@@ -130,32 +108,23 @@ import sumolib
 
 
 
-if(test):
+if(args.test):
     sub_folders = "test/"
 else:
     sub_folders = "train/"
 
 
-net = sumolib.net.readNet("sumo_files/net_"+str(config)+".net.xml")
+net = sumolib.net.readNet("sumo_files/net_3.net.xml")
 edges = net.getEdges()
 
-structure = Structure("E_start", "E2", edges, net, traci, config, simu_length, method, test, min_group_size)
+structure = Structure("E_start", "E2", edges, net, traci, simu_length, args.method, args.test, min_group_size, args.alpha)
 
-pre_file_name = method+"_"
+pre_file_name = args.method+"_"
 
-if(evoluting=="bikes"):
-    sub_folders+="config_"+str(config)+"/"
-    variable_evoluting = poisson_lambda
-elif(evoluting=="cars"):
-    sub_folders+="config_"+str(config)+"/"
-    variable_evoluting = poisson_lambda
-else:
-    sub_folders+="config_"+str(config)+"/"
-    variable_evoluting = min_group_size
 
 start_num_simu = 0
 
-if(not new_scenario):
+if(args.load_scenario):
     with open("files/"+sub_folders+"actuated_scenarios.tab", 'rb') as infile:
         tab_dict_old_scenarios = pickle.load(infile)
         num_simu = len(tab_dict_old_scenarios)
@@ -166,9 +135,12 @@ if(not new_scenario):
             start_num_simu = len(tab_dict_scenarios)
 
 
+if(args.method != "actuated"):
+    sub_folders += str(args.alpha)+"/"
+
 for s in range(start_num_simu, num_simu):
 
-    if(not test and "PPO" in method):
+    if(not args.test and "PPO" in args.method):
         structure.drl_agent.start_episode()
         if(s != start_num_simu and s%structure.drl_agent.hyperParams.LEARNING_EP == 0):
             structure.drl_agent.learn()
@@ -180,8 +152,8 @@ for s in range(start_num_simu, num_simu):
 
     traci.start(sumoCmd)
 
-    if(new_scenario):
-        if(not real_data):
+    if(not args.load_scenario):
+        if(not args.real_data):
             print("WARNING : Creating a new scenario...")
             bike_poisson_lambda = 0.2 #random.uniform(0,max(list_bike_poisson_lambdas))
             car_poisson_lambda = 0.1
@@ -200,7 +172,7 @@ for s in range(start_num_simu, num_simu):
         num_cyclists = len(old_dict_scenario["bikes"])
         num_cars = len(old_dict_scenario["cars"])
 
-        if(real_data or num_simu == 1):
+        if(args.real_data or num_simu == 1):
             simu_length *= 24
 
         if(len(old_dict_scenario["bikes"].keys()) == 0):
@@ -234,7 +206,7 @@ for s in range(start_num_simu, num_simu):
     print(simu_length)
 
     while(step<=simu_length):
-        if(new_scenario): #new_scenario
+        if(not args.load_scenario): #new_scenario
             if(step<simu_length):
                 for _ in range(int(bike_poisson_distrib[int(step)])):
                     e1 = net.getEdge("E0")
@@ -325,7 +297,7 @@ for s in range(start_num_simu, num_simu):
 
     traci.close()
 
-    if(not test and "PPO" in method):
+    if(not args.test and "PPO" in args.method):
         structure.drl_agent.end_episode()
 
     '''for vehicle_type in dict_scenario:
@@ -362,12 +334,12 @@ for s in range(start_num_simu, num_simu):
     print(f"mean cars travel time: {cars_data[0]}, mean cars waiting time: {cars_data[1]}")
     print(f"mean bikes travel time: {bikes_data[0]}, mean bikes waiting time: {bikes_data[1]}")
 
-    if(not test and s%50 == 0 and ("DQN" in method or "PPO" in method)):
+    if(not args.test and s%50 == 0 and ("DQN" in args.method or "PPO" in args.method)):
         torch.save(structure.drl_agent.model.state_dict(), "files/"+sub_folders+pre_file_name+"trained.n")
-        if("DQN" in method):
+        if("DQN" in args.method):
             torch.save(structure.drl_agent.model_target.state_dict(), "files/"+sub_folders+pre_file_name+"trained_target.n")
 
-if(not test and ("DQN" in method or "PPO" in method)):
+if(not args.test and ("DQN" in args.method or "PPO" in args.method)):
     torch.save(structure.drl_agent.model.state_dict(), "files/"+sub_folders+pre_file_name+"trained.n")
-    if("DQN" in method):
+    if("DQN" in args.method):
         torch.save(structure.drl_agent.model_target.state_dict(), "files/"+sub_folders+pre_file_name+"trained_target.n")
