@@ -82,11 +82,16 @@ if __name__ == "__main__":
         sub_folders = "train/"
     
     cars_waiting_time = []
+    cars_diff_waiting_time = []
+
     bikes_waiting_time = []
+    bikes_diff_waiting_time = []
+
     cars_travel_time = []
     bikes_travel_time = []
     tot_waiting_time = []
     estimated_reward = []
+    tot_diff_waiting_time = []
 
     labels = ["actuated"]
 
@@ -121,34 +126,47 @@ if __name__ == "__main__":
 
                 list_tab_scenarios.append(tab_scenarios)
                 #list_tab_scenarios.append(tab_scenarios[400:])
-                
+    
+
 
     for tab_scenarios in list_tab_scenarios:
         
         tab_mean_waiting_time = [[], []]
         tab_mean_travel_time = [[], []]
         tab_waiting_time = [[],[]]
+        tab_diff_wt = [[], []]
         tab_reward = []
         tab_wt = []
+        tab_diff_wt_tot = []
         for num_simu in range(len(tab_scenarios)):
 
             mean_travel_time_bikes, mean_waiting_time_bikes = compute_data(tab_scenarios[num_simu]["bikes"])
+            mean_travel_time_bikes_actuated, mean_waiting_time_bikes_actuated = compute_data(list_tab_scenarios[0][num_simu]["bikes"])
+
             tab_mean_waiting_time[0].append(mean_waiting_time_bikes)
             tab_mean_travel_time[0].append(mean_travel_time_bikes)
+            tab_diff_wt[0].append(mean_waiting_time_bikes-mean_waiting_time_bikes_actuated)
 
             mean_travel_time_cars, mean_waiting_time_cars = compute_data(tab_scenarios[num_simu]["cars"])
+            mean_travel_time_cars_actuated, mean_waiting_time_cars_actuated = compute_data(list_tab_scenarios[0][num_simu]["cars"])
+
             tab_mean_waiting_time[1].append(mean_waiting_time_cars)
             tab_mean_travel_time[1].append(mean_travel_time_cars)
+            tab_diff_wt[1].append(mean_waiting_time_cars-mean_waiting_time_cars_actuated)
 
             tab_reward.append((1-args.alpha)*mean_waiting_time_cars+args.alpha*mean_waiting_time_bikes)
             tab_wt.append(mean_waiting_time_cars+mean_waiting_time_bikes)
+            tab_diff_wt_tot.append(tab_diff_wt[0][-1]+tab_diff_wt[1][-1])
 
-        cars_waiting_time.append(tab_mean_waiting_time[0])
-        bikes_waiting_time.append(tab_mean_waiting_time[1])
-        cars_travel_time.append(tab_mean_travel_time[0])
-        bikes_travel_time.append(tab_mean_travel_time[1])
+        bikes_waiting_time.append(tab_mean_waiting_time[0])
+        bikes_diff_waiting_time.append(tab_diff_wt[0])
+        cars_waiting_time.append(tab_mean_waiting_time[1])
+        cars_diff_waiting_time.append(tab_diff_wt[1])
+        bikes_travel_time.append(tab_mean_travel_time[0])
+        cars_travel_time.append(tab_mean_travel_time[1])
         tot_waiting_time.append(tab_wt)
         estimated_reward.append(tab_reward)
+        tot_diff_waiting_time.append(tab_diff_wt_tot)
 
     if(not os.path.exists("images/"+sub_folders)):
         os.makedirs("images/"+sub_folders)
@@ -158,6 +176,9 @@ if __name__ == "__main__":
 
     plot_data(cars_waiting_time, "cars_evolution_mean_waiting_time.png", "Cars mean waiting time",labels, ["Simulations", "Waiting Time"], sub_folders)
     plot_data(bikes_waiting_time, "bikes_evolution_mean_waiting_time.png", "Bikes mean waiting time",labels, ["Simulations", "Waiting Time"], sub_folders)
+    plot_data(bikes_diff_waiting_time, "bikes_diff_mean_waiting_time.png", "Difference of mean waiting time with actuated for bikes", labels, ["Simulations", "Estimated reward"], sub_folders)
+    plot_data(cars_diff_waiting_time, "car_diff_mean_waiting_time.png", "Difference of mean waiting time with actuated for cars", labels, ["Simulations", "Estimated reward"], sub_folders)
 
     plot_data(tot_waiting_time, "evolution_mean_waiting_time.png", "Total mean waiting time", labels, ["Simulations", "Waiting Time"], sub_folders)
     plot_data(estimated_reward, "evolution_estimated_reward.png", "Estimated reward", labels, ["Simulations", "Estimated reward"], sub_folders)
+    plot_data(tot_diff_waiting_time, "diff_mean_waiting_time.png", "Difference of mean waiting time with actuated", labels, ["Simulations", "Estimated reward"], sub_folders)
