@@ -56,7 +56,8 @@ class Structure:
             elif(self.method == "PPO"):
                 if(os.path.exists("files/train/"+str(alpha_bike)+"/"+self.method+"_trained.n")):
                     model_to_load = "files/train/"+str(alpha_bike)+"/"+self.method+"_trained.n"
-                self.drl_agent = PPOAgent(self.width_ob, 2, model_to_load=model_to_load)
+                #self.drl_agent = PPOAgent(self.width_ob, 2, model_to_load=model_to_load)
+                self.drl_agent = PPOAgent(6, 2, model_to_load=model_to_load)
                 self.val = None
                 self.action_probs = None
 
@@ -224,6 +225,9 @@ class Structure:
 
 
     def create_observation(self):
+        e = self.path[0]
+        tls = self.net.getEdge(e).getTLS()  
+
         edge_start_x = self.start_edge.getFromNode().getCoord()[0]
         ob = [[[0]*int(self.width_ob[-1]),[0]*int(self.width_ob[-1])], [[0]*int(self.width_ob[-1]),[0]*int(self.width_ob[-1])]]
         for vehicle_id in self.module_traci.edge.getLastStepVehicleIDs(self.start_edge.getID()):
@@ -237,7 +241,17 @@ class Structure:
                 if(ob[1][i][j] != 0):
                     ob[1][i][j]/=ob[0][i][j]
 
-        return np.array(ob)
+        mean_cars_num = sum(ob[0][0])/len(ob[0][0])
+        mean_cars_speed = sum(ob[1][0])/len(ob[1][0])
+
+        mean_bikes_num = sum(ob[0][1])/len(ob[0][1])
+        mean_bikes_speed = sum(ob[1][1])/len(ob[1][1])
+
+        if(self.module_traci.trafficlight.getPhase(tls.getID()) == 0):
+            return np.array([mean_cars_num, mean_cars_speed, mean_bikes_num, mean_bikes_speed, 0, 1])
+        elif(self.module_traci.trafficlight.getPhase(tls.getID()) == 2):
+            return np.array([mean_cars_num, mean_cars_speed, mean_bikes_num, mean_bikes_speed, 1, 0])
+        #return np.array(ob)
         
 
 
