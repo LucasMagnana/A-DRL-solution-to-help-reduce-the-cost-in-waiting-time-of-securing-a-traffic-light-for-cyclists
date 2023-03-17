@@ -26,13 +26,13 @@ def spawn_cyclist(id_cyclist, step, path, net, structure, step_length, max_speed
 def spawn_car(id_car, step, path, net, dict_cars):
     path = [e.getID() for e in path]
     traci.route.add(str(id_car)+"_c_sp", path)
-    traci.vehicle.add(str(id_car)+"_c", str(id_car)+"_c_sp", departLane="best", departPos="last", typeID='car', departSpeed="last")
+    traci.vehicle.add(str(id_car)+"_c", str(id_car)+"_c_sp", departLane="best", typeID='car')
     dict_cars[str(id_car)]=[]
 
 
 min_group_size = 5
 
-num_simu = 600
+num_simu = 100
 simu_length = 1800
 
 save_scenario = True
@@ -100,7 +100,7 @@ else:
 sumoBinary = "/usr/bin/sumo"
 if(args.gui):
     sumoBinary += "-gui"
-sumoCmd = [sumoBinary, "-c", "sumo_files/sumo_3.sumocfg", "--extrapolate-departpos", "--quit-on-end", "--waiting-time-memory", '10000', '--start', '--delay', '0', '--step-length', str(step_length), '--no-warnings']
+sumoCmd = [sumoBinary, "-c", "sumo_files/sumo.sumocfg", "--quit-on-end", "--waiting-time-memory", '10000', '--start', '--delay', '0', '--step-length', str(step_length), '--no-warnings']
 
 import traci
 import traci.constants as tc
@@ -114,10 +114,10 @@ else:
     sub_folders = "train/"
 
 
-net = sumolib.net.readNet("sumo_files/net_3.net.xml")
+net = sumolib.net.readNet("sumo_files/net.net.xml")
 edges = net.getEdges()
 
-structure = Structure("E_start", "E2", edges, net, traci, simu_length, args.method, args.test, min_group_size, args.alpha)
+structure = Structure(edges, net, traci, simu_length, args.method, args.test, min_group_size, args.alpha)
 
 pre_file_name = args.method+"_"
 
@@ -156,12 +156,12 @@ for s in range(start_num_simu, num_simu):
         if(not args.real_data):
             print("WARNING : Creating a new scenario...")
             bike_poisson_lambda = 0.2 #random.uniform(0,max(list_bike_poisson_lambdas))
-            car_poisson_lambda = 0.1
+            car_poisson_lambda = 0.2
             
             bike_poisson_distrib = np.random.poisson(bike_poisson_lambda, simu_length)
             car_poisson_distrib = np.random.poisson(car_poisson_lambda, simu_length)
 
-        num_cyclists = sum(bike_poisson_distrib)
+        num_cyclists = 0 #sum(bike_poisson_distrib)
         num_cars = sum(car_poisson_distrib)
         simu_length = len(bike_poisson_distrib)
         
@@ -208,7 +208,7 @@ for s in range(start_num_simu, num_simu):
     while(step<=simu_length):
         if(not args.load_scenario): #new_scenario
             if(step<simu_length):
-                for _ in range(int(bike_poisson_distrib[int(step)])):
+                for _ in range(0):#int(bike_poisson_distrib[int(step)])):
                     e1 = net.getEdge("E0")
                     e2 = net.getEdge("E"+str(randint(3, 9)))
                     path = net.getShortestPath(e1, e2, vClass='bicycle')[0]
@@ -218,13 +218,17 @@ for s in range(start_num_simu, num_simu):
                     spawn_cyclist(id_cyclist, step, path, net, structure, step_length, max_speed, False, dict_vehicles["bikes"])
                     id_cyclist+=1
                 bike_poisson_distrib[int(step)] = 0
-            if(step<simu_length):  
+
                 for _ in range(int(car_poisson_distrib[int(step)])):
-                    e1 = net.getEdge("E0")
-                    e2 = net.getEdge("E"+str(randint(3, 9)))
+                    id_start = random.randint(1, 4)
+                    id_end = id_start
+                    while(id_end == id_start):
+                        id_end = random.randint(1, 4)
+                    e1 = net.getEdge("E"+str(id_start))
+                    e2 = net.getEdge("-E"+str(id_end))
                     path = net.getShortestPath(e1, e2, vClass='passenger')[0]
                     dict_scenario["cars"][id_car] = {"start_step": step, "start_edge": e1.getID(), "end_edge": e2.getID(),
-                    "distance_travelled": net.getShortestPath(net.getEdge("E_start"), e2, vClass='passenger', fromPos=0)[1], "waiting_time": 0}
+                    "distance_travelled": net.getShortestPath(e1, e2, vClass='passenger', fromPos=0)[1], "waiting_time": 0}
                     spawn_car(id_car, step, path, net, dict_vehicles["cars"])
                     id_car+=1
                     car_poisson_distrib[int(step)] = 0
@@ -275,7 +279,8 @@ for s in range(start_num_simu, num_simu):
                     if(step >= next_step_wt_update):
                         try:
                             if(traci.vehicle.getSpeed(sumo_id)< speed_threshold):
-                                dict_scenario[vehicle_type][int(i)]["waiting_time"] += 1
+                                #dict_scenario[vehicle_type][int(i)]["waiting_time"] += 1
+                                dict_scenario[vehicle_type][int(i)]["waiting_time"] = traci.vehicle.getAccumulatedWaitingTime(sumo_id)
                         except traci.exceptions.TraCIException:
                             del dict_scenario[vehicle_type][int(i)]
                             del dict_vehicles[vehicle_type][i]

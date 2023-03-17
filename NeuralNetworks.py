@@ -2,9 +2,9 @@ import torch
 from torch import nn
 from torch.autograd import Variable
 
-def shape_after_conv_and_flatten(w_input, conv):
-    return int((conv.in_channels + 2*conv.padding[0] - conv.dilation[0]*(conv.kernel_size[0] - 1) -1)/conv.stride[0]+1)*\
-    int((w_input + 2*conv.padding[1] - conv.dilation[1]*(conv.kernel_size[1] - 1) -1)/conv.stride[1]+1)*conv.out_channels
+def shape_after_conv_and_flatten(input_shape, conv):
+    return int((input_shape[1] + 2*conv.padding[0] - conv.dilation[0]*(conv.kernel_size[0] - 1) -1)/conv.stride[0]+1)*\
+    int((input_shape[2] + 2*conv.padding[1] - conv.dilation[1]*(conv.kernel_size[1] - 1) -1)/conv.stride[1]+1)*conv.out_channels
 
 class Actor(nn.Module):
 
@@ -68,7 +68,7 @@ class PPO_Model(nn.Module):
         super(PPO_Model, self).__init__()
 
         self.conv1 = nn.Conv2d(size_ob[0], 16, 2)
-        out_shape = shape_after_conv_and_flatten(size_ob[2], self.conv1)
+        out_shape = shape_after_conv_and_flatten(size_ob, self.conv1)
         self.out = nn.Linear(out_shape, 32)
 
         self.actor = nn.Sequential(
