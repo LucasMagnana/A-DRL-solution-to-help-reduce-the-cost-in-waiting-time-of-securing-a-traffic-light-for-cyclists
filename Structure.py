@@ -17,12 +17,14 @@ class Structure:
 
         self.net = net  
 
-        self.tls = self.net.getEdge("E1").getTLS()  
+        self.tls = self.net.getEdge("E0").getTLS()  
 
 
         self.simu_length = simu_length
 
         self.method = method
+
+        self.tls_program_created = False
 
         if(self.method == "actuated"):
             self.actuated_next_change_step = 5
@@ -35,7 +37,7 @@ class Structure:
 
         if(self.use_drl):
             self.test = test
-            self.ob_shape = (2, 4, int(self.net.getEdge("E1").getLength()//5+2))
+            self.ob_shape = (2, 8, int(self.net.getEdge("E0").getLength()//5+2))
 
             if(self.test):
                 model_to_load = "files/train/"+str(alpha_bike)+"/"+self.method+"_trained.n"
@@ -58,9 +60,37 @@ class Structure:
             self.cars_waiting_time_coeff = 1-alpha_bike
 
 
+
+
+    def create_tls_program(self):
+        num_lane = 4
+        neutral_phase = "r"*3*num_lane*2
+        phases = []
+
+        for i in range(num_lane):
+            green_phase = neutral_phase
+            yellow_phase = neutral_phase
+
+            if(i%2 == 0):
+                green_phase = neutral_phase[:i*3] + "GGg" + neutral_phase[i*3+3:12+i*3] + "GGg" + neutral_phase[12+i*3+3:]
+            else:
+                green_phase = neutral_phase[:i*3] + "gGg" + neutral_phase[i*3+3:12+i*3] + "gGg" + neutral_phase[12+i*3+3:]
+           
+            yellow_phase = neutral_phase[:i*3] + "yyy" + neutral_phase[i*3+3:12+i*3] + "yyy" + neutral_phase[12+i*3+3:]
+            phases.append(self.module_traci.trafficlight.Phase(duration=42, state=green_phase, minDur=42, maxDur=42))
+            phases.append(self.module_traci.trafficlight.Phase(duration=3, state=yellow_phase, minDur=3, maxDur=3))
+
+        self.module_traci.trafficlight.setProgramLogic(self.tls.getID(), self.module_traci.trafficlight.Logic(1, 0, 0, phases=phases))
+        self.module_traci.trafficlight.setProgram(self.tls.getID(), 1)
+
+        self.tls_program_created = True
+
+
     def reset(self, dict_cyclists, dict_scenario):
         self.dict_cyclists = dict_cyclists
         self.dict_scenario = dict_scenario
+
+        self.tls_program_created = False
 
         self.id_cyclists_crossing_struct = []
         self.id_cyclists_waiting = []
@@ -86,7 +116,6 @@ class Structure:
 
 
     def step(self, step, edges):
-
         self.update_next_step_decision(step)
         
         if(self.use_drl):
@@ -135,9 +164,9 @@ class Structure:
 
         detector_distance = 50
 
-        if(self.module_traci.trafficlight.getPhase(self.tls.getID()) == 0):
-            green_lanes = ["E1", "E4"]
-        elif(self.module_traci.trafficlight.getPhase(self.tls.getID()) == 2):
+        if(self.module_traci.trafficlight.getPhase(self.tls.getID()) < 3):
+            green_lanes = ["E0", "E1"]
+        else: 
             green_lanes = ["E2", "E3"]
 
         min_distance_car = 9999
@@ -151,7 +180,9 @@ class Structure:
                 elif("_c" not in i and dist < min_distance_bike):
                     min_distance_bike = dist
 
-        if(min_distance_car < detector_distance or min_distance_bike < detector_distance):
+        if((self.module_traci.trafficlight.getPhase(self.tls.getID()) == 0 or self.module_traci.trafficlight.getPhase(self.tls.getID()) == 4) and min_distance_bike < detector_distance):
+            self.actuated_next_change_step = step + 5
+        elif((self.module_traci.trafficlight.getPhase(self.tls.getID()) == 2 or self.module_traci.trafficlight.getPhase(self.tls.getID()) == 6) and min_distance_car < detector_distance):
             self.actuated_next_change_step = step + 5
 
         if(step > self.actuated_next_change_step):
@@ -163,23 +194,28 @@ class Structure:
     def create_observation(self):
         ob_num = []
         ob_speed = []
-        for i in range(4):
-            edge = self.net.getEdge("E"+str(i+1))
+        for edge_id in range(4):
+            edge = self.net.getEdge("E"+str(edge_id))
             edge_start_x = edge.getFromNode().getCoord()[0]
-            ob_lane_num = np.zeros(self.ob_shape[-1])
-            ob_lane_speed = np.zeros(self.ob_shape[-1])
+            ob_lane_num = np.zeros((2, self.ob_shape[-1]))
+            ob_lane_speed = np.zeros((2, self.ob_shape[-1]))
             for vehicle_id in self.module_traci.edge.getLastStepVehicleIDs(edge.getID()):
+                if("_c" in vehicle_id):
+                    index_v = 0
+                else:
+                    index_v = 1
                 index = int(self.module_traci.vehicle.getLaneID(vehicle_id)[-1])
                 position_in_grid = int(round(self.module_traci.vehicle.getPosition(vehicle_id)[0]-edge_start_x))//5
-                ob_lane_num[index] += 1
-                ob_lane_speed[index] += self.module_traci.vehicle.getSpeed(vehicle_id)
+                ob_lane_num[index_v][index] += 1
+                ob_lane_speed[index_v][index] += self.module_traci.vehicle.getSpeed(vehicle_id)
 
-            for j in range(len(ob_lane_num)):
-                if(ob_lane_num[j] != 0):
-                    ob_lane_speed[j] /= ob_lane_num[j]
+            for i in range(len(ob_lane_num)):
+                for j in range(len(ob_lane_num[i])):
+                    if(ob_lane_num[i][j] > 1):
+                        ob_lane_speed[i][j] /= ob_lane_num[i][j]
 
-            ob_num.append(ob_lane_num)
-            ob_speed.append(ob_lane_speed)
+                ob_num.append(ob_lane_num[i])
+                ob_speed.append(ob_lane_speed[i])
 
         ob = np.array([ob_num, ob_speed])
         return ob

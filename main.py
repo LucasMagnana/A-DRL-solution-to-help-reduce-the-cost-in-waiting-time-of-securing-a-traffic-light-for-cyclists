@@ -15,12 +15,12 @@ from Structure import Structure
 from graphs import *
 from Model import Model
 
-def spawn_cyclist(id_cyclist, step, path, net, structure, step_length, max_speed, struct_candidate, dict_bikes):
-    if(num_cyclists-id_cyclist+max(len(structure.id_cyclists_waiting), len(traci.edge.getLastStepVehicleIDs(structure.start_edge.getID())))<structure.min_group_size):
-        struct_candidate = True
-    
-    c = Cyclist(str(id_cyclist), step, path, net, structure, max_speed, traci, sumolib, step_length, struct_candidate=struct_candidate)
-    dict_bikes[str(id_cyclist)]=c
+def spawn_cyclist(id_cyclist, step, path, net, dict_bikes):
+    path = [e.getID() for e in path]
+    traci.route.add(str(id_cyclist)+"_sp", path)      
+    traci.vehicle.add(str(id_cyclist), str(id_cyclist)+"_sp", departLane="0", typeID='bicycle', departSpeed="avg")
+    traci.vehicle.changeLane(str(id_cyclist), 0, 99999)
+    dict_bikes[str(id_cyclist)]=[]
 
 
 def spawn_car(id_car, step, path, net, dict_cars):
@@ -100,7 +100,7 @@ else:
 sumoBinary = "/usr/bin/sumo"
 if(args.gui):
     sumoBinary += "-gui"
-sumoCmd = [sumoBinary, "-c", "sumo_files/sumo.sumocfg", "--quit-on-end", "--waiting-time-memory", '10000', '--start', '--delay', '0', '--step-length', str(step_length), '--no-warnings']
+sumoCmd = [sumoBinary, "-c", "sumo_files/sumo.sumocfg", "--quit-on-end", "--waiting-time-memory", '10000', '--start', '--delay', '0', '--step-length', str(step_length), "--no-warnings"]
 
 import traci
 import traci.constants as tc
@@ -151,6 +151,9 @@ for s in range(start_num_simu, num_simu):
     num_cars_real = 0
 
     traci.start(sumoCmd)
+
+    if(not(structure.tls_program_created)):
+        structure.create_tls_program()
 
     if(not args.load_scenario):
         if(not args.real_data):
@@ -208,22 +211,26 @@ for s in range(start_num_simu, num_simu):
     while(step<=simu_length):
         if(not args.load_scenario): #new_scenario
             if(step<simu_length):
-                for _ in range(0):#int(bike_poisson_distrib[int(step)])):
-                    e1 = net.getEdge("E0")
-                    e2 = net.getEdge("E"+str(randint(3, 9)))
+                for _ in range(int(bike_poisson_distrib[int(step)])):
+                    id_start = random.randint(0, 3)
+                    id_end = id_start
+                    while(id_end == id_start or id_start == 0 and id_end == 3 or id_start == 3 and id_end == 1):
+                        id_end = random.randint(0, 3)
+                    e1 = net.getEdge("E"+str(id_start))
+                    e2 = net.getEdge("-E"+str(id_end))
                     path = net.getShortestPath(e1, e2, vClass='bicycle')[0]
                     max_speed = np.random.normal(15, 3)
-                    dict_scenario["bikes"][id_cyclist] = {"start_step": step, "start_edge": e1.getID(), "end_edge": e2.getID(), "max_speed": max_speed,
-                    "distance_travelled": net.getShortestPath(net.getEdge("E_start"), e2, vClass='bicycle', fromPos=0)[1], "waiting_time": 0}
-                    spawn_cyclist(id_cyclist, step, path, net, structure, step_length, max_speed, False, dict_vehicles["bikes"])
+                    dict_scenario["bikes"][id_cyclist] = {"start_step": step, "start_edge": e1.getID(), "end_edge": e2.getID(),
+                    "distance_travelled": net.getShortestPath(e1, e2, vClass='bicycle', fromPos=0)[1], "waiting_time": 0}
+                    spawn_cyclist(id_cyclist, step, path, net, dict_vehicles["bikes"])
                     id_cyclist+=1
                 bike_poisson_distrib[int(step)] = 0
 
                 for _ in range(int(car_poisson_distrib[int(step)])):
-                    id_start = random.randint(1, 4)
+                    id_start = random.randint(0, 3)
                     id_end = id_start
                     while(id_end == id_start):
-                        id_end = random.randint(1, 4)
+                        id_end = random.randint(0, 3)
                     e1 = net.getEdge("E"+str(id_start))
                     e2 = net.getEdge("-E"+str(id_end))
                     path = net.getShortestPath(e1, e2, vClass='passenger')[0]
@@ -242,7 +249,7 @@ for s in range(start_num_simu, num_simu):
                 e1 = net.getEdge(start_edge_id)
                 e2 = net.getEdge(end_edge_id)
                 path = net.getShortestPath(e1, e2, vClass='bicycle')[0]
-                dict_scenario["bikes"][id_cyclist] = {"start_step": step, "start_edge": e1.getID(), "end_edge": e2.getID(), "max_speed": old_dict_scenario["bikes"][id_cyclist]["max_speed"],
+                dict_scenario["bikes"][id_cyclist] = {"start_step": step, "start_edge": e1.getID(), "end_edge": e2.getID(),
                 "distance_travelled": net.getShortestPath(net.getEdge("E_start"), e2, vClass='bicycle', fromPos=0)[1], "waiting_time": 0}
                 spawn_cyclist(id_cyclist, step, path, net, structure, step_length, old_dict_scenario["bikes"][id_cyclist]["max_speed"], False, dict_vehicles["bikes"])
                 id_cyclist+=1
