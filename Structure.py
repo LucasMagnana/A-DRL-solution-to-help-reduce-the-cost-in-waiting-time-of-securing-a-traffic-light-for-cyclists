@@ -24,11 +24,11 @@ class Structure:
 
         self.method = method
 
-        self.tls_program_created = False
-
         if(self.method == "actuated"):
             self.actuated_next_change_step = 5
         self.open = open
+
+        self.create_tls_phases()
 
 
         self.next_step_decision = 0
@@ -36,36 +36,37 @@ class Structure:
         self.use_drl = "DQN" in self.method or "PPO" in self.method
 
         if(self.use_drl):
+            self.drl_cum_reward = 0
+            self.drl_decision_made = False
             self.test = test
             self.ob_shape = (2, 8, int(self.net.getEdge("E0").getLength()//5+2))
+            self.action_space = 9
 
-            if(self.test):
+            if(os.path.exists("files/train/"+str(alpha_bike)+"/"+self.method+"_trained.n")):
                 model_to_load = "files/train/"+str(alpha_bike)+"/"+self.method+"_trained.n"
             else:
                 model_to_load = None
 
             if(self.method == "DQN"):
-                self.drl_agent = DQNAgent(self.ob_shape, 2, model_to_load=model_to_load)
+                self.drl_agent = DQNAgent(self.ob_shape, self.action_space, model_to_load=model_to_load)
             elif(self.method == "3DQN"):
-                self.drl_agent = DQNAgent(self.ob_shape, 2, double=True, duelling=True, model_to_load=model_to_load)
+                self.drl_agent = DQNAgent(self.ob_shape, self.action_space, double=True, duelling=True, model_to_load=model_to_load)
             elif(self.method == "PPO"):
-                if(os.path.exists("files/train/"+str(alpha_bike)+"/"+self.method+"_trained.n")):
-                    model_to_load = "files/train/"+str(alpha_bike)+"/"+self.method+"_trained.n"
-                self.drl_agent = PPOAgent(self.ob_shape, 2, model_to_load=model_to_load)
+                self.drl_agent = PPOAgent(self.ob_shape, 8, model_to_load=model_to_load)
                 self.val = None
                 self.action_probs = None
 
 
-            self.bikes_waiting_time_coeff = alpha_bike
-            self.cars_waiting_time_coeff = 1-alpha_bike
+            self.bikes_waiting_time_coeff = 1 #alpha_bike
+            self.cars_waiting_time_coeff = 1 #1-alpha_bike
 
 
 
 
-    def create_tls_program(self):
+    def create_tls_phases(self):
+        self.phases = []
         num_lane = 4
         neutral_phase = "r"*3*num_lane*2
-        phases = []
 
         for i in range(num_lane):
             green_phase = neutral_phase
@@ -77,20 +78,20 @@ class Structure:
                 green_phase = neutral_phase[:i*3] + "gGg" + neutral_phase[i*3+3:12+i*3] + "gGg" + neutral_phase[12+i*3+3:]
            
             yellow_phase = neutral_phase[:i*3] + "yyy" + neutral_phase[i*3+3:12+i*3] + "yyy" + neutral_phase[12+i*3+3:]
-            phases.append(self.module_traci.trafficlight.Phase(duration=42, state=green_phase, minDur=42, maxDur=42))
-            phases.append(self.module_traci.trafficlight.Phase(duration=3, state=yellow_phase, minDur=3, maxDur=3))
+            self.phases.append(self.module_traci.trafficlight.Phase(duration=40, state=green_phase, minDur=40, maxDur=40))
+            self.phases.append(self.module_traci.trafficlight.Phase(duration=3, state=yellow_phase, minDur=3, maxDur=3))
 
-        self.module_traci.trafficlight.setProgramLogic(self.tls.getID(), self.module_traci.trafficlight.Logic(1, 0, 0, phases=phases))
-        self.module_traci.trafficlight.setProgram(self.tls.getID(), 1)
+        
 
-        self.tls_program_created = True
+
+
+    def update_tls_program(self):
+        self.module_traci.trafficlight.setProgramLogic(self.tls.getID(), self.module_traci.trafficlight.Logic(0, 0, 0, phases=self.phases))
 
 
     def reset(self, dict_cyclists, dict_scenario):
         self.dict_cyclists = dict_cyclists
         self.dict_scenario = dict_scenario
-
-        self.tls_program_created = False
 
         self.id_cyclists_crossing_struct = []
         self.id_cyclists_waiting = []
@@ -99,8 +100,11 @@ class Structure:
 
         self.next_step_decision = 0   
         self.module_traci.trafficlight.setPhase(self.tls.getID(), 0)
+        
 
         if(self.use_drl):
+            self.drl_cum_reward = 0
+            self.drl_decision_made = False
             self.action = -1
             self.ob = []
             self.bikes_waiting_time = 0
@@ -108,8 +112,6 @@ class Structure:
             if(self.method == "PPO"):
                 self.val = None
                 self.action_probs = None
-            elif("DQN" in self.method):
-                self.next_step_learning = self.drl_agent.hyperParams.LEARNING_STEP
         elif(self.method == "actuated"):
             self.actuated_next_change_step = 5
 
@@ -119,11 +121,11 @@ class Structure:
         self.update_next_step_decision(step)
         
         if(self.use_drl):
-            if(self.module_traci.trafficlight.getPhase(self.tls.getID())%2 == 0):
+            if(self.module_traci.trafficlight.getPhase(self.tls.getID()) == 0 and not self.drl_decision_made):
                 self.drl_decision_making(step)
-            if("DQN" in self.method and step > self.drl_agent.hyperParams.LEARNING_START and not self.test and step>self.next_step_learning):
-                self.drl_agent.learn()
-                self.next_step_learning += self.drl_agent.hyperParams.LEARNING_STEP
+                self.drl_decision_made = True
+            elif(self.module_traci.trafficlight.getPhase(self.tls.getID()) != 0 and self.drl_decision_made):
+                self.drl_decision_made = False
         elif(self.method == "actuated"):
             if(step > self.next_step_decision):
                 self.actuated_decision_making(step)
@@ -142,6 +144,7 @@ class Structure:
         else:
             if(not self.test and self.action >= 0):
                 reward = self.calculate_reward()
+                self.drl_cum_reward += reward
                 if("DQN" in self.method):
                     self.drl_agent.memorize(self.ob_prec, self.action, self.ob, reward, False)  
                 elif(self.method == "PPO"):                   
@@ -152,8 +155,24 @@ class Structure:
             elif(self.method == "PPO"):  
                 self.action, self.val, self.action_probs = self.drl_agent.act(self.ob)
 
-            if(self.action == 1):
-                self.change_light_phase()
+            if(self.action > 0):
+                phases_correspondance = range(0, 8, 2)
+                phase_id = phases_correspondance[self.action%4]
+
+                if(self.action < 5 and self.phases[phase_id].duration < 60):
+                    self.phases[phase_id].duration += 5
+                    self.phases[phase_id].minDur += 5
+                    self.phases[phase_id].maxDur += 5
+                elif(self.action >= 5 and self.phases[phase_id].duration > 5):
+                    self.phases[phase_id].duration -= 5
+                    self.phases[phase_id].minDur -= 5
+                    self.phases[phase_id].maxDur -= 5
+
+                self.update_tls_program()
+
+            print([p.duration for p in self.phases], self.action)
+                    
+
 
 
     def actuated_decision_making(self, step):
@@ -227,19 +246,32 @@ class Structure:
         last_bikes_wt = self.bikes_waiting_time
         self.cars_waiting_time = 0
         self.bikes_waiting_time = 0
-        for vehicle_id in self.module_traci.vehicle.getIDList():
-            if("_c" in vehicle_id):
-                self.cars_waiting_time += self.dict_scenario["cars"][int(vehicle_id[:-2])]["waiting_time"]
-            else:
-                self.bikes_waiting_time += self.dict_scenario["bikes"][int(vehicle_id)]["waiting_time"]
+        for vehicle_type in self.dict_scenario:           
+            for vehicle_id in self.dict_scenario[vehicle_type]:
+                if(vehicle_type == "cars"):
+                    self.cars_waiting_time += self.dict_scenario[vehicle_type][vehicle_id]["waiting_time"]
+                else:
+                    self.bikes_waiting_time += self.dict_scenario[vehicle_type][vehicle_id]["waiting_time"]
+
+        
         return last_cars_wt, last_bikes_wt
 
         
+    '''def calculate_reward(self):
+        waiting_vehicle_number = 0
+        for vehi_id in self.module_traci.vehicle.getIDList():
+            if(self.module_traci.vehicle.getSpeed(vehi_id)<0.5):
+                waiting_vehicle_number += 1
+        return -(waiting_vehicle_number**2)'''
+
 
     def calculate_reward(self):
         last_cars_wt, last_bikes_wt = self.calculate_sum_waiting_time()
         diff_cars =  last_cars_wt - self.cars_waiting_time
         diff_bikes = last_bikes_wt - self.bikes_waiting_time
+        print()
+        print(self.bikes_waiting_time_coeff*diff_bikes+self.cars_waiting_time_coeff*diff_cars, last_cars_wt, self.cars_waiting_time, last_bikes_wt, self.bikes_waiting_time)
+        
         return self.bikes_waiting_time_coeff*diff_bikes+self.cars_waiting_time_coeff*diff_cars
 
     def update_next_step_decision(self, step):

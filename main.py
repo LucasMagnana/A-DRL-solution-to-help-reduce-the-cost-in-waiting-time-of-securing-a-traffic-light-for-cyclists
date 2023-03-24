@@ -32,7 +32,7 @@ def spawn_car(id_car, step, path, net, dict_cars):
 
 min_group_size = 5
 
-num_simu = 100
+num_simu = 1000
 simu_length = 1800
 
 save_scenario = True
@@ -140,6 +140,9 @@ if(args.method != "actuated"):
 
 for s in range(start_num_simu, num_simu):
 
+    if(not args.test and "DQN" in args.method and s-start_num_simu >= structure.drl_agent.hyperParams.EP_LEARNING_START):
+        structure.drl_agent.learn()
+
     if(not args.test and "PPO" in args.method):
         structure.drl_agent.start_episode()
         if(s != start_num_simu and s%structure.drl_agent.hyperParams.LEARNING_EP == 0):
@@ -152,8 +155,7 @@ for s in range(start_num_simu, num_simu):
 
     traci.start(sumoCmd)
 
-    if(not(structure.tls_program_created)):
-        structure.create_tls_program()
+    structure.update_tls_program()
 
     if(not args.load_scenario):
         if(not args.real_data):
@@ -286,8 +288,8 @@ for s in range(start_num_simu, num_simu):
                     if(step >= next_step_wt_update):
                         try:
                             if(traci.vehicle.getSpeed(sumo_id)< speed_threshold):
-                                #dict_scenario[vehicle_type][int(i)]["waiting_time"] += 1
-                                dict_scenario[vehicle_type][int(i)]["waiting_time"] = traci.vehicle.getAccumulatedWaitingTime(sumo_id)
+                                dict_scenario[vehicle_type][int(i)]["waiting_time"] += 1
+                            #dict_scenario[vehicle_type][int(i)]["waiting_time"] = traci.vehicle.getAccumulatedWaitingTime(sumo_id)
                         except traci.exceptions.TraCIException:
                             del dict_scenario[vehicle_type][int(i)]
                             del dict_vehicles[vehicle_type][i]
@@ -345,6 +347,9 @@ for s in range(start_num_simu, num_simu):
 
     print(f"mean cars travel time: {cars_data[0]}, mean cars waiting time: {cars_data[1]}")
     print(f"mean bikes travel time: {bikes_data[0]}, mean bikes waiting time: {bikes_data[1]}")
+
+    if("DQN" in args.method or "PPO" in args.method):
+        print(f"cumulative reward:", structure.drl_cum_reward)
 
     if(not args.test and s%50 == 0 and ("DQN" in args.method or "PPO" in args.method)):
         torch.save(structure.drl_agent.model.state_dict(), "files/"+sub_folders+pre_file_name+"trained.n")

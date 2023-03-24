@@ -11,7 +11,7 @@ class Actor(nn.Module):
     def __init__(self, size_ob, size_action, max_action=1, tanh=False): #for saved hyperparameters
         super(Actor, self).__init__()
         self.conv1 = nn.Conv2d(size_ob[0], 16, 2)
-        out_shape = shape_after_conv_and_flatten(size_ob[2], self.conv1)
+        out_shape = shape_after_conv_and_flatten(size_ob, self.conv1)
         self.out = nn.Linear(out_shape, size_action)
         self.max_action = max_action
         self.tanh = tanh
@@ -36,7 +36,7 @@ class DuellingActor(nn.Module):
         super(DuellingActor, self).__init__()
 
         self.conv1 = nn.Conv2d(size_ob[0], 16, 2)
-        out_shape = shape_after_conv_and_flatten(size_ob[2], self.conv1)
+        out_shape = shape_after_conv_and_flatten(size_ob, self.conv1)
 
         self.advantage_out = nn.Linear(out_shape, size_action)
 
@@ -48,6 +48,7 @@ class DuellingActor(nn.Module):
     def forward(self, ob):
         ob = ob.float()
         features = nn.functional.relu(self.conv1(ob))
+        
         if(len(features.shape) == 3):
             features = torch.flatten(features)
         elif(len(features.shape) == 4):

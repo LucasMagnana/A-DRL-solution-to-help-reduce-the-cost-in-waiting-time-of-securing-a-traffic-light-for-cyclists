@@ -24,14 +24,13 @@ class DQNHyperParams :
         self.HIDDEN_SIZE = 16
         self.ACT_INTER = 16
 
-        self.EPISODE_COUNT = 200*1800
+        self.EPISODE_COUNT = 200
         self.MAX_STEPS = 1000
-        self.LEARNING_START = 500
-        self.LEARNING_STEP = 30
+        self.EP_LEARNING_START = 5
 
         self.EPSILON = 1.0
         self.MIN_EPSILON = 0.001
-        self.EPSILON_DECAY = self.EPSILON/((self.EPISODE_COUNT//self.LEARNING_STEP)*1/3)
+        self.EPSILON_DECAY = self.EPSILON/(self.EPISODE_COUNT*1/3)
 
 class DQNAgent(object):
     def __init__(self, observation_space, action_space, test=False, double=False, duelling=False, PER=False, cnn=None, cuda=False, model_to_load=None):
@@ -132,7 +131,7 @@ class DQNAgent(object):
 
         tens_action = spl[1].squeeze().long()
 
-        tens_state_next = spl[2].view(tens_action.shape[0], self.observation_space[0], self.observation_space[1], self.observation_space[2])
+        tens_state_next = spl[2].view(spl[1].shape[0], self.observation_space[0], self.observation_space[1], self.observation_space[2])
 
         tens_reward = spl[3].squeeze()
 

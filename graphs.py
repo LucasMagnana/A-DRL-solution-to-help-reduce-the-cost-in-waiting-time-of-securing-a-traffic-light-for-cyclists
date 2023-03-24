@@ -93,18 +93,22 @@ if __name__ == "__main__":
     estimated_reward = []
     tot_diff_waiting_time = []
 
-    labels = ["actuated"]
+    labels = []
 
     possible_labels = ["2DQN", "3DQN", "DQN", "PPO"]
 
-    with open("files/"+sub_folders+"actuated_scenarios.tab", 'rb') as infile:
-        tab_scenarios_actuated = pickle.load(infile)
+    list_tab_scenarios = []
 
-    if(args.test and len(tab_scenarios_actuated) == 1):
-        tab_scenarios_actuated = cut_tab_scenarios(tab_scenarios_actuated)
+    if os.path.exists("files/"+sub_folders+"actuated_scenarios.tab"):
+        with open("files/"+sub_folders+"actuated_scenarios.tab", 'rb') as infile:
+            tab_scenarios_actuated = pickle.load(infile)
+
+        if(args.test and len(tab_scenarios_actuated) == 1):
+            tab_scenarios_actuated = cut_tab_scenarios(tab_scenarios_actuated)
 
 
-    list_tab_scenarios = [tab_scenarios_actuated]
+        list_tab_scenarios.append(tab_scenarios_actuated)
+        labels.append("actuated")
 
 
     sub_folders += str(args.alpha)+"/"
@@ -124,8 +128,8 @@ if __name__ == "__main__":
                         labels.append(l)
                         break
 
-                list_tab_scenarios.append(tab_scenarios)
-                #list_tab_scenarios.append(tab_scenarios[400:])
+                #ist_tab_scenarios.append(tab_scenarios)
+                list_tab_scenarios.append(tab_scenarios[275:])
     
 
 
@@ -139,7 +143,7 @@ if __name__ == "__main__":
         tab_wt = []
         tab_diff_wt_tot = []
         for num_simu in range(len(tab_scenarios)):
-
+            print(num_simu, len(tab_scenarios))
             mean_travel_time_bikes, mean_waiting_time_bikes = compute_data(tab_scenarios[num_simu]["bikes"])
             mean_travel_time_bikes_actuated, mean_waiting_time_bikes_actuated = compute_data(list_tab_scenarios[0][num_simu]["bikes"])
 
