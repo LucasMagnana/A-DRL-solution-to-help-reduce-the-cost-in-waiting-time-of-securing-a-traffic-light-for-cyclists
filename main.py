@@ -32,7 +32,7 @@ def spawn_car(id_car, step, path, net, dict_cars):
 
 min_group_size = 5
 
-num_simu = 1000
+num_simu = 260
 simu_length = 1800
 
 save_scenario = True
@@ -345,8 +345,9 @@ for s in range(start_num_simu, num_simu):
     bikes_data = compute_data(dict_scenario["bikes"])
     cars_data = compute_data(dict_scenario["cars"])
 
-    print(f"mean cars travel time: {cars_data[0]}, mean cars waiting time: {cars_data[1]}")
-    print(f"mean bikes travel time: {bikes_data[0]}, mean bikes waiting time: {bikes_data[1]}")
+    print(f"mean cars waiting time: {cars_data[1]/cars_data[2]}")
+    print(f"mean bikes waiting time: {bikes_data[1]/bikes_data[2]}")
+    print(f"tot waiting time: {bikes_data[1]/cars_data[1]}")
 
     if("DQN" in args.method or "PPO" in args.method):
         print(f"cumulative reward:", structure.drl_cum_reward)

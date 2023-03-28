@@ -52,7 +52,7 @@ class Structure:
             elif(self.method == "3DQN"):
                 self.drl_agent = DQNAgent(self.ob_shape, self.action_space, double=True, duelling=True, model_to_load=model_to_load)
             elif(self.method == "PPO"):
-                self.drl_agent = PPOAgent(self.ob_shape, 8, model_to_load=model_to_load)
+                self.drl_agent = PPOAgent(self.ob_shape, self.action_space, model_to_load=model_to_load, continuous_action_space=False)
                 self.val = None
                 self.action_probs = None
 
@@ -78,8 +78,8 @@ class Structure:
                 green_phase = neutral_phase[:i*3] + "gGg" + neutral_phase[i*3+3:12+i*3] + "gGg" + neutral_phase[12+i*3+3:]
            
             yellow_phase = neutral_phase[:i*3] + "yyy" + neutral_phase[i*3+3:12+i*3] + "yyy" + neutral_phase[12+i*3+3:]
-            self.phases.append(self.module_traci.trafficlight.Phase(duration=40, state=green_phase, minDur=40, maxDur=40))
-            self.phases.append(self.module_traci.trafficlight.Phase(duration=3, state=yellow_phase, minDur=3, maxDur=3))
+            self.phases.append(self.module_traci.trafficlight.Phase(duration=30, state=green_phase, minDur=30, maxDur=30))
+            self.phases.append(self.module_traci.trafficlight.Phase(duration=4, state=yellow_phase, minDur=4, maxDur=4))
 
         
 
@@ -105,7 +105,7 @@ class Structure:
         if(self.use_drl):
             self.drl_cum_reward = 0
             self.drl_decision_made = False
-            self.action = -1
+            self.action = None
             self.ob = []
             self.bikes_waiting_time = 0
             self.cars_waiting_time = 0
@@ -142,7 +142,7 @@ class Structure:
         if(len(self.ob_prec) == 0):
             self.calculate_sum_waiting_time()
         else:
-            if(not self.test and self.action >= 0):
+            if(not self.test and self.action != None):
                 reward = self.calculate_reward()
                 self.drl_cum_reward += reward
                 if("DQN" in self.method):
@@ -155,20 +155,34 @@ class Structure:
             elif(self.method == "PPO"):  
                 self.action, self.val, self.action_probs = self.drl_agent.act(self.ob)
 
-            if(self.action > 0):
-                phases_correspondance = range(0, 8, 2)
-                phase_id = phases_correspondance[self.action%4]
+            if("PPO" in self.method and self.drl_agent.continuous_action_space):
+                new_dur = int(self.action*30+30)
+                if(new_dur < 1):
+                    new_dur = 1
+                elif(new_dur > 60):
+                    new_dur = 60
+                    
+                for i in range(len(self.phases)):
+                    if(i%2 == 0):
+                        self.phases[i].duration = new_dur
+                        self.phases[i].minDur = new_dur
+                        self.phases[i].maxDur = new_dur
+                    
+            else:
+                if(self.action > 0):
+                    phases_correspondance = range(0, 8, 2)
+                    phase_id = phases_correspondance[self.action%4]
 
-                if(self.action < 5 and self.phases[phase_id].duration < 60):
-                    self.phases[phase_id].duration += 5
-                    self.phases[phase_id].minDur += 5
-                    self.phases[phase_id].maxDur += 5
-                elif(self.action >= 5 and self.phases[phase_id].duration > 5):
-                    self.phases[phase_id].duration -= 5
-                    self.phases[phase_id].minDur -= 5
-                    self.phases[phase_id].maxDur -= 5
+                    if(self.action < 5 and self.phases[phase_id].duration < 60):
+                        self.phases[phase_id].duration += 5
+                        self.phases[phase_id].minDur += 5
+                        self.phases[phase_id].maxDur += 5
+                    elif(self.action >= 5 and self.phases[phase_id].duration > 5):
+                        self.phases[phase_id].duration -= 5
+                        self.phases[phase_id].minDur -= 5
+                        self.phases[phase_id].maxDur -= 5
 
-                self.update_tls_program()
+            self.update_tls_program()
 
             print([p.duration for p in self.phases], self.action)
                     
@@ -269,10 +283,8 @@ class Structure:
         last_cars_wt, last_bikes_wt = self.calculate_sum_waiting_time()
         diff_cars =  last_cars_wt - self.cars_waiting_time
         diff_bikes = last_bikes_wt - self.bikes_waiting_time
-        print()
-        print(self.bikes_waiting_time_coeff*diff_bikes+self.cars_waiting_time_coeff*diff_cars, last_cars_wt, self.cars_waiting_time, last_bikes_wt, self.bikes_waiting_time)
         
-        return self.bikes_waiting_time_coeff*diff_bikes+self.cars_waiting_time_coeff*diff_cars
+        return (self.bikes_waiting_time_coeff*diff_bikes+self.cars_waiting_time_coeff*diff_cars)
 
     def update_next_step_decision(self, step):
         if(step > self.next_step_decision):

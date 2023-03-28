@@ -13,7 +13,7 @@ def compute_data(dict_scenario):
                 tab_travel_time.append(dict_scenario[v]["finish_step"]-dict_scenario[v]["start_step"])
                 tab_waiting_time.append(dict_scenario[v]["waiting_time"])
         if(len(tab_travel_time)>0):
-            return sum(tab_travel_time)/len(tab_travel_time), sum(tab_waiting_time)/len(tab_waiting_time)
+            return sum(tab_travel_time), sum(tab_waiting_time), len(tab_travel_time)
 
     return 0, 0
 
@@ -129,36 +129,38 @@ if __name__ == "__main__":
                         break
 
                 #ist_tab_scenarios.append(tab_scenarios)
-                list_tab_scenarios.append(tab_scenarios[275:])
+                list_tab_scenarios.append(tab_scenarios[len(tab_scenarios)-len(list_tab_scenarios[0]):])
     
 
 
     for tab_scenarios in list_tab_scenarios:
         
         tab_mean_waiting_time = [[], []]
-        tab_mean_travel_time = [[], []]
         tab_waiting_time = [[],[]]
         tab_diff_wt = [[], []]
         tab_reward = []
         tab_wt = []
         tab_diff_wt_tot = []
         for num_simu in range(len(tab_scenarios)):
-            print(num_simu, len(tab_scenarios))
-            mean_travel_time_bikes, mean_waiting_time_bikes = compute_data(tab_scenarios[num_simu]["bikes"])
-            mean_travel_time_bikes_actuated, mean_waiting_time_bikes_actuated = compute_data(list_tab_scenarios[0][num_simu]["bikes"])
+            sum_travel_time_bikes, sum_waiting_time_bikes, num_bikes = compute_data(tab_scenarios[num_simu]["bikes"])
+            sum_travel_time_bikes_actuated, sum_waiting_time_bikes_actuated, num_bikes_actuated = compute_data(list_tab_scenarios[0][num_simu]["bikes"])
+
+            mean_waiting_time_bikes_actuated = sum_waiting_time_bikes_actuated/num_bikes_actuated
+            mean_waiting_time_bikes = sum_waiting_time_bikes/num_bikes
 
             tab_mean_waiting_time[0].append(mean_waiting_time_bikes)
-            tab_mean_travel_time[0].append(mean_travel_time_bikes)
             tab_diff_wt[0].append(mean_waiting_time_bikes-mean_waiting_time_bikes_actuated)
 
-            mean_travel_time_cars, mean_waiting_time_cars = compute_data(tab_scenarios[num_simu]["cars"])
-            mean_travel_time_cars_actuated, mean_waiting_time_cars_actuated = compute_data(list_tab_scenarios[0][num_simu]["cars"])
+            sum_travel_time_cars, sum_waiting_time_cars, num_cars = compute_data(tab_scenarios[num_simu]["cars"])
+            sum_travel_time_cars_actuated, sum_waiting_time_cars_actuated, num_cars_actuated = compute_data(list_tab_scenarios[0][num_simu]["cars"])
+
+            mean_waiting_time_cars = sum_waiting_time_cars/num_cars
+            mean_waiting_time_cars_actuated = sum_waiting_time_cars_actuated/num_cars_actuated
 
             tab_mean_waiting_time[1].append(mean_waiting_time_cars)
-            tab_mean_travel_time[1].append(mean_travel_time_cars)
             tab_diff_wt[1].append(mean_waiting_time_cars-mean_waiting_time_cars_actuated)
 
-            tab_reward.append((1-args.alpha)*mean_waiting_time_cars+args.alpha*mean_waiting_time_bikes)
+            tab_reward.append(-sum_waiting_time_cars-sum_waiting_time_bikes)
             tab_wt.append(mean_waiting_time_cars+mean_waiting_time_bikes)
             tab_diff_wt_tot.append(tab_diff_wt[0][-1]+tab_diff_wt[1][-1])
 
@@ -166,17 +168,12 @@ if __name__ == "__main__":
         bikes_diff_waiting_time.append(tab_diff_wt[0])
         cars_waiting_time.append(tab_mean_waiting_time[1])
         cars_diff_waiting_time.append(tab_diff_wt[1])
-        bikes_travel_time.append(tab_mean_travel_time[0])
-        cars_travel_time.append(tab_mean_travel_time[1])
         tot_waiting_time.append(tab_wt)
         estimated_reward.append(tab_reward)
         tot_diff_waiting_time.append(tab_diff_wt_tot)
 
     if(not os.path.exists("images/"+sub_folders)):
         os.makedirs("images/"+sub_folders)
-
-    #plot_data(cars_travel_time, "cars_evolution_mean_time_travel.png", "Cars mean travel time", labels, ["Simulations", "Travel Time"], sub_folders)
-    #plot_data(bikes_travel_time, "bikes_evolution_mean_time_travel.png", "Bikes mean travel time", labels, ["Simulations", "Travel Time"], sub_folders)
 
     plot_data(cars_waiting_time, "cars_evolution_mean_waiting_time.png", "Cars mean waiting time",labels, ["Simulations", "Waiting Time"], sub_folders)
     plot_data(bikes_waiting_time, "bikes_evolution_mean_waiting_time.png", "Bikes mean waiting time",labels, ["Simulations", "Waiting Time"], sub_folders)
