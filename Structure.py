@@ -122,7 +122,7 @@ class Structure:
         
         if(self.use_drl):
             if(self.module_traci.trafficlight.getPhase(self.tls.getID()) == 0 and not self.drl_decision_made):
-                self.drl_decision_making(step)
+                self.drl_decision_making()
                 self.drl_decision_made = True
             elif(self.module_traci.trafficlight.getPhase(self.tls.getID()) != 0 and self.drl_decision_made):
                 self.drl_decision_made = False
@@ -134,7 +134,7 @@ class Structure:
 
 
 
-    def drl_decision_making(self, step):       
+    def drl_decision_making(self, end=False):       
         self.create_observation()
         self.ob_prec = self.ob
         self.ob = self.create_observation()
@@ -146,9 +146,9 @@ class Structure:
                 reward = self.calculate_reward()
                 self.drl_cum_reward += reward
                 if("DQN" in self.method):
-                    self.drl_agent.memorize(self.ob_prec, self.action, self.ob, reward, False)  
+                    self.drl_agent.memorize(self.ob_prec, self.action, self.ob, reward, end)  
                 elif(self.method == "PPO"):                   
-                    self.drl_agent.memorize(self.ob_prec, self.val, self.action_probs, self.action, self.ob, reward, False)  
+                    self.drl_agent.memorize(self.ob_prec, self.val, self.action_probs, self.action, self.ob, reward, end)  
 
             if("DQN" in self.method):
                 self.action = self.drl_agent.act(self.ob)
@@ -184,7 +184,7 @@ class Structure:
 
             self.update_tls_program()
 
-            print([p.duration for p in self.phases], self.action)
+            #print([p.duration for p in self.phases], self.action)
                     
 
 
