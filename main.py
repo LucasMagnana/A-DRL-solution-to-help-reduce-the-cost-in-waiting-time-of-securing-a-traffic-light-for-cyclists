@@ -210,7 +210,7 @@ for s in range(start_num_simu, num_simu):
 
     print(simu_length)
 
-    while(step<=simu_length or len(dict_vehicles["bikes"])>0 or len(dict_vehicles["cars"])>0):
+    while(step<=simu_length):
         if(not args.load_scenario): #new_scenario
             if(step<simu_length):
                 for _ in range(int(bike_poisson_distrib[int(step)])):
@@ -309,11 +309,10 @@ for s in range(start_num_simu, num_simu):
 
         step += step_length
 
-    if(not args.test and "PPO" in args.method):
-        structure.drl_decision_making(end=True)
-        structure.drl_agent.end_episode()
-
     traci.close()
+
+    if(not args.test and "PPO" in args.method):
+        structure.drl_agent.end_episode()
 
     '''for vehicle_type in dict_scenario:
         for i in copy.deepcopy(list(dict_scenario[vehicle_type].keys())):
@@ -322,6 +321,8 @@ for s in range(start_num_simu, num_simu):
 
 
     print("\ndata number:", num_cars_real+num_cyclists_real, ",", structure.num_cyclists_crossed, "cyclits used struct, last step:", step)
+
+
 
     if(save_scenario):
         print("WARNING: Saving scenario...")
@@ -346,7 +347,7 @@ for s in range(start_num_simu, num_simu):
 
     print(f"mean cars waiting time: {cars_data[1]/cars_data[2]}")
     print(f"mean bikes waiting time: {bikes_data[1]/bikes_data[2]}")
-    print(f"tot waiting time: {bikes_data[1]+cars_data[1]}")
+    print(f"tot waiting time: {bikes_data[1]/cars_data[1]}")
 
     if("DQN" in args.method or "PPO" in args.method):
         print(f"cumulative reward:", structure.drl_cum_reward)
@@ -360,4 +361,3 @@ if(not args.test and ("DQN" in args.method or "PPO" in args.method)):
     torch.save(structure.drl_agent.model.state_dict(), "files/"+sub_folders+pre_file_name+"trained.n")
     if("DQN" in args.method):
         torch.save(structure.drl_agent.model_target.state_dict(), "files/"+sub_folders+pre_file_name+"trained_target.n")
-

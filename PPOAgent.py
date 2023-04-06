@@ -10,20 +10,18 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-from torch.distributions import MultivariateNormal, Categorical
+from torch.distributions import MultivariateNormal
 
 from NeuralNetworks import PPO_Model
 
 
 def discount_rewards(rewards, list_done, gamma):
-    print(sum(rewards))
     r = []
     for reward, done in zip(reversed(rewards), reversed(list_done)):
         if done:
             discounted_reward = 0
         discounted_reward = reward + (gamma * discounted_reward)
         r.insert(0, discounted_reward)
-    print(sum(r))
     return r
 
 
@@ -103,9 +101,6 @@ class PPOAgent():
 
         self.reset_batches()
 
-        self.list_sum_norm_discounted_rewards = []
-        self.list_sum_discounted_rewards = []
-
 
     def reset_batches(self):
         self.batch_rewards = []
@@ -113,7 +108,7 @@ class PPOAgent():
         self.batch_states = []
         self.batch_values = []
         self.batch_actions = []
-        self.batch_log_probs = []
+        self.batch_selected_probs = []
         self.batch_done = []
 
 
@@ -126,23 +121,13 @@ class PPOAgent():
             #print(state_tensor.tolist() == self.batch_states)
 
             #advantages_tensor = torch.tensor(self.batch_advantages)
-            old_log_probs_tensor = torch.tensor(self.batch_log_probs)
+            old_selected_probs_tensor = torch.tensor(self.batch_selected_probs)
 
             old_values_tensor = torch.tensor(self.batch_values)
 
             rewards_tensor = torch.tensor(self.batch_rewards)
             # Normalizing the rewards:
-            if(k == 0):
-                sum_discounted_rewards = sum(rewards_tensor).item()
-                self.list_sum_discounted_rewards.append(sum_discounted_rewards)
-                print(sum_discounted_rewards)
-
             rewards_tensor = (rewards_tensor - rewards_tensor.mean()) / (rewards_tensor.std() + 1e-5)
-
-            if(k == 0):
-                sum_norm_discounted_rewards = sum(rewards_tensor).item()
-                self.list_sum_norm_discounted_rewards.append(sum_norm_discounted_rewards)
-                print(sum_norm_discounted_rewards)
             
 
             action_tensor = torch.tensor(self.batch_actions)
@@ -156,20 +141,20 @@ class PPOAgent():
                 probs=probs.flatten()
                 action_std = self.action_std.expand_as(probs)
                 mat_std = torch.diag_embed(action_std)
-                distr = MultivariateNormal(probs, mat_std)
-                
+                dist = MultivariateNormal(probs, mat_std)
+                selected_probs_tensor = dist.log_prob(action_tensor.flatten())
+                ratios = torch.exp(selected_probs_tensor - old_selected_probs_tensor.detach())
+                entropy_loss = dist.entropy().mean()
 
             else:
                 # Actions are used as indices, must be 
                 # LongTensor
                 action_tensor = action_tensor.long()
-                distr = Categorical(probs)
-                
-            log_probs_tensor = distr.log_prob(action_tensor.flatten())
-            ratios = torch.exp(log_probs_tensor - old_log_probs_tensor.detach())
+                selected_probs_tensor = torch.index_select(probs, 1, action_tensor).diag()
+                ratios = selected_probs_tensor/old_selected_probs_tensor
+                entropy_loss = torch.distributions.Categorical(probs = probs).entropy().mean()
 
-            entropy_loss = distr.entropy().mean()
-
+            
             advantages_tensor = rewards_tensor - values_tensor.detach()   
 
             loss_actor = ratios*advantages_tensor
@@ -202,12 +187,15 @@ class PPOAgent():
         self.reset_batches()
 
 
-    def memorize(self, ob_prec, val, log_prob, action, ob, reward, done):
+    def memorize(self, ob_prec, val, action_probs, action, ob, reward, done):
         self.states.append(ob_prec)
         self.values.extend(val)
         self.rewards.append(reward)
         self.actions.append(action)
-        self.log_probs.append(log_prob)
+        if(self.continuous_action_space):
+            self.selected_probs.append(action_probs)
+        else:
+            self.selected_probs.append(action_probs[action])
         self.list_done.append(done)  
 
     def start_episode(self):
@@ -215,7 +203,7 @@ class PPOAgent():
         self.rewards = []
         self.actions = []
         self.values = []
-        self.log_probs = []
+        self.selected_probs = []
         self.list_done = []
 
     def end_episode(self):
@@ -227,20 +215,20 @@ class PPOAgent():
         self.batch_values.extend(self.values)
         self.batch_actions.extend(self.actions)
         self.batch_done.extend(self.list_done)
-        self.batch_log_probs.extend(self.log_probs)
+        self.batch_selected_probs.extend(self.selected_probs)
 
 
     def act(self, observation):
         # Get actions and convert to numpy array
-        probs, val = self.old_model(torch.tensor(observation))
+        action_probs, val = self.old_model(torch.tensor(observation))
         val = val.detach().numpy()
         if(self.continuous_action_space):
             std_mat = torch.diag(self.action_std)
-            distr = MultivariateNormal(probs, std_mat)
+            dist = MultivariateNormal(action_probs, std_mat)
+            action = dist.sample().item()
+            action_probs = dist.log_prob(action)
         else:
-            distr = Categorical(probs)
+            action_probs = action_probs.detach().numpy()
+            action = np.random.choice(np.arange(self.ac_space), p=action_probs)
 
-        action = distr.sample()
-        log_prob = distr.log_prob(action)
-
-        return action.item(), val, log_prob
+        return action, val, action_probs

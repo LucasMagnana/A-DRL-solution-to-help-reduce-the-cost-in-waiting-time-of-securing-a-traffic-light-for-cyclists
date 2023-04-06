@@ -7,7 +7,7 @@ from DQNAgent import DQNAgent
 from PPOAgent import PPOAgent
 
 class Structure:
-    def __init__(self, edges, net, traci, simu_length, method, test, min_group_size, alpha_bike, open=True):
+    def __init__(self, edges, net, traci, simu_length, method, test, min_group_size, alpha_bike, cnn=True, open=True):
 
 
         self.module_traci = traci
@@ -36,10 +36,17 @@ class Structure:
         self.use_drl = "DQN" in self.method or "PPO" in self.method
 
         if(self.use_drl):
+            self.cnn = cnn
             self.drl_cum_reward = 0
             self.drl_decision_made = False
             self.test = test
-            self.ob_shape = (2, 8, int(self.net.getEdge("E0").getLength()//5+2))
+            if(self.cnn):
+                self.ob_shape = (2, 8, int(self.net.getEdge("E0").getLength()//5+2))
+            else:
+                self.ob_shape = [20]
+                self.car_lanes_capacity = -1
+                self.bike_lanes_capacity = -1
+
             self.action_space = 9
 
             if(os.path.exists("files/train/"+str(alpha_bike)+"/"+self.method+"_trained.n")):
@@ -122,7 +129,7 @@ class Structure:
         
         if(self.use_drl):
             if(self.module_traci.trafficlight.getPhase(self.tls.getID()) == 0 and not self.drl_decision_made):
-                self.drl_decision_making()
+                self.drl_decision_making(step)
                 self.drl_decision_made = True
             elif(self.module_traci.trafficlight.getPhase(self.tls.getID()) != 0 and self.drl_decision_made):
                 self.drl_decision_made = False
@@ -134,10 +141,12 @@ class Structure:
 
 
 
-    def drl_decision_making(self, end=False):       
-        self.create_observation()
+    def drl_decision_making(self, step):   
         self.ob_prec = self.ob
-        self.ob = self.create_observation()
+        if(self.cnn):
+            self.ob = self.create_observation_cnn()
+        else:
+            self.ob = self.create_observation()
 
         if(len(self.ob_prec) == 0):
             self.calculate_sum_waiting_time()
@@ -146,9 +155,9 @@ class Structure:
                 reward = self.calculate_reward()
                 self.drl_cum_reward += reward
                 if("DQN" in self.method):
-                    self.drl_agent.memorize(self.ob_prec, self.action, self.ob, reward, end)  
+                    self.drl_agent.memorize(self.ob_prec, self.action, self.ob, reward, False)  
                 elif(self.method == "PPO"):                   
-                    self.drl_agent.memorize(self.ob_prec, self.val, self.action_probs, self.action, self.ob, reward, end)  
+                    self.drl_agent.memorize(self.ob_prec, self.val, self.action_probs, self.action, self.ob, reward, False)  
 
             if("DQN" in self.method):
                 self.action = self.drl_agent.act(self.ob)
@@ -184,7 +193,7 @@ class Structure:
 
             self.update_tls_program()
 
-            #print([p.duration for p in self.phases], self.action)
+            print([p.duration for p in self.phases], self.action)
                     
 
 
@@ -224,7 +233,7 @@ class Structure:
 
 
 
-    def create_observation(self):
+    def create_observation_cnn(self):
         ob_num = []
         ob_speed = []
         for edge_id in range(4):
@@ -252,6 +261,44 @@ class Structure:
 
         ob = np.array([ob_num, ob_speed])
         return ob
+
+
+    def create_observation(self):
+        if(self.bike_lanes_capacity < 0):
+            min_gap_bikes = self.module_traci.vehicletype.getMinGap("bicycle")
+            tau_bikes = self.module_traci.vehicletype.getTau("bicycle")
+            bike_lane = self.net.getEdge("E0").getLane(0)
+            self.bike_lanes_capacity = (bike_lane.getLength() + min_gap_bikes) / bike_lane.getSpeed() + tau_bikes
+
+            min_gap_cars = self.module_traci.vehicletype.getMinGap("car")
+            tau_cars = self.module_traci.vehicletype.getTau("car")
+            car_lane = self.net.getEdge("E0").getLane(1)
+            self.car_lanes_capacity = (car_lane.getLength() + min_gap_cars) / car_lane.getSpeed() + tau_cars
+            
+        ob = []
+        for edge_id in range(4):
+            edge = self.net.getEdge("E"+str(edge_id))
+            num_bikes = 0
+            num_stopped_bikes = 0
+            num_cars = 0
+            num_stopped_cars = 0
+            for vehicle_id in self.module_traci.edge.getLastStepVehicleIDs(edge.getID()):
+                if("_c" in vehicle_id):
+                    num_cars += 1
+                    if(self.module_traci.vehicle.getSpeed(vehicle_id)<0.5):
+                        num_stopped_cars += 1
+                else:
+                    num_bikes += 1
+                    if(self.module_traci.vehicle.getSpeed(vehicle_id)<0.5):
+                        num_stopped_bikes += 1
+            ob.append(num_bikes/self.bike_lanes_capacity)
+            ob.append(num_stopped_bikes/self.bike_lanes_capacity)
+            ob.append(num_cars/self.car_lanes_capacity)
+            ob.append(num_stopped_cars/self.car_lanes_capacity)
+
+        ob += [self.phases[i].duration/60 for i in range(0, len(self.phases), 2)]
+        
+        return np.array(ob)
         
 
 

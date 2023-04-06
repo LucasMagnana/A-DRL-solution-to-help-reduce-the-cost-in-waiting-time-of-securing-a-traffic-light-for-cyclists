@@ -11,7 +11,7 @@ import copy
 import numpy as np
 import torch
 
-from NeuralNetworks import Actor, DuellingActor
+from NeuralNetworks import Actor, DuellingActorCNN, DuellingActor
 
 class DQNHyperParams :
     def __init__(self):
@@ -55,9 +55,17 @@ class DQNAgent(object):
 
         self.device = torch.device("cuda" if cuda else "cpu")
 
+        if(len(observation_space) > 1):
+            self.cnn = True
+        else:
+            self.cnn = False
+
         self.duelling = duelling
         if(self.duelling):
-            self.model = DuellingActor(observation_space, action_space).to(self.device) #for cartpole
+            if(self.cnn):
+                self.model = DuellingActorCNN(observation_space, action_space).to(self.device) #for cartpole
+            else:
+                self.model = DuellingActor(observation_space, action_space).to(self.device) #for cartpole
         else:
             self.model = Actor(observation_space, action_space).to(self.device) #for cartpole
 
@@ -84,6 +92,8 @@ class DQNAgent(object):
         tens_qvalue = self.model(observation) #compute the qvalues for the observation
         tens_qvalue = tens_qvalue.squeeze()
         rand = random()
+        print()
+        print("eps :", self.epsilon, "qvalues :", tens_qvalue.tolist())
         if(rand > self.epsilon): #noise management
             _, indices = tens_qvalue.max(0) #finds the index of the max qvalue
             return indices.item() #return it
@@ -111,6 +121,7 @@ class DQNAgent(object):
         else:
             self.epsilon = 0'''
 
+
         
         #actual noise decaying method, works well with the custom env
         self.epsilon -= self.hyperParams.EPSILON_DECAY
@@ -127,11 +138,19 @@ class DQNAgent(object):
 
         spl = torch.split(spl, [np.prod(self.observation_space), 1, np.prod(self.observation_space), 1, 1], dim=1)
 
-        tens_state = spl[0].view(spl[1].shape[0], self.observation_space[0], self.observation_space[1], self.observation_space[2])
+        tens_state = spl[0]
+
+        if(self.cnn):
+            tens_state = tens_state.view(spl[1].shape[0], self.observation_space[0], self.observation_space[1], self.observation_space[2])
+            
 
         tens_action = spl[1].squeeze().long()
 
-        tens_state_next = spl[2].view(spl[1].shape[0], self.observation_space[0], self.observation_space[1], self.observation_space[2])
+        
+        tens_state_next = spl[2]
+        
+        if(self.cnn):
+            tens_state_next = tens_state_next.view(spl[1].shape[0], self.observation_space[0], self.observation_space[1], self.observation_space[2])
 
         tens_reward = spl[3].squeeze()
 
@@ -157,6 +176,8 @@ class DQNAgent(object):
 
         self.optimizer.zero_grad() #reset the gradient
         tens_loss = loss(tens_qvalue, tens_reward+(self.gamma*tens_next_qvalue)*tens_done) #calculate the loss
+        print()
+        print("loss : ",tens_loss)
         tens_loss.backward() #compute the gradient
         self.optimizer.step() #back-propagate the gradient
 
