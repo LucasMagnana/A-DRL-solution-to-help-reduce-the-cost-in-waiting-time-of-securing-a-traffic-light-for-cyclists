@@ -96,7 +96,7 @@ class Structure:
             if(self.action_space == 9):
                 green_dur = 30
             elif(self.action_space == 4):
-                green_dur = 0
+                green_dur = 9999
 
             self.phases.append(self.module_traci.trafficlight.Phase(duration=green_dur, state=green_phase, minDur=green_dur, maxDur=green_dur))
             self.phases.append(self.module_traci.trafficlight.Phase(duration=4, state=yellow_phase, minDur=4, maxDur=4))
@@ -104,7 +104,7 @@ class Structure:
         if(self.action_space == 4):
             self.original_phases = copy.deepcopy(self.phases)
             self.actual_phase = 0
-            self.phases = [self.original_phases[-1], self.original_phases[0]]
+            self.phases = [self.original_phases[-1], self.original_phases[-1], self.original_phases[0]]
 
         
 
@@ -112,8 +112,8 @@ class Structure:
 
     def update_tls_program(self):
         self.module_traci.trafficlight.setProgramLogic(self.tls.getID(), self.module_traci.trafficlight.Logic(0, 0, 0, phases=self.phases))
-        print()
-        print(self.module_traci.trafficlight.getAllProgramLogics(self.tls.getID()))
+        self.module_traci.trafficlight.setPhase(self.tls.getID(), 0)
+        
 
 
     def reset(self, dict_cyclists, dict_scenario):
@@ -148,6 +148,7 @@ class Structure:
         self.update_next_step_decision(step)
         
         if(self.use_drl):
+
             if(self.action_space == 9):
                 if(self.module_traci.trafficlight.getPhase(self.tls.getID()) == 0 and not self.drl_decision_made):
                     self.drl_decision_making(step)
@@ -155,7 +156,7 @@ class Structure:
                 elif(self.module_traci.trafficlight.getPhase(self.tls.getID()) != 0 and self.drl_decision_made):
                     self.drl_decision_made = False
             else:
-                if(self.module_traci.trafficlight.getPhase(self.tls.getID()) == 1):
+                if(self.module_traci.trafficlight.getPhase(self.tls.getID()) == 2):
                     self.drl_decision_making(step)
 
         elif(self.method == "actuated"):
@@ -222,11 +223,8 @@ class Structure:
 
                 elif(self.action_space == 4):
                     if(phases_correspondance[self.action] != self.actual_phase):
-                        self.phases = [self.original_phases[self.actual_phase+1], self.original_phases[phases_correspondance[self.action]]]
-                        print(self.actual_phase)
+                        self.phases = [self.original_phases[self.actual_phase+1], self.original_phases[self.actual_phase+1], self.original_phases[phases_correspondance[self.action]]]
                         self.actual_phase = phases_correspondance[self.action]
-
-                        print(self.phases)
                         self.update_tls_program()
 
 
