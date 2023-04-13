@@ -22,7 +22,8 @@ def discount_rewards(rewards, list_done, gamma):
             discounted_reward = 0
         discounted_reward = reward + (gamma * discounted_reward)
         r.insert(0, discounted_reward)
-    return r
+    r = np.array(r, dtype=np.single)
+    return r - r.mean()
 
 
 def gae(rewards, values, episode_ends, gamma, lam):
@@ -54,12 +55,13 @@ def gae(rewards, values, episode_ends, gamma, lam):
 
 class PPOHyperParams :
     def __init__(self):
-        self.LR = 0.01
+        self.LR = 0.001
         self.GAMMA = 0.99
         self.LAMBDA = 0.99
         self.EPSILON = 0.2
 
         self.EPISODE_COUNT = 30
+        self.EP_LEARNING_START = 1
         self.LEARNING_EP = 5
         self.K = 4
 
@@ -97,7 +99,7 @@ class PPOAgent():
         
 
         if(self.continuous_action_space):
-            self.action_std = torch.full((ac_space,), 1/60)
+            self.action_std = torch.full((ac_space,), 1/120)
 
         self.reset_batches()
 
@@ -120,14 +122,14 @@ class PPOAgent():
 
             #print(state_tensor.tolist() == self.batch_states)
 
-            #advantages_tensor = torch.tensor(self.batch_advantages)
+            advantages_tensor = torch.tensor(self.batch_advantages)
             old_selected_probs_tensor = torch.tensor(self.batch_selected_probs)
 
             old_values_tensor = torch.tensor(self.batch_values)
 
             rewards_tensor = torch.tensor(self.batch_rewards)
             # Normalizing the rewards:
-            rewards_tensor = (rewards_tensor - rewards_tensor.mean()) / (rewards_tensor.std() + 1e-5)
+            #rewards_tensor = (rewards_tensor - rewards_tensor.mean()) / (rewards_tensor.std() + 1e-5)
             
 
             action_tensor = torch.tensor(self.batch_actions)
@@ -155,7 +157,7 @@ class PPOAgent():
                 entropy_loss = torch.distributions.Categorical(probs = probs).entropy().mean()
 
             
-            advantages_tensor = rewards_tensor - values_tensor.detach()   
+            #advantages_tensor = rewards_tensor - values_tensor.detach()   
 
             loss_actor = ratios*advantages_tensor
             clipped_loss_actor = torch.clamp(ratios, 1-self.hyperParams.EPSILON, 1+self.hyperParams.EPSILON)*advantages_tensor

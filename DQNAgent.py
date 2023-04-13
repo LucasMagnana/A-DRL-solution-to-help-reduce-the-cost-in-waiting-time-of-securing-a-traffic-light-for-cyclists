@@ -27,6 +27,7 @@ class DQNHyperParams :
         self.EPISODE_COUNT = 200
         self.MAX_STEPS = 1000
         self.EP_LEARNING_START = 5
+        self.LEARNING_EP = 1
 
         self.EPSILON = 1.0
         self.MIN_EPSILON = 0.001

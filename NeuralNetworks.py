@@ -6,6 +6,22 @@ def shape_after_conv_and_flatten(input_shape, conv):
     return int((input_shape[1] + 2*conv.padding[0] - conv.dilation[0]*(conv.kernel_size[0] - 1) -1)/conv.stride[0]+1)*\
     int((input_shape[2] + 2*conv.padding[1] - conv.dilation[1]*(conv.kernel_size[1] - 1) -1)/conv.stride[1]+1)*conv.out_channels
 
+
+
+class Critic(nn.Module):
+
+    def __init__(self, size_ob, size_action):
+        super(Critic, self).__init__()
+        self.conv1 = nn.Conv2d(size_ob[0], 16, 2)
+        out_shape = shape_after_conv_and_flatten(size_ob, self.conv1)
+        self.out = nn.Linear(out_shape, 1)
+
+    def forward(self, ob, action):
+        out = nn.functional.relu(self.inp(torch.cat((ob, action), dim=1)))
+        out = nn.functional.relu(self.int(out))
+        return self.out(out)
+
+
 class Actor(nn.Module):
 
     def __init__(self, size_ob, size_action, max_action=1, tanh=False): #for saved hyperparameters
@@ -24,7 +40,7 @@ class Actor(nn.Module):
         elif(len(out.shape) == 4):
             out = torch.flatten(out, start_dim=1)
         if(self.tanh):
-            return torch.tanh(self.out(out)*self.max_action)
+            return torch.tanh(self.out(out))*30+30
         else:
             return self.out(out)*self.max_action
 

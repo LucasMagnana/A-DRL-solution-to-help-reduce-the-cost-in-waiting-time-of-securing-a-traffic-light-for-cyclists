@@ -2,12 +2,14 @@ import threading
 import torch
 import numpy as np
 import os
+import copy
 
 from DQNAgent import DQNAgent
 from PPOAgent import PPOAgent
+from TD3Agent import TD3Agent
 
 class Structure:
-    def __init__(self, edges, net, traci, simu_length, method, test, min_group_size, alpha_bike, cnn=True, open=True):
+    def __init__(self, edges, net, traci, simu_length, method, test, min_group_size, alpha_bike, use_drl=True, cnn=True, open=True):
 
 
         self.module_traci = traci
@@ -28,12 +30,11 @@ class Structure:
             self.actuated_next_change_step = 5
         self.open = open
 
-        self.create_tls_phases()
 
 
         self.next_step_decision = 0
 
-        self.use_drl = "DQN" in self.method or "PPO" in self.method
+        self.use_drl = use_drl
 
         if(self.use_drl):
             self.cnn = cnn
@@ -47,25 +48,31 @@ class Structure:
                 self.car_lanes_capacity = -1
                 self.bike_lanes_capacity = -1
 
-            self.action_space = 9
+            self.action_space = 4
 
             if(os.path.exists("files/train/"+str(alpha_bike)+"/"+self.method+"_trained.n")):
                 model_to_load = "files/train/"+str(alpha_bike)+"/"+self.method+"_trained.n"
             else:
                 model_to_load = None
 
+
             if(self.method == "DQN"):
                 self.drl_agent = DQNAgent(self.ob_shape, self.action_space, model_to_load=model_to_load)
             elif(self.method == "3DQN"):
                 self.drl_agent = DQNAgent(self.ob_shape, self.action_space, double=True, duelling=True, model_to_load=model_to_load)
+            elif(self.method == "TD3"):
+                self.drl_agent = TD3Agent(self.ob_shape, 1)
             elif(self.method == "PPO"):
-                self.drl_agent = PPOAgent(self.ob_shape, self.action_space, model_to_load=model_to_load, continuous_action_space=False)
+                self.drl_agent = PPOAgent(self.ob_shape, 1, model_to_load=model_to_load, continuous_action_space=True)
                 self.val = None
                 self.action_probs = None
 
 
             self.bikes_waiting_time_coeff = 1 #alpha_bike
             self.cars_waiting_time_coeff = 1 #1-alpha_bike
+
+
+        self.create_tls_phases()
 
 
 
@@ -85,8 +92,19 @@ class Structure:
                 green_phase = neutral_phase[:i*3] + "gGg" + neutral_phase[i*3+3:12+i*3] + "gGg" + neutral_phase[12+i*3+3:]
            
             yellow_phase = neutral_phase[:i*3] + "yyy" + neutral_phase[i*3+3:12+i*3] + "yyy" + neutral_phase[12+i*3+3:]
-            self.phases.append(self.module_traci.trafficlight.Phase(duration=30, state=green_phase, minDur=30, maxDur=30))
+
+            if(self.action_space == 9):
+                green_dur = 30
+            elif(self.action_space == 4):
+                green_dur = 0
+
+            self.phases.append(self.module_traci.trafficlight.Phase(duration=green_dur, state=green_phase, minDur=green_dur, maxDur=green_dur))
             self.phases.append(self.module_traci.trafficlight.Phase(duration=4, state=yellow_phase, minDur=4, maxDur=4))
+
+        if(self.action_space == 4):
+            self.original_phases = copy.deepcopy(self.phases)
+            self.actual_phase = 0
+            self.phases = [self.original_phases[-1], self.original_phases[0]]
 
         
 
@@ -94,6 +112,8 @@ class Structure:
 
     def update_tls_program(self):
         self.module_traci.trafficlight.setProgramLogic(self.tls.getID(), self.module_traci.trafficlight.Logic(0, 0, 0, phases=self.phases))
+        print()
+        print(self.module_traci.trafficlight.getAllProgramLogics(self.tls.getID()))
 
 
     def reset(self, dict_cyclists, dict_scenario):
@@ -128,11 +148,16 @@ class Structure:
         self.update_next_step_decision(step)
         
         if(self.use_drl):
-            if(self.module_traci.trafficlight.getPhase(self.tls.getID()) == 0 and not self.drl_decision_made):
-                self.drl_decision_making(step)
-                self.drl_decision_made = True
-            elif(self.module_traci.trafficlight.getPhase(self.tls.getID()) != 0 and self.drl_decision_made):
-                self.drl_decision_made = False
+            if(self.action_space == 9):
+                if(self.module_traci.trafficlight.getPhase(self.tls.getID()) == 0 and not self.drl_decision_made):
+                    self.drl_decision_making(step)
+                    self.drl_decision_made = True
+                elif(self.module_traci.trafficlight.getPhase(self.tls.getID()) != 0 and self.drl_decision_made):
+                    self.drl_decision_made = False
+            else:
+                if(self.module_traci.trafficlight.getPhase(self.tls.getID()) == 1):
+                    self.drl_decision_making(step)
+
         elif(self.method == "actuated"):
             if(step > self.next_step_decision):
                 self.actuated_decision_making(step)
@@ -153,19 +178,19 @@ class Structure:
         else:
             if(not self.test and self.action != None):
                 reward = self.calculate_reward()
-                self.drl_cum_reward += reward
-                if("DQN" in self.method):
-                    self.drl_agent.memorize(self.ob_prec, self.action, self.ob, reward, False)  
-                elif(self.method == "PPO"):                   
+                self.drl_cum_reward += reward                   
+                if(self.method == "PPO"):                   
                     self.drl_agent.memorize(self.ob_prec, self.val, self.action_probs, self.action, self.ob, reward, False)  
+                else:
+                    self.drl_agent.memorize(self.ob_prec, self.action, self.ob, reward, False)  
 
-            if("DQN" in self.method):
-                self.action = self.drl_agent.act(self.ob)
-            elif(self.method == "PPO"):  
+            if(self.method == "PPO"):  
                 self.action, self.val, self.action_probs = self.drl_agent.act(self.ob)
+            else:
+                self.action = self.drl_agent.act(self.ob)
 
-            if("PPO" in self.method and self.drl_agent.continuous_action_space):
-                new_dur = int(self.action*30+30)
+            if("DQN" not in self.method):
+                new_dur = int(self.action)
                 if(new_dur < 1):
                     new_dur = 1
                 elif(new_dur > 60):
@@ -178,22 +203,33 @@ class Structure:
                         self.phases[i].maxDur = new_dur
                     
             else:
-                if(self.action > 0):
-                    phases_correspondance = range(0, 8, 2)
-                    phase_id = phases_correspondance[self.action%4]
+                phases_correspondance = range(0, 8, 2)
+                if(self.action_space == 9):
+                    if(self.action > 0):
+                        phase_id = phases_correspondance[self.action%4]
 
-                    if(self.action < 5 and self.phases[phase_id].duration < 60):
-                        self.phases[phase_id].duration += 5
-                        self.phases[phase_id].minDur += 5
-                        self.phases[phase_id].maxDur += 5
-                    elif(self.action >= 5 and self.phases[phase_id].duration > 5):
-                        self.phases[phase_id].duration -= 5
-                        self.phases[phase_id].minDur -= 5
-                        self.phases[phase_id].maxDur -= 5
+                        if(self.action < 5 and self.phases[phase_id].duration < 60):
+                            self.phases[phase_id].duration += 5
+                            self.phases[phase_id].minDur += 5
+                            self.phases[phase_id].maxDur += 5
+                        elif(self.action >= 5 and self.phases[phase_id].duration > 5):
+                            self.phases[phase_id].duration -= 5
+                            self.phases[phase_id].minDur -= 5
+                            self.phases[phase_id].maxDur -= 5
 
-            self.update_tls_program()
+                        self.update_tls_program()
+                        print([p.duration for p in self.phases], self.action)
 
-            print([p.duration for p in self.phases], self.action)
+                elif(self.action_space == 4):
+                    if(phases_correspondance[self.action] != self.actual_phase):
+                        self.phases = [self.original_phases[self.actual_phase+1], self.original_phases[phases_correspondance[self.action]]]
+                        print(self.actual_phase)
+                        self.actual_phase = phases_correspondance[self.action]
+
+                        print(self.phases)
+                        self.update_tls_program()
+
+
                     
 
 
