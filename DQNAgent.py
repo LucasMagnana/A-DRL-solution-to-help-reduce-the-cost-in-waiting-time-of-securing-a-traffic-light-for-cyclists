@@ -24,7 +24,7 @@ class DQNHyperParams :
         self.HIDDEN_SIZE = 16
         self.ACT_INTER = 16
 
-        self.EPISODE_COUNT = 200
+        self.EPISODE_COUNT = 450
         self.MAX_STEPS = 1000
         self.EP_LEARNING_START = 5
         self.LEARNING_EP = 1
@@ -93,8 +93,6 @@ class DQNAgent(object):
         tens_qvalue = self.model(observation) #compute the qvalues for the observation
         tens_qvalue = tens_qvalue.squeeze()
         rand = random()
-        print()
-        print("eps :", self.epsilon, "qvalues :", tens_qvalue.tolist())
         if(rand > self.epsilon): #noise management
             _, indices = tens_qvalue.max(0) #finds the index of the max qvalue
             return indices.item() #return it

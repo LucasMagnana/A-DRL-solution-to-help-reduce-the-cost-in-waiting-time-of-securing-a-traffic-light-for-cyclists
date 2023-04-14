@@ -32,7 +32,7 @@ def spawn_car(id_car, step, path, net, dict_cars):
 
 min_group_size = 5
 
-num_simu = 260
+num_simu = 500
 simu_length = 1800
 
 save_scenario = True
@@ -160,8 +160,8 @@ for s in range(start_num_simu, num_simu):
     if(not args.load_scenario):
         if(not args.real_data):
             print("WARNING : Creating a new scenario...")
-            bike_poisson_lambda = 0.2 #random.uniform(0,max(list_bike_poisson_lambdas))
-            car_poisson_lambda = 0.2
+            bike_poisson_lambda = 0.1 #random.uniform(0,max(list_bike_poisson_lambdas))
+            car_poisson_lambda = 0.1
             
             bike_poisson_distrib = np.random.poisson(bike_poisson_lambda, simu_length)
             car_poisson_distrib = np.random.poisson(car_poisson_lambda, simu_length)
