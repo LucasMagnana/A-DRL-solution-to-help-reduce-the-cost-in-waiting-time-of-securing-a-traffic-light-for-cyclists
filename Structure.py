@@ -352,20 +352,20 @@ class Structure:
         return last_cars_wt, last_bikes_wt
 
         
-    '''def calculate_reward(self):
+    def calculate_reward(self):
         waiting_vehicle_number = 0
         for vehi_id in self.module_traci.vehicle.getIDList():
             if(self.module_traci.vehicle.getSpeed(vehi_id)<0.5):
                 waiting_vehicle_number += 1
-        return -(waiting_vehicle_number**2)'''
+        return -(waiting_vehicle_number**2)
 
 
-    def calculate_reward(self):
+    '''def calculate_reward(self):
         last_cars_wt, last_bikes_wt = self.calculate_sum_waiting_time()
         diff_cars =  last_cars_wt - self.cars_waiting_time
         diff_bikes = last_bikes_wt - self.bikes_waiting_time
         
-        return (self.bikes_waiting_time_coeff*diff_bikes+self.cars_waiting_time_coeff*diff_cars)
+        return (self.bikes_waiting_time_coeff*diff_bikes+self.cars_waiting_time_coeff*diff_cars)'''
 
     def update_next_step_decision(self, step):
         if(step > self.next_step_decision):

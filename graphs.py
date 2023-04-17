@@ -128,8 +128,8 @@ if __name__ == "__main__":
                         labels.append(l)
                         break
 
-                #ist_tab_scenarios.append(tab_scenarios)
-                list_tab_scenarios.append(tab_scenarios[len(tab_scenarios)-len(list_tab_scenarios[0]):])
+                list_tab_scenarios.append(tab_scenarios)
+                #list_tab_scenarios.append(tab_scenarios[len(tab_scenarios)-len(list_tab_scenarios[0]):])
     
 
 

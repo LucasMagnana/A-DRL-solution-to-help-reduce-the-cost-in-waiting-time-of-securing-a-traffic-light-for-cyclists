@@ -32,7 +32,7 @@ def spawn_car(id_car, step, path, net, dict_cars):
 
 min_group_size = 5
 
-num_simu = 500
+num_simu = 1000
 simu_length = 1800
 
 save_scenario = True
