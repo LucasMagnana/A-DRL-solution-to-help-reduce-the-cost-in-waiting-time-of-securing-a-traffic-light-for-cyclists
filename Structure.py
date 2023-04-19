@@ -9,7 +9,7 @@ from PPOAgent import PPOAgent
 from TD3Agent import TD3Agent
 
 class Structure:
-    def __init__(self, edges, net, traci, simu_length, method, test, min_group_size, alpha_bike, use_drl=True, cnn=True, open=True):
+    def __init__(self, edges, net, traci, simu_length, method, test, min_group_size, alpha_bike, use_drl=True, cnn=False, open=True):
 
 
         self.module_traci = traci
@@ -330,9 +330,11 @@ class Structure:
             ob.append(num_cars/self.car_lanes_capacity)
             ob.append(num_stopped_cars/self.car_lanes_capacity)
 
-        ob += [self.phases[i].duration/60 for i in range(0, len(self.phases), 2)]
+        phases_correspondance = range(0, 8, 2)
+        light_phase_encoded = np.zeros(4)
+        light_phase_encoded[phases_correspondance.index(self.actual_phase)] = 1
         
-        return np.array(ob)
+        return np.concatenate((ob, light_phase_encoded))
         
 
 

@@ -14,8 +14,10 @@ def compute_data(dict_scenario):
                 tab_waiting_time.append(dict_scenario[v]["waiting_time"])
         if(len(tab_travel_time)>0):
             return sum(tab_travel_time), sum(tab_waiting_time), len(tab_travel_time)
+        else:
+            return 0, 0, 1
 
-    return 0, 0
+    return 0, 0, 1
 
 
 
