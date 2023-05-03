@@ -32,7 +32,7 @@ def spawn_car(id_car, step, path, net, dict_cars):
 
 min_group_size = 5
 
-num_simu = 1000
+num_simu = 500
 simu_length = 1800
 
 save_scenario = True
@@ -100,7 +100,8 @@ else:
 sumoBinary = "/usr/bin/sumo"
 if(args.gui):
     sumoBinary += "-gui"
-sumoCmd = [sumoBinary, "-c", "sumo_files/sumo.sumocfg", "--quit-on-end", "--waiting-time-memory", '10000', '--start', '--delay', '0', '--step-length', str(step_length), "--no-warnings"]
+sumoCmd = [sumoBinary, "-c", "sumo_files/sumo.sumocfg", "--quit-on-end", "--waiting-time-memory", '10000', '--start', '--delay', '0', '--step-length', str(step_length),\
+'--time-to-teleport', '-1', "--no-warnings"]
 
 import traci
 import traci.constants as tc
@@ -160,8 +161,8 @@ for s in range(start_num_simu, num_simu):
     if(not args.load_scenario):
         if(not args.real_data):
             print("WARNING : Creating a new scenario...")
-            bike_poisson_lambda = 0.1 #random.uniform(0,max(list_bike_poisson_lambdas))
-            car_poisson_lambda = 0.1
+            bike_poisson_lambda = 0.3 #random.uniform(0,max(list_bike_poisson_lambdas))
+            car_poisson_lambda = 0.3
             
             bike_poisson_distrib = np.random.poisson(bike_poisson_lambda, simu_length)
             car_poisson_distrib = np.random.poisson(car_poisson_lambda, simu_length)
@@ -347,7 +348,7 @@ for s in range(start_num_simu, num_simu):
 
     print(f"mean cars waiting time: {cars_data[1]/cars_data[2]}")
     print(f"mean bikes waiting time: {bikes_data[1]/bikes_data[2]}")
-    print(f"tot waiting time: {bikes_data[1]/cars_data[1]}")
+    print(f"tot waiting time: {bikes_data[1]+cars_data[1]}")
 
     if("DQN" in args.method or "PPO" in args.method):
         print(f"cumulative reward:", structure.drl_cum_reward)

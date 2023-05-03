@@ -45,8 +45,8 @@ class Structure:
                 self.ob_shape = (2, 8, int(self.net.getEdge("E0").getLength()//5+2))
             else:
                 self.ob_shape = [20]
-                self.car_lanes_capacity = -1
-                self.bike_lanes_capacity = -1
+                self.car_lanes_capacity = 12
+                self.bike_lanes_capacity = 36
 
             self.action_space = 4
 
@@ -156,7 +156,7 @@ class Structure:
                 elif(self.module_traci.trafficlight.getPhase(self.tls.getID()) != 0 and self.drl_decision_made):
                     self.drl_decision_made = False
             else:
-                if(self.module_traci.trafficlight.getPhase(self.tls.getID()) == 2):
+                if(self.module_traci.trafficlight.getPhase(self.tls.getID()) == 2 and int(step) > self.next_step_decision):
                     self.drl_decision_making(step)
 
         elif(self.method == "actuated"):
@@ -167,7 +167,7 @@ class Structure:
 
 
 
-    def drl_decision_making(self, step):   
+    def drl_decision_making(self, step):  
         self.ob_prec = self.ob
         if(self.cnn):
             self.ob = self.create_observation_cnn()
@@ -226,6 +226,9 @@ class Structure:
                         self.phases = [self.original_phases[self.actual_phase+1], self.original_phases[self.actual_phase+1], self.original_phases[phases_correspondance[self.action]]]
                         self.actual_phase = phases_correspondance[self.action]
                         self.update_tls_program()
+                        self.next_step_decision = int(step)+6
+                    else:
+                        self.next_step_decision = int(step)+2
 
 
                     
@@ -298,17 +301,6 @@ class Structure:
 
 
     def create_observation(self):
-        if(self.bike_lanes_capacity < 0):
-            min_gap_bikes = self.module_traci.vehicletype.getMinGap("bicycle")
-            tau_bikes = self.module_traci.vehicletype.getTau("bicycle")
-            bike_lane = self.net.getEdge("E0").getLane(0)
-            self.bike_lanes_capacity = (bike_lane.getLength() + min_gap_bikes) / bike_lane.getSpeed() + tau_bikes
-
-            min_gap_cars = self.module_traci.vehicletype.getMinGap("car")
-            tau_cars = self.module_traci.vehicletype.getTau("car")
-            car_lane = self.net.getEdge("E0").getLane(1)
-            self.car_lanes_capacity = (car_lane.getLength() + min_gap_cars) / car_lane.getSpeed() + tau_cars
-            
         ob = []
         for edge_id in range(4):
             edge = self.net.getEdge("E"+str(edge_id))
