@@ -175,7 +175,7 @@ class Structure:
                         self.update_tls_program()
                     else:
                         self.transition_end -= 1
-                elif(self.time_elapsed_in_chosen_phase >= 1):
+                elif(self.time_elapsed_in_chosen_phase >= 10):
                     self.drl_decision_making(step)
                 else:
                     self.time_elapsed_in_chosen_phase += 1
@@ -304,22 +304,20 @@ class Structure:
             num_cars = 0
             num_stopped_cars = 0
             for vehicle_id in self.module_traci.edge.getLastStepVehicleIDs(edge.getID()):
-                print(self.module_traci.vehicle.getPosition(vehicle_id)[0], edge_start_x)
-                if(self.module_traci.vehicle.getPosition(vehicle_id)[0]-edge_start_x < 150):
-                    if("_c" in vehicle_id):
-                        num_cars += 1
-                        if(self.module_traci.vehicle.getSpeed(vehicle_id)<0.5):
-                            num_stopped_cars += 1
-                    else:
-                        num_bikes += 1
-                        if(self.module_traci.vehicle.getSpeed(vehicle_id)<0.5):
-                            num_stopped_bikes += 1
+                if("_c" in vehicle_id):
+                    num_cars += 1
+                    if(self.module_traci.vehicle.getSpeed(vehicle_id)<0.5):
+                        num_stopped_cars += 1
+                else:
+                    num_bikes += 1
+                    if(self.module_traci.vehicle.getSpeed(vehicle_id)<0.5):
+                        num_stopped_bikes += 1
             '''ob.append(num_bikes/self.bike_lanes_capacity)
             ob.append(num_stopped_bikes/self.bike_lanes_capacity)'''
             ob.append(num_cars/self.car_lanes_capacity)
             ob.append(num_stopped_cars/self.car_lanes_capacity)
 
-        ob.append(self.time_elapsed_in_chosen_phase/10)
+        ob.append(self.time_elapsed_in_chosen_phase/30)
         light_phase_encoded = np.zeros(4)
         light_phase_encoded[self.actual_phase] = 1
         

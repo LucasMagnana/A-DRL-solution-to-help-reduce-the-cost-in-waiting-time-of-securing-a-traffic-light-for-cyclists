@@ -33,7 +33,7 @@ def spawn_car(id_car, step, path, net, dict_cars):
 min_group_size = 5
 
 num_simu = 500
-simu_length = 1800
+simu_length = 3600
 
 save_scenario = True
 
@@ -101,7 +101,7 @@ sumoBinary = "/usr/bin/sumo"
 if(args.gui):
     sumoBinary += "-gui"
 sumoCmd = [sumoBinary, "-c", "sumo_files/sumo.sumocfg", "--quit-on-end", "--waiting-time-memory", '10000', '--start', '--delay', '1000', '--step-length', str(step_length),\
-'--time-to-teleport', '-1']#, "--no-warnings"]
+'--time-to-teleport', '-1', "--no-warnings"]
 
 import traci
 import traci.constants as tc
@@ -164,7 +164,7 @@ while(structure.drl_agent.num_decisions_made < structure.drl_agent.hyperParams.D
         if(not args.real_data):
             print("WARNING : Creating a new scenario...")
             bike_poisson_lambda = 0 #random.uniform(0,max(list_bike_poisson_lambdas))
-            car_poisson_lambda = 0.5
+            car_poisson_lambda = 1
             
             bike_poisson_distrib = np.random.poisson(bike_poisson_lambda, simu_length)
             car_poisson_distrib = np.random.poisson(car_poisson_lambda, simu_length)
@@ -323,7 +323,8 @@ while(structure.drl_agent.num_decisions_made < structure.drl_agent.hyperParams.D
                 del dict_scenario[vehicle_type][i]'''
 
 
-    print("\ndata number:", num_cars_real+num_cyclists_real, ",", structure.num_cyclists_crossed, "cyclits used struct, last step:", step)
+    print("\ndata number:", num_cars_real+num_cyclists_real, ",", structure.num_cyclists_crossed, "cyclits used struct, last step:", step,\
+           "decisions:", structure.drl_agent.num_decisions_made)
 
 
 
@@ -355,7 +356,7 @@ while(structure.drl_agent.num_decisions_made < structure.drl_agent.hyperParams.D
     if("DQN" in args.method or "PPO" in args.method):
         print(f"cumulative reward:", structure.drl_cum_reward)
 
-    if(not args.test and s%50 == 0 and ("DQN" in args.method or "PPO" in args.method)):
+    if(not args.test and structure.drl_agent.num_decisions_made%10000 == 0 and ("DQN" in args.method or "PPO" in args.method)):
         torch.save(structure.drl_agent.model.state_dict(), "files/"+sub_folders+pre_file_name+"trained.n")
         if("DQN" in args.method):
             torch.save(structure.drl_agent.model_target.state_dict(), "files/"+sub_folders+pre_file_name+"trained_target.n")
