@@ -18,20 +18,20 @@ class DQNHyperParams :
         self.BUFFER_SIZE = 25000 
         self.ALPHA = 0.05 #
         self.GAMMA = 0.99
-        self.LR = 0.05
-        self.BATCH_SIZE = 128
+        self.LR = 0.001
+        self.BATCH_SIZE = 32
 
         self.HIDDEN_SIZE = 16
         self.ACT_INTER = 16
 
-        self.EPISODE_COUNT = 500
+        self.DECISION_COUNT = 1.5e6
         self.MAX_STEPS = 1000
-        self.EP_LEARNING_START = 5
+        self.DECISION_CT_LEARNING_START = 10000
         self.LEARNING_EP = 1
 
         self.EPSILON = 1.0
-        self.MIN_EPSILON = 0.001
-        self.EPSILON_DECAY = self.EPSILON/(self.EPISODE_COUNT*2/3)
+        self.MIN_EPSILON = 0
+        self.EPSILON_DECAY = self.EPSILON/(self.DECISION_COUNT)
 
 class DQNAgent(object):
     def __init__(self, observation_space, action_space, test=False, double=False, duelling=False, PER=False, cnn=None, cuda=False, model_to_load=None):
@@ -84,11 +84,14 @@ class DQNAgent(object):
         self.observation_space = observation_space
 
         self.double = double
+
+        self.num_decisions_made = 0
         
         
 
 
     def act(self, observation):
+        self.num_decisions_made += 1
         observation = torch.tensor(observation, device=self.device)
         tens_qvalue = self.model(observation) #compute the qvalues for the observation
         tens_qvalue = tens_qvalue.squeeze()

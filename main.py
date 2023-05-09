@@ -87,7 +87,7 @@ if __name__ == "__main__":
     
 
 
-step_length = 0.2
+step_length = 1
 speed_threshold = 0.5
 
 
@@ -100,8 +100,8 @@ else:
 sumoBinary = "/usr/bin/sumo"
 if(args.gui):
     sumoBinary += "-gui"
-sumoCmd = [sumoBinary, "-c", "sumo_files/sumo.sumocfg", "--quit-on-end", "--waiting-time-memory", '10000', '--start', '--delay', '0', '--step-length', str(step_length),\
-'--time-to-teleport', '-1', "--no-warnings"]
+sumoCmd = [sumoBinary, "-c", "sumo_files/sumo.sumocfg", "--quit-on-end", "--waiting-time-memory", '10000', '--start', '--delay', '1000', '--step-length', str(step_length),\
+'--time-to-teleport', '-1']#, "--no-warnings"]
 
 import traci
 import traci.constants as tc
@@ -115,7 +115,7 @@ else:
     sub_folders = "train/"
 
 
-net = sumolib.net.readNet("sumo_files/net.net.xml")
+net = sumolib.net.readNet("sumo_files/net1.net.xml")
 edges = net.getEdges()
 
 structure = Structure(edges, net, traci, simu_length, args.method, args.test, min_group_size, args.alpha)
@@ -139,9 +139,11 @@ if(args.load_scenario):
 if(args.method != "actuated"):
     sub_folders += str(args.alpha)+"/"
 
-for s in range(start_num_simu, num_simu):
+#for s in range(start_num_simu, num_simu):
 
-    if(not args.test and "DQN" in args.method and s-start_num_simu >= structure.drl_agent.hyperParams.EP_LEARNING_START):
+while(structure.drl_agent.num_decisions_made < structure.drl_agent.hyperParams.DECISION_COUNT):
+
+    if(not args.test and "DQN" in args.method and structure.drl_agent.num_decisions_made >= structure.drl_agent.hyperParams.DECISION_CT_LEARNING_START):
         structure.drl_agent.learn()
 
     if(not args.test and "PPO" in args.method):
@@ -156,13 +158,13 @@ for s in range(start_num_simu, num_simu):
 
     traci.start(sumoCmd)
 
-    structure.update_tls_program()
+    structure.create_tls_phases()
 
     if(not args.load_scenario):
         if(not args.real_data):
             print("WARNING : Creating a new scenario...")
-            bike_poisson_lambda = 0.3 #random.uniform(0,max(list_bike_poisson_lambdas))
-            car_poisson_lambda = 0.3
+            bike_poisson_lambda = 0 #random.uniform(0,max(list_bike_poisson_lambdas))
+            car_poisson_lambda = 0.5
             
             bike_poisson_distrib = np.random.poisson(bike_poisson_lambda, simu_length)
             car_poisson_distrib = np.random.poisson(car_poisson_lambda, simu_length)

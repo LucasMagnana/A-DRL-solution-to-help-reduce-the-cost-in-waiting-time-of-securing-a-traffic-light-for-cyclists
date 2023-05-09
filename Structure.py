@@ -31,10 +31,11 @@ class Structure:
         self.open = open
 
 
-
         self.next_step_decision = 0
 
         self.use_drl = use_drl
+
+        self.phases = None
 
         if(self.use_drl):
             self.cnn = cnn
@@ -44,8 +45,8 @@ class Structure:
             if(self.cnn):
                 self.ob_shape = (2, 8, int(self.net.getEdge("E0").getLength()//5+2))
             else:
-                self.ob_shape = [20]
-                self.car_lanes_capacity = 12
+                self.ob_shape = [13]
+                self.car_lanes_capacity = 20
                 self.bike_lanes_capacity = 36
 
             self.action_space = 4
@@ -72,12 +73,17 @@ class Structure:
             self.cars_waiting_time_coeff = 1 #1-alpha_bike
 
 
-        self.create_tls_phases()
-
-
-
-
     def create_tls_phases(self):
+        if(self.phases == None):
+            self.phases = []
+            for p in self.module_traci.trafficlight.getAllProgramLogics(self.tls.getID())[0].getPhases():
+                self.phases.append(p.state)
+            self.actual_phase = 0
+            self.phases_correspondance = range(0, 8, 2)
+            self.dict_transition = {"0;1": 1, "0;2": 3, "0;3": 3, "1;2":3, "1;3":3, "2;0": 7, "2;1": 7, "2;3": 5, "3;0": 7, "3;1": 7}
+
+
+    '''def create_tls_phases(self):
         self.phases = []
         num_lane = 4
         neutral_phase = "r"*3*num_lane*2
@@ -104,15 +110,17 @@ class Structure:
         if(self.action_space == 4):
             self.original_phases = copy.deepcopy(self.phases)
             self.actual_phase = 0
-            self.phases = [self.original_phases[-1], self.original_phases[-1], self.original_phases[0]]
+            self.phases = [self.original_phases[-1], self.original_phases[-1], self.original_phases[0]]'''
 
         
 
 
 
     def update_tls_program(self):
-        self.module_traci.trafficlight.setProgramLogic(self.tls.getID(), self.module_traci.trafficlight.Logic(0, 0, 0, phases=self.phases))
-        self.module_traci.trafficlight.setPhase(self.tls.getID(), 0)
+        self.module_traci.trafficlight.setRedYellowGreenState(self.tls.getID(), self.actual_phases[0])
+        self.time_elapsed_in_chosen_phase = 0   
+        if(len(self.actual_phases) > 1):
+            self.transition_end = 3
         
 
 
@@ -136,9 +144,14 @@ class Structure:
             self.ob = []
             self.bikes_waiting_time = 0
             self.cars_waiting_time = 0
-            if(self.method == "PPO"):
-                self.val = None
-                self.action_probs = None
+
+            self.actual_phases = [self.phases[0]]
+
+            self.actual_phase = 0
+
+            self.update_tls_program()
+
+
         elif(self.method == "actuated"):
             self.actuated_next_change_step = 5
 
@@ -156,8 +169,16 @@ class Structure:
                 elif(self.module_traci.trafficlight.getPhase(self.tls.getID()) != 0 and self.drl_decision_made):
                     self.drl_decision_made = False
             else:
-                if(self.module_traci.trafficlight.getPhase(self.tls.getID()) == 2 and int(step) > self.next_step_decision):
+                if(len(self.actual_phases) > 1):
+                    if(self.transition_end == 0):
+                        self.actual_phases.pop(0)
+                        self.update_tls_program()
+                    else:
+                        self.transition_end -= 1
+                elif(self.time_elapsed_in_chosen_phase >= 1):
                     self.drl_decision_making(step)
+                else:
+                    self.time_elapsed_in_chosen_phase += 1
 
         elif(self.method == "actuated"):
             if(step > self.next_step_decision):
@@ -190,45 +211,18 @@ class Structure:
             else:
                 self.action = self.drl_agent.act(self.ob)
 
-            if("DQN" not in self.method):
-                new_dur = int(self.action)
-                if(new_dur < 1):
-                    new_dur = 1
-                elif(new_dur > 60):
-                    new_dur = 60
-                    
-                for i in range(len(self.phases)):
-                    if(i%2 == 0):
-                        self.phases[i].duration = new_dur
-                        self.phases[i].minDur = new_dur
-                        self.phases[i].maxDur = new_dur
-                    
-            else:
-                phases_correspondance = range(0, 8, 2)
-                if(self.action_space == 9):
-                    if(self.action > 0):
-                        phase_id = phases_correspondance[self.action%4]
 
-                        if(self.action < 5 and self.phases[phase_id].duration < 60):
-                            self.phases[phase_id].duration += 5
-                            self.phases[phase_id].minDur += 5
-                            self.phases[phase_id].maxDur += 5
-                        elif(self.action >= 5 and self.phases[phase_id].duration > 5):
-                            self.phases[phase_id].duration -= 5
-                            self.phases[phase_id].minDur -= 5
-                            self.phases[phase_id].maxDur -= 5
+            if(self.action != self.actual_phase):
+                self.actual_phases = []
+                key_dict_transition = str(self.actual_phase)+";"+str(self.action)
+                
+                if(key_dict_transition in self.dict_transition):
+                    self.actual_phases.append(self.phases[self.dict_transition[key_dict_transition]])
 
-                        self.update_tls_program()
-                        print([p.duration for p in self.phases], self.action)
+                self.actual_phases.append(self.phases[self.phases_correspondance[self.action]])
 
-                elif(self.action_space == 4):
-                    if(phases_correspondance[self.action] != self.actual_phase):
-                        self.phases = [self.original_phases[self.actual_phase+1], self.original_phases[self.actual_phase+1], self.original_phases[phases_correspondance[self.action]]]
-                        self.actual_phase = phases_correspondance[self.action]
-                        self.update_tls_program()
-                        self.next_step_decision = int(step)+6
-                    else:
-                        self.next_step_decision = int(step)+2
+                self.update_tls_program()
+                self.actual_phase = self.action
 
 
                     
@@ -304,27 +298,30 @@ class Structure:
         ob = []
         for edge_id in range(4):
             edge = self.net.getEdge("E"+str(edge_id))
+            edge_start_x = edge.getFromNode().getCoord()[0]
             num_bikes = 0
             num_stopped_bikes = 0
             num_cars = 0
             num_stopped_cars = 0
             for vehicle_id in self.module_traci.edge.getLastStepVehicleIDs(edge.getID()):
-                if("_c" in vehicle_id):
-                    num_cars += 1
-                    if(self.module_traci.vehicle.getSpeed(vehicle_id)<0.5):
-                        num_stopped_cars += 1
-                else:
-                    num_bikes += 1
-                    if(self.module_traci.vehicle.getSpeed(vehicle_id)<0.5):
-                        num_stopped_bikes += 1
-            ob.append(num_bikes/self.bike_lanes_capacity)
-            ob.append(num_stopped_bikes/self.bike_lanes_capacity)
+                print(self.module_traci.vehicle.getPosition(vehicle_id)[0], edge_start_x)
+                if(self.module_traci.vehicle.getPosition(vehicle_id)[0]-edge_start_x < 150):
+                    if("_c" in vehicle_id):
+                        num_cars += 1
+                        if(self.module_traci.vehicle.getSpeed(vehicle_id)<0.5):
+                            num_stopped_cars += 1
+                    else:
+                        num_bikes += 1
+                        if(self.module_traci.vehicle.getSpeed(vehicle_id)<0.5):
+                            num_stopped_bikes += 1
+            '''ob.append(num_bikes/self.bike_lanes_capacity)
+            ob.append(num_stopped_bikes/self.bike_lanes_capacity)'''
             ob.append(num_cars/self.car_lanes_capacity)
             ob.append(num_stopped_cars/self.car_lanes_capacity)
 
-        phases_correspondance = range(0, 8, 2)
+        ob.append(self.time_elapsed_in_chosen_phase/10)
         light_phase_encoded = np.zeros(4)
-        light_phase_encoded[phases_correspondance.index(self.actual_phase)] = 1
+        light_phase_encoded[self.actual_phase] = 1
         
         return np.concatenate((ob, light_phase_encoded))
         

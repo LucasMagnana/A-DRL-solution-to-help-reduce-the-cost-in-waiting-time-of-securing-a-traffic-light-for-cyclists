@@ -82,12 +82,11 @@ class DuellingActor(nn.Module):
 
     def __init__(self, size_ob, size_action, max_action=1, tanh=False): #for saved hyperparameters
         super(DuellingActor, self).__init__()
+        self.features_layer = nn.Linear(size_ob[0], 42)
 
-        self.features_layer = nn.Linear(size_ob[0], 64)
+        self.advantage_out = nn.Linear(42, size_action)
 
-        self.advantage_out = nn.Linear(64, size_action)
-
-        self.value_out = nn.Linear(64, 1)
+        self.value_out = nn.Linear(42, 1)
 
         self.max_action = max_action
         self.tanh = tanh
