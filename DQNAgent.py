@@ -18,13 +18,15 @@ class DQNHyperParams :
         self.BUFFER_SIZE = 25000 
         self.ALPHA = 0.05 #
         self.GAMMA = 0.99
-        self.LR = 0.001
-        self.BATCH_SIZE = 32
+        self.LR = 0.002
+        self.BATCH_SIZE = 128
 
         self.HIDDEN_SIZE = 16
         self.ACT_INTER = 16
 
-        self.DECISION_COUNT = 1.5e6
+        self.UPDATE_TARGET = 3750
+
+        self.DECISION_COUNT = 750000
         self.MAX_STEPS = 1000
         self.DECISION_CT_LEARNING_START = 10000
         self.LEARNING_EP = 1
@@ -91,10 +93,19 @@ class DQNAgent(object):
 
 
     def act(self, observation):
+        #actual noise decaying method, works well with the custom env
+        self.epsilon -= self.hyperParams.EPSILON_DECAY
+        if(self.epsilon<self.hyperParams.MIN_EPSILON):
+            self.epsilon=self.hyperParams.MIN_EPSILON
         self.num_decisions_made += 1
+
+        if(self.num_decisions_made%self.hyperParams.UPDATE_TARGET == 0):
+            self.model_target.load_state_dict(self.model.state_dict())
+        
         observation = torch.tensor(observation, device=self.device)
         tens_qvalue = self.model(observation) #compute the qvalues for the observation
         tens_qvalue = tens_qvalue.squeeze()
+        #print(tens_qvalue)
         rand = random()
         if(rand > self.epsilon): #noise management
             _, indices = tens_qvalue.max(0) #finds the index of the max qvalue
@@ -122,13 +133,6 @@ class DQNAgent(object):
             self.epsilon *= self.hyperParams.EPSILON_DECAY
         else:
             self.epsilon = 0'''
-
-
-        
-        #actual noise decaying method, works well with the custom env
-        self.epsilon -= self.hyperParams.EPSILON_DECAY
-        if(self.epsilon<self.hyperParams.MIN_EPSILON):
-            self.epsilon=self.hyperParams.MIN_EPSILON
 
         loss = MSELoss()
 
@@ -183,5 +187,5 @@ class DQNAgent(object):
         tens_loss.backward() #compute the gradient
         self.optimizer.step() #back-propagate the gradient
 
-        for target_param, param in zip(self.model_target.parameters(), self.model.parameters()): #updates the target network
-            target_param.data.copy_(self.alpha * param + (1-self.alpha)*target_param )
+        '''for target_param, param in zip(self.model_target.parameters(), self.model.parameters()): #updates the target network
+            target_param.data.copy_(self.alpha * param + (1-self.alpha)*target_param )'''

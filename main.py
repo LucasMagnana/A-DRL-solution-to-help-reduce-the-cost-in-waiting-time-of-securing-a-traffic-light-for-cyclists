@@ -30,6 +30,29 @@ def spawn_car(id_car, step, path, net, dict_cars):
     dict_cars[str(id_car)]=[]
 
 
+def save(tab_dict_scenarios, args, structure, sub_folders, pre_file_name):
+    print("WARNING: Saving scenario...")
+    if(not os.path.exists("files/"+sub_folders)):
+        os.makedirs("files/"+sub_folders)
+
+    if(os.path.exists("files/"+sub_folders+pre_file_name+"scenarios.tab")):
+        with open("files/"+sub_folders+pre_file_name+"scenarios.tab", 'rb') as infile:
+            tab_saved_dict_scenarios = pickle.load(infile)
+    else:
+        tab_saved_dict_scenarios = []
+
+    tab_saved_dict_scenarios += tab_dict_scenarios
+    print(len(tab_saved_dict_scenarios))
+
+    with open("files/"+sub_folders+pre_file_name+"scenarios.tab", 'wb') as outfile:
+        pickle.dump(tab_saved_dict_scenarios, outfile)
+
+    if(not args.test and ("DQN" in args.method or "PPO" in args.method)):
+        torch.save(structure.drl_agent.model.state_dict(), "files/"+sub_folders+pre_file_name+"trained.n")
+        if("DQN" in args.method):
+            torch.save(structure.drl_agent.model_target.state_dict(), "files/"+sub_folders+pre_file_name+"trained_target.n")
+
+
 min_group_size = 5
 
 num_simu = 500
@@ -122,6 +145,7 @@ structure = Structure(edges, net, traci, simu_length, args.method, args.test, mi
 
 pre_file_name = args.method+"_"
 
+tab_dict_scenarios = []
 
 start_num_simu = 0
 
@@ -141,7 +165,11 @@ if(args.method != "actuated"):
 
 #for s in range(start_num_simu, num_simu):
 
+ep = 0
+
 while(structure.drl_agent.num_decisions_made < structure.drl_agent.hyperParams.DECISION_COUNT):
+
+    ep += 1
 
     if(not args.test and "DQN" in args.method and structure.drl_agent.num_decisions_made >= structure.drl_agent.hyperParams.DECISION_CT_LEARNING_START):
         structure.drl_agent.learn()
@@ -323,27 +351,18 @@ while(structure.drl_agent.num_decisions_made < structure.drl_agent.hyperParams.D
                 del dict_scenario[vehicle_type][i]'''
 
 
-    print("\ndata number:", num_cars_real+num_cyclists_real, ",", structure.num_cyclists_crossed, "cyclits used struct, last step:", step,\
+    print("\nep:", ep, "data number:", num_cars_real+num_cyclists_real, ",", structure.num_cyclists_crossed, "cyclits used struct, last step:", step,\
            "decisions:", structure.drl_agent.num_decisions_made)
 
 
 
     if(save_scenario):
-        print("WARNING: Saving scenario...")
-        if(not os.path.exists("files/"+sub_folders)):
-            os.makedirs("files/"+sub_folders)
-
-        if(os.path.exists("files/"+sub_folders+pre_file_name+"scenarios.tab")):
-            with open("files/"+sub_folders+pre_file_name+"scenarios.tab", 'rb') as infile:
-                tab_dict_scenarios = pickle.load(infile)
-        else:
-            tab_dict_scenarios = []
 
         tab_dict_scenarios.append(dict_scenario)
-        print(len(tab_dict_scenarios))
 
-        with open("files/"+sub_folders+pre_file_name+"scenarios.tab", 'wb') as outfile:
-            pickle.dump(tab_dict_scenarios, outfile)
+        if(ep%50 == 1):
+            save(tab_dict_scenarios, args, structure, sub_folders, pre_file_name)
+            tab_dict_scenarios = []
 
 
     bikes_data = compute_data(dict_scenario["bikes"])
@@ -356,12 +375,8 @@ while(structure.drl_agent.num_decisions_made < structure.drl_agent.hyperParams.D
     if("DQN" in args.method or "PPO" in args.method):
         print(f"cumulative reward:", structure.drl_cum_reward)
 
-    if(not args.test and structure.drl_agent.num_decisions_made%10000 == 0 and ("DQN" in args.method or "PPO" in args.method)):
-        torch.save(structure.drl_agent.model.state_dict(), "files/"+sub_folders+pre_file_name+"trained.n")
-        if("DQN" in args.method):
-            torch.save(structure.drl_agent.model_target.state_dict(), "files/"+sub_folders+pre_file_name+"trained_target.n")
 
-if(not args.test and ("DQN" in args.method or "PPO" in args.method)):
-    torch.save(structure.drl_agent.model.state_dict(), "files/"+sub_folders+pre_file_name+"trained.n")
-    if("DQN" in args.method):
-        torch.save(structure.drl_agent.model_target.state_dict(), "files/"+sub_folders+pre_file_name+"trained_target.n")
+
+
+if(save_scenario):
+    save(tab_dict_scenarios, args, structure, sub_folders, pre_file_name)

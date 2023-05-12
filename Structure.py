@@ -38,6 +38,7 @@ class Structure:
         self.phases = None
 
         if(self.use_drl):
+            self.max_reward = None
             self.cnn = cnn
             self.drl_cum_reward = 0
             self.drl_decision_made = False
@@ -198,13 +199,19 @@ class Structure:
         if(len(self.ob_prec) == 0):
             self.calculate_sum_waiting_time()
         else:
-            if(not self.test and self.action != None):
+            if(self.action != None):
                 reward = self.calculate_reward()
-                self.drl_cum_reward += reward                   
-                if(self.method == "PPO"):                   
-                    self.drl_agent.memorize(self.ob_prec, self.val, self.action_probs, self.action, self.ob, reward, False)  
-                else:
-                    self.drl_agent.memorize(self.ob_prec, self.action, self.ob, reward, False)  
+                if(self.max_reward == None or reward < self.max_reward):
+                    if(reward != 0):
+                        self.max_reward = reward
+                reward /= self.max_reward
+                reward = -reward
+                self.drl_cum_reward += reward
+                if(not self.test):                   
+                    if(self.method == "PPO"):                   
+                        self.drl_agent.memorize(self.ob_prec, self.val, self.action_probs, self.action, self.ob, reward, False)  
+                    else:
+                        self.drl_agent.memorize(self.ob_prec, self.action, self.ob, reward, False)  
 
             if(self.method == "PPO"):  
                 self.action, self.val, self.action_probs = self.drl_agent.act(self.ob)
