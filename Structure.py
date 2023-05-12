@@ -79,7 +79,8 @@ class Structure:
                 self.phases.append(p.state)
             self.actual_phase = 0
             self.phases_correspondance = range(0, 8, 2)
-            self.dict_transition = {"0;1": 1, "0;2": 3, "0;3": 3, "1;2":3, "1;3":3, "2;0": 7, "2;1": 7, "2;3": 5, "3;0": 7, "3;1": 7}
+            #self.dict_transition = {"0;1": 1, "0;2": 3, "0;3": 3, "1;2":3, "1;3":3, "2;0": 7, "2;1": 7, "2;3": 5, "3;0": 7, "3;1": 7}
+            self.dict_transition = {"0;1": 1, "0;2": 1, "0;3": 1, "1,0": 3, "1;2":3, "1;3":3, "2;0": 5, "2;1": 5, "2;3": 5, "3;0": 7, "3;1": 7, "3;2": 7}
 
 
     '''def create_tls_phases(self):
