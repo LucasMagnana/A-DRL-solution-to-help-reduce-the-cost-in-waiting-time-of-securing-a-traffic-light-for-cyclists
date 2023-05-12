@@ -26,8 +26,6 @@ class Structure:
 
         self.method = method
 
-        if(self.method == "actuated"):
-            self.actuated_next_change_step = 5
         self.open = open
 
 
@@ -153,10 +151,6 @@ class Structure:
             self.update_tls_program()
 
 
-        elif(self.method == "actuated"):
-            self.actuated_next_change_step = 5
-
-
 
     def step(self, step, edges):
         self.update_next_step_decision(step)
@@ -180,10 +174,6 @@ class Structure:
                     self.drl_decision_making(step)
                 else:
                     self.time_elapsed_in_chosen_phase += 1
-
-        elif(self.method == "actuated"):
-            if(step > self.next_step_decision):
-                self.actuated_decision_making(step)
 
 
 
@@ -234,39 +224,6 @@ class Structure:
 
                     
 
-
-
-    def actuated_decision_making(self, step):
-
-        if(self.actuated_next_change_step < self.next_step_decision):
-            self.actuated_next_change_step = step+5
-            return 
-
-        detector_distance = 50
-
-        if(self.module_traci.trafficlight.getPhase(self.tls.getID()) < 3):
-            green_lanes = ["E0", "E1"]
-        else: 
-            green_lanes = ["E2", "E3"]
-
-        min_distance_car = 9999
-        min_distance_bike = 9999
-        for lane_id in green_lanes:
-            edge = self.net.getEdge(lane_id)
-            for i in self.module_traci.edge.getLastStepVehicleIDs(lane_id):
-                dist = edge.getLength()-self.module_traci.vehicle.getLanePosition(i)
-                if("_c" in i and dist < min_distance_car):
-                    min_distance_car = dist
-                elif("_c" not in i and dist < min_distance_bike):
-                    min_distance_bike = dist
-
-        if((self.module_traci.trafficlight.getPhase(self.tls.getID()) == 0 or self.module_traci.trafficlight.getPhase(self.tls.getID()) == 4) and min_distance_bike < detector_distance):
-            self.actuated_next_change_step = step + 5
-        elif((self.module_traci.trafficlight.getPhase(self.tls.getID()) == 2 or self.module_traci.trafficlight.getPhase(self.tls.getID()) == 6) and min_distance_car < detector_distance):
-            self.actuated_next_change_step = step + 5
-
-        if(step > self.actuated_next_change_step):
-            self.change_light_phase()
 
 
 

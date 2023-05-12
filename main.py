@@ -30,7 +30,7 @@ def spawn_car(id_car, step, path, net, dict_cars):
     dict_cars[str(id_car)]=[]
 
 
-def save(tab_dict_scenarios, args, structure, sub_folders, pre_file_name):
+def save(tab_dict_scenarios, args, structure, sub_folders, pre_file_name, use_drl):
     print("WARNING: Saving scenario...")
     if(not os.path.exists("files/"+sub_folders)):
         os.makedirs("files/"+sub_folders)
@@ -47,9 +47,9 @@ def save(tab_dict_scenarios, args, structure, sub_folders, pre_file_name):
     with open("files/"+sub_folders+pre_file_name+"scenarios.tab", 'wb') as outfile:
         pickle.dump(tab_saved_dict_scenarios, outfile)
 
-    if(not args.test and ("DQN" in args.method or "PPO" in args.method)):
+    if(not args.test and use_drl):
         torch.save(structure.drl_agent.model.state_dict(), "files/"+sub_folders+pre_file_name+"trained.n")
-        if("DQN" in args.method):
+        if(use_drl):
             torch.save(structure.drl_agent.model_target.state_dict(), "files/"+sub_folders+pre_file_name+"trained_target.n")
 
 
@@ -120,10 +120,19 @@ if 'SUMO_HOME' in os.environ:
 else:
     sys.exit("please declare environment variable 'SUMO_HOME'")
 
+
+use_drl = "DQN" in args.method or "PPO" in args.method
+
+
+if("actuated" in args.method):
+    conf = "sumo_files/sumo_act.sumocfg"
+else:
+    conf = "sumo_files/sumo.sumocfg"
+
 sumoBinary = "/usr/bin/sumo"
 if(args.gui):
     sumoBinary += "-gui"
-sumoCmd = [sumoBinary, "-c", "sumo_files/sumo.sumocfg", "--quit-on-end", "--waiting-time-memory", '10000', '--start', '--delay', '1000', '--step-length', str(step_length),\
+sumoCmd = [sumoBinary, "-c", conf, "--quit-on-end", "--waiting-time-memory", '10000', '--start', '--delay', '1000', '--step-length', str(step_length),\
 '--time-to-teleport', '-1', "--no-warnings"]
 
 import traci
@@ -137,11 +146,13 @@ if(args.test):
 else:
     sub_folders = "train/"
 
-
-net = sumolib.net.readNet("sumo_files/net1.net.xml")
+if("actuated" in args.method):
+    net = sumolib.net.readNet("sumo_files/net_act.net.xml")
+else:
+    net = sumolib.net.readNet("sumo_files/net.net.xml")
 edges = net.getEdges()
 
-structure = Structure(edges, net, traci, simu_length, args.method, args.test, min_group_size, args.alpha)
+structure = Structure(edges, net, traci, simu_length, args.method, args.test, min_group_size, args.alpha, use_drl=use_drl)
 
 pre_file_name = args.method+"_"
 
@@ -167,7 +178,9 @@ if(args.method != "actuated"):
 
 ep = 0
 
-while(structure.drl_agent.num_decisions_made < structure.drl_agent.hyperParams.DECISION_COUNT):
+cont = True
+
+while(cont):
 
     ep += 1
 
@@ -351,17 +364,22 @@ while(structure.drl_agent.num_decisions_made < structure.drl_agent.hyperParams.D
                 del dict_scenario[vehicle_type][i]'''
 
 
-    print("\nep:", ep, "data number:", num_cars_real+num_cyclists_real, ",", structure.num_cyclists_crossed, "cyclits used struct, last step:", step,\
-           "decisions:", structure.drl_agent.num_decisions_made)
+    print("\nep:", ep, "data number:", num_cars_real+num_cyclists_real, ",", structure.num_cyclists_crossed, "cyclits used struct, last step:", step)
+    if(use_drl):
+        print("num decisions:", structure.drl_agent.num_decisions_made)
 
+    if(args.test):
+        cont = ep <= 24
+    else:
+        cont = structure.drl_agent.num_decisions_made < structure.drl_agent.hyperParams.DECISION_COUNT
 
 
     if(save_scenario):
 
         tab_dict_scenarios.append(dict_scenario)
 
-        if(ep%50 == 1):
-            save(tab_dict_scenarios, args, structure, sub_folders, pre_file_name)
+        if(args.test or ep%50 == 1):
+            save(tab_dict_scenarios, args, structure, sub_folders, pre_file_name, use_drl)
             tab_dict_scenarios = []
 
 
@@ -372,11 +390,11 @@ while(structure.drl_agent.num_decisions_made < structure.drl_agent.hyperParams.D
     print(f"mean bikes waiting time: {bikes_data[1]/bikes_data[2]}")
     print(f"tot waiting time: {bikes_data[1]+cars_data[1]}")
 
-    if("DQN" in args.method or "PPO" in args.method):
+    if(use_drl):
         print(f"cumulative reward:", structure.drl_cum_reward)
 
 
 
 
 if(save_scenario):
-    save(tab_dict_scenarios, args, structure, sub_folders, pre_file_name)
+    save(tab_dict_scenarios, args, structure, sub_folders, pre_file_name, use_drl)

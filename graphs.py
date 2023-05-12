@@ -52,7 +52,7 @@ def plot_data(data, file_title, title, labels, axis_labels, sub_folders=""):
     plt.xlabel(axis_labels[0])
     plt.ylabel(axis_labels[1])
     plt.title(title)
-    plt.legend()
+    plt.legend(loc='upper right')
     plt.savefig("images/"+sub_folders+file_title)
 
 
@@ -97,7 +97,7 @@ if __name__ == "__main__":
 
     labels = []
 
-    possible_labels = ["2DQN", "3DQN", "DQN", "PPO"]
+    possible_labels = ["2DQN", "3DQN", "DQN", "PPO", "static"]
 
     list_tab_scenarios = []
 
