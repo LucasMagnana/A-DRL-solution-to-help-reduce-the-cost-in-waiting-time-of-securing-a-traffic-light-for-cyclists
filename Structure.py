@@ -279,8 +279,8 @@ class Structure:
                         num_stopped_bikes += 1
             '''ob.append(num_bikes/self.bike_lanes_capacity)
             ob.append(num_stopped_bikes/self.bike_lanes_capacity)'''
-            ob.append(num_cars/self.car_lanes_capacity)
-            ob.append(num_stopped_cars/self.car_lanes_capacity)
+            ob.append(num_cars+num_bikes/self.car_lanes_capacity)
+            ob.append(num_stopped_cars+num_stopped_bikes/self.car_lanes_capacity)
 
         ob.append(self.time_elapsed_in_chosen_phase/30)
         light_phase_encoded = np.zeros(4)
