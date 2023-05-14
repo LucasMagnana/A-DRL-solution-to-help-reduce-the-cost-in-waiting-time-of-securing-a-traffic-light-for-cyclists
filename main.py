@@ -205,7 +205,7 @@ while(cont):
         if(not args.real_data):
             print("WARNING : Creating a new scenario...")
             bike_poisson_lambda = 0 #random.uniform(0,max(list_bike_poisson_lambdas))
-            car_poisson_lambda = 1
+            car_poisson_lambda = 0.5
             
             bike_poisson_distrib = np.random.poisson(bike_poisson_lambda, simu_length)
             car_poisson_distrib = np.random.poisson(car_poisson_lambda, simu_length)
