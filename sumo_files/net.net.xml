@@ -171,13 +171,13 @@
     </edge>
 
     <tlLogic id="J1" type="static" programID="0" offset="0">
-        <phase duration="40" state="GGGrrrrrrrrrGGgrrrrrrrrr"/>
+        <phase duration="20" state="GGGrrrrrrrrrGGgrrrrrrrrr"/>
         <phase duration="4"  state="yyyrrrrrrrrryyyrrrrrrrrr"/>
-        <phase duration="40" state="rrrGGgrrrrrrrrrGGgrrrrrr"/>
+        <phase duration="20" state="rrrGGgrrrrrrrrrGGgrrrrrr"/>
         <phase duration="4"  state="rrryyyrrrrrrrrryyyrrrrrr"/>
-        <phase duration="40" state="rrrrrrGGGrrrrrrrrrGGgrrr"/>
+        <phase duration="20" state="rrrrrrGGGrrrrrrrrrGGgrrr"/>
         <phase duration="4"  state="rrrrrryyyrrrrrrrrryyyrrr"/>
-        <phase duration="40" state="rrrrrrrrrGgGrrrrrrrrrGGg"/>
+        <phase duration="20" state="rrrrrrrrrGgGrrrrrrrrrGGg"/>
         <phase duration="4"  state="rrrrrrrrryyyrrrrrrrrryyy"/>
     </tlLogic>
 
