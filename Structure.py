@@ -44,9 +44,9 @@ class Structure:
             if(self.cnn):
                 self.ob_shape = (2, 8, int(self.net.getEdge("E0").getLength()//5+2))
             else:
-                self.ob_shape = [13]
+                self.ob_shape = [21]
                 self.car_lanes_capacity = 20
-                self.bike_lanes_capacity = 36
+                self.bike_lanes_capacity = 30
 
             self.action_space = 4
 
@@ -277,10 +277,10 @@ class Structure:
                     num_bikes += 1
                     if(self.module_traci.vehicle.getSpeed(vehicle_id)<0.5):
                         num_stopped_bikes += 1
-            '''ob.append(num_bikes/self.bike_lanes_capacity)
-            ob.append(num_stopped_bikes/self.bike_lanes_capacity)'''
-            ob.append(num_cars+num_bikes/self.car_lanes_capacity)
-            ob.append(num_stopped_cars+num_stopped_bikes/self.car_lanes_capacity)
+            ob.append(num_bikes/self.bike_lanes_capacity)
+            ob.append(num_stopped_bikes/self.bike_lanes_capacity)
+            ob.append(num_cars/self.car_lanes_capacity)
+            ob.append(num_stopped_cars/self.car_lanes_capacity)
 
         ob.append(self.time_elapsed_in_chosen_phase/30)
         light_phase_encoded = np.zeros(4)
