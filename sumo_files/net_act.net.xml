@@ -97,14 +97,17 @@
     </edge>
 
     <tlLogic id="J1" type="actuated" programID="0" offset="0">
-        <phase duration="40" state="GGrrrrGGrrrr"/>
-        <phase duration="4"  state="yyrrrryyrrrr"/>
-        <phase duration="40" state="rrGrrrrrGrrr"/>
-        <phase duration="4"  state="rryrrrrryrrr"/>
-        <phase duration="40" state="rrrGGrrrrGGr"/>
-        <phase duration="4"  state="rrryyrrrryyr"/>
-        <phase duration="40" state="rrrrrGrrrrrG"/>
-        <phase duration="4"  state="rrrrryrrrrry"/>
+        <param key="show-detectors" value="true"/>
+        <param key="max-gap" value="5"/>
+        
+        <phase duration="40" minDur="10" maxDur="40" state="GGrrrrGGrrrr"/>
+        <phase duration="4"  minDur="4" maxDur="4" state="yyrrrryyrrrr"/>
+        <phase duration="40" minDur="10" maxDur="40" state="rrGrrrrrGrrr"/>
+        <phase duration="4"  minDur="4" maxDur="4" state="rryrrrrryrrr"/>
+        <phase duration="40" minDur="10" maxDur="40" state="rrrGGrrrrGGr"/>
+        <phase duration="4"  minDur="4" maxDur="4" state="rrryyrrrryyr"/>
+        <phase duration="40" minDur="10" maxDur="40" state="rrrrrGrrrrrG"/>
+        <phase duration="4"  minDur="4" maxDur="4" state="rrrrryrrrrry"/>
     </tlLogic>
 
     <junction id="J0" type="dead_end" x="0.00" y="100.00" incLanes="-E0_0 -E0_1" intLanes="" shape="0.00,100.00 6.40,100.00 0.00,100.00"/>
