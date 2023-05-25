@@ -45,7 +45,7 @@ class Structure:
                 self.ob_shape = (2, 8, int(self.net.getEdge("E0").getLength()//5+2))
             else:
                 self.ob_shape = [21]
-                self.lanes_capacities = [10, 10]
+                self.lanes_capacities = [20, 10]
                 self.bike_lanes_capacity = 36
 
             self.action_space = 4
