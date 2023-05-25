@@ -36,7 +36,7 @@ class Structure:
         self.phases = None
 
         if(self.use_drl):
-            self.max_reward = None
+            self.max_reward = 1
             self.cnn = cnn
             self.drl_cum_reward = 0
             self.drl_decision_made = False
@@ -44,8 +44,8 @@ class Structure:
             if(self.cnn):
                 self.ob_shape = (2, 8, int(self.net.getEdge("E0").getLength()//5+2))
             else:
-                self.ob_shape = [13]
-                self.car_lanes_capacity = 20
+                self.ob_shape = [21]
+                self.lanes_capacities = [10, 10]
                 self.bike_lanes_capacity = 36
 
             self.action_space = 4
@@ -192,7 +192,7 @@ class Structure:
         else:
             if(self.action != None):
                 reward = self.calculate_reward()
-                if(self.max_reward == None or reward < self.max_reward):
+                if(reward < self.max_reward):
                     if(reward != 0):
                         self.max_reward = reward
                 reward /= self.max_reward
@@ -264,23 +264,18 @@ class Structure:
         for edge_id in range(4):
             edge = self.net.getEdge("E"+str(edge_id))
             edge_start_x = edge.getFromNode().getCoord()[0]
-            num_bikes = 0
-            num_stopped_bikes = 0
-            num_cars = 0
-            num_stopped_cars = 0
+            tab_num_vehicles = [0, 0]
+            tab_num_stopped_vehicles = [0, 0]
             for vehicle_id in self.module_traci.edge.getLastStepVehicleIDs(edge.getID()):
-                if("_c" in vehicle_id):
-                    num_cars += 1
-                    if(self.module_traci.vehicle.getSpeed(vehicle_id)<0.5):
-                        num_stopped_cars += 1
-                else:
-                    num_bikes += 1
-                    if(self.module_traci.vehicle.getSpeed(vehicle_id)<0.5):
-                        num_stopped_bikes += 1
-            '''ob.append(num_bikes/self.bike_lanes_capacity)
-            ob.append(num_stopped_bikes/self.bike_lanes_capacity)'''
-            ob.append(num_cars/self.car_lanes_capacity)
-            ob.append(num_stopped_cars/self.car_lanes_capacity)
+                num_lane = int(self.module_traci.vehicle.getLaneID(vehicle_id)[-1])
+                tab_num_vehicles[num_lane] += 1
+                if(self.module_traci.vehicle.getSpeed(vehicle_id)<0.5):
+                    tab_num_stopped_vehicles[num_lane] += 1
+
+            ob.append(tab_num_vehicles[0]/self.lanes_capacities[0])
+            ob.append(tab_num_stopped_vehicles[0]/self.lanes_capacities[0])
+            ob.append(tab_num_vehicles[1]/self.lanes_capacities[1])
+            ob.append(tab_num_stopped_vehicles[1]/self.lanes_capacities[1])
 
         ob.append(self.time_elapsed_in_chosen_phase/30)
         light_phase_encoded = np.zeros(4)
