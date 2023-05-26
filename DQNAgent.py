@@ -88,6 +88,10 @@ class DQNAgent(object):
         self.double = double
 
         self.num_decisions_made = 0
+
+        self.coeff_normalization = -1
+
+        self.sum_rewards = 0
         
         
 
@@ -98,6 +102,7 @@ class DQNAgent(object):
         if(self.epsilon<self.hyperParams.MIN_EPSILON):
             self.epsilon=self.hyperParams.MIN_EPSILON
         self.num_decisions_made += 1
+        self.coeff_normalization = self.sum_rewards/self.num_decisions_made
 
         if(self.num_decisions_made%self.hyperParams.UPDATE_TARGET == 0):
             self.model_target.load_state_dict(self.model.state_dict())
@@ -124,7 +129,7 @@ class DQNAgent(object):
         experience = np.append(experience, ob.flatten())
         experience = np.append(experience, reward)
         experience = np.append(experience, not(done))
-        self.buffer.add(torch.FloatTensor(experience, device=self.device))   
+        self.buffer.add(torch.FloatTensor(experience, device=self.device))
 
     def learn(self, n_iter=None):
         
