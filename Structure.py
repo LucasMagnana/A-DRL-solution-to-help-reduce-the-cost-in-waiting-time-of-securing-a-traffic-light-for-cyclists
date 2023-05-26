@@ -9,7 +9,7 @@ from PPOAgent import PPOAgent
 from TD3Agent import TD3Agent
 
 class Structure:
-    def __init__(self, edges, net, traci, simu_length, method, test, min_group_size, alpha_bike, use_drl=True, cnn=False, open=True):
+    def __init__(self, edges, net, traci, simu_length, method, test, min_group_size, alpha_bike, use_drl=True, cnn=True, open=True):
 
 
         self.module_traci = traci
@@ -42,10 +42,10 @@ class Structure:
             self.drl_decision_made = False
             self.test = test
             if(self.cnn):
-                self.ob_shape = (2, 8, int(self.net.getEdge("E0").getLength()//5+2))
+                self.ob_shape = (2, 8, int(self.net.getEdge("E0").getLength()//5)+2)
             else:
                 self.ob_shape = [21]
-                self.lanes_capacities = [20, 10]
+                self.lanes_capacities = [10, 10]
                 self.bike_lanes_capacity = 36
 
             self.action_space = 4
@@ -234,18 +234,19 @@ class Structure:
         ob_speed = []
         for edge_id in range(4):
             edge = self.net.getEdge("E"+str(edge_id))
-            edge_start_x = edge.getFromNode().getCoord()[0]
             ob_lane_num = np.zeros((2, self.ob_shape[-1]))
             ob_lane_speed = np.zeros((2, self.ob_shape[-1]))
             for vehicle_id in self.module_traci.edge.getLastStepVehicleIDs(edge.getID()):
-                if("_c" in vehicle_id):
-                    index_v = 0
+                index_lane = int(self.module_traci.vehicle.getLaneID(vehicle_id)[-1])
+                if(edge_id%2 == 0):
+                    pos = abs(self.module_traci.vehicle.getPosition(vehicle_id)[1])
                 else:
-                    index_v = 1
-                index = int(self.module_traci.vehicle.getLaneID(vehicle_id)[-1])
-                position_in_grid = int(round(self.module_traci.vehicle.getPosition(vehicle_id)[0]-edge_start_x))//5
-                ob_lane_num[index_v][index] += 1
-                ob_lane_speed[index_v][index] += self.module_traci.vehicle.getSpeed(vehicle_id)
+                    pos = abs(self.module_traci.vehicle.getPosition(vehicle_id)[0])
+
+                index = int(pos//5)
+                position_in_grid = 0
+                ob_lane_num[index_lane][index] += 1
+                ob_lane_speed[index_lane][index] += self.module_traci.vehicle.getSpeed(vehicle_id)
 
             for i in range(len(ob_lane_num)):
                 for j in range(len(ob_lane_num[i])):
