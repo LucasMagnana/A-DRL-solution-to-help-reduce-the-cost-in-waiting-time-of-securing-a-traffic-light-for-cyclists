@@ -314,7 +314,7 @@ class Structure:
         diff_cars =  last_cars_wt - self.cars_waiting_time
         diff_bikes = last_bikes_wt - self.bikes_waiting_time
         
-        return (self.bikes_waiting_time_coeff*diff_bikes+self.cars_waiting_time_coeff*diff_cars)
+        return -(self.bikes_waiting_time_coeff*diff_bikes+self.cars_waiting_time_coeff*diff_cars)**2
 
     def update_next_step_decision(self, step):
         if(step > self.next_step_decision):
