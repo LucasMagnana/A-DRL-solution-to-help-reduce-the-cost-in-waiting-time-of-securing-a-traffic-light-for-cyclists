@@ -133,7 +133,7 @@ sumoBinary = "/usr/bin/sumo"
 if(args.gui):
     sumoBinary += "-gui"
 sumoCmd = [sumoBinary, "-c", conf, "--quit-on-end", "--waiting-time-memory", '10000', '--start', '--delay', '1000', '--step-length', str(step_length),\
-'--time-to-teleport', '-1', "--no-warnings"]
+'--time-to-teleport', '-1'] #, "--no-warnings"]
 
 import traci
 import traci.constants as tc
@@ -204,13 +204,13 @@ while(cont):
     if(not args.load_scenario):
         if(not args.real_data):
             print("WARNING : Creating a new scenario...")
-            bike_poisson_lambda = 0 #random.uniform(0,max(list_bike_poisson_lambdas))
-            car_poisson_lambda = 0.5
+            bike_poisson_lambda = 0.25 #random.uniform(0,max(list_bike_poisson_lambdas))
+            car_poisson_lambda = 0.25
             
             bike_poisson_distrib = np.random.poisson(bike_poisson_lambda, simu_length)
             car_poisson_distrib = np.random.poisson(car_poisson_lambda, simu_length)
 
-        num_cyclists = 0 #sum(bike_poisson_distrib)
+        num_cyclists = sum(bike_poisson_distrib)
         num_cars = sum(car_poisson_distrib)
         simu_length = len(bike_poisson_distrib)
         
@@ -276,7 +276,8 @@ while(cont):
                 for _ in range(int(car_poisson_distrib[int(step)])):
                     id_start = random.randint(0, 3)
                     id_end = id_start
-                    while(id_end == id_start):
+                    while(id_end == id_start or id_start == 1 and id_end == 0 or id_start == 0 and id_end == 3 or\
+                    id_start == 3 and id_end == 2 or id_start == 2 and id_end == 1):
                         id_end = random.randint(0, 3)
                     e1 = net.getEdge("E"+str(id_start))
                     e2 = net.getEdge("-E"+str(id_end))
@@ -297,8 +298,8 @@ while(cont):
                 e2 = net.getEdge(end_edge_id)
                 path = net.getShortestPath(e1, e2, vClass='bicycle')[0]
                 dict_scenario["bikes"][id_cyclist] = {"start_step": step, "start_edge": e1.getID(), "end_edge": e2.getID(),
-                "distance_travelled": net.getShortestPath(net.getEdge("E_start"), e2, vClass='bicycle', fromPos=0)[1], "waiting_time": 0}
-                spawn_cyclist(id_cyclist, step, path, net, structure, step_length, old_dict_scenario["bikes"][id_cyclist]["max_speed"], False, dict_vehicles["bikes"])
+                "distance_travelled": net.getShortestPath(e1, e2, vClass='bicycle', fromPos=0)[1], "waiting_time": 0}
+                spawn_cyclist(id_cyclist, step, path, net, dict_vehicles["bikes"])
                 id_cyclist+=1
 
             while(id_car not in old_dict_scenario["cars"] and id_car <= max_id_car):
@@ -370,7 +371,7 @@ while(cont):
         print("num decisions:", structure.drl_agent.num_decisions_made)
 
     if(args.test):
-        cont = ep <= 24
+        cont = ep < 23
     else:
         cont = structure.drl_agent.num_decisions_made < structure.drl_agent.hyperParams.DECISION_COUNT
 
