@@ -105,6 +105,8 @@ if __name__ == "__main__":
         with open("files/"+sub_folders+"actuated_scenarios.tab", 'rb') as infile:
             tab_scenarios_actuated = pickle.load(infile)
 
+        tab_scenarios_actuated = tab_scenarios_actuated[:23]
+
         if(args.test and len(tab_scenarios_actuated) == 1):
             tab_scenarios_actuated = cut_tab_scenarios(tab_scenarios_actuated)
 
@@ -117,7 +119,10 @@ if __name__ == "__main__":
 
     for root, dirs, files in os.walk("files/"+sub_folders):
         for filename in files:
-            if("scenarios" in filename):
+            if("losses" in filename):
+                with open("files/"+sub_folders+filename, 'rb') as infile:
+                    tab_losses = pickle.load(infile)
+            elif("scenarios" in filename):
                 with open("files/"+sub_folders+filename, 'rb') as infile:
                     tab_scenarios = pickle.load(infile)
             
@@ -176,6 +181,9 @@ if __name__ == "__main__":
 
     if(not os.path.exists("images/"+sub_folders)):
         os.makedirs("images/"+sub_folders)
+
+    if(not args.test):
+        plot_data([tab_losses[100:]], "evolution_losses.png", "Loss Evolution",labels, ["Simulations", "Loss"], sub_folders)
 
     plot_data(cars_waiting_time, "cars_evolution_mean_waiting_time.png", "Cars mean waiting time",labels, ["Simulations", "Waiting Time"], sub_folders)
     plot_data(bikes_waiting_time, "bikes_evolution_mean_waiting_time.png", "Bikes mean waiting time",labels, ["Simulations", "Waiting Time"], sub_folders)

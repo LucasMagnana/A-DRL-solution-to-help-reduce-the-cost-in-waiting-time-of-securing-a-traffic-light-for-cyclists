@@ -48,6 +48,8 @@ def save(tab_dict_scenarios, args, structure, sub_folders, pre_file_name, use_dr
         pickle.dump(tab_saved_dict_scenarios, outfile)
 
     if(not args.test and use_drl):
+        with open("files/"+sub_folders+pre_file_name+"losses.tab", 'wb') as outfile:
+            pickle.dump(structure.drl_agent.tab_losses, outfile)
         torch.save(structure.drl_agent.model.state_dict(), "files/"+sub_folders+pre_file_name+"trained.n")
         if(use_drl):
             torch.save(structure.drl_agent.model_target.state_dict(), "files/"+sub_folders+pre_file_name+"trained_target.n")
@@ -252,9 +254,16 @@ while(cont):
 
     continue_simu = True
 
+    forced_stop = False
+
     print(simu_length)
 
-    while(step<=simu_length):
+    while(step<=simu_length or len(traci.vehicle.getIDList()) > 0):
+
+        if(step >= simu_length*2):
+            forced_stop = True
+            break 
+
         if(not args.load_scenario): #new_scenario
             if(step<simu_length):
                 for _ in range(int(bike_poisson_distrib[int(step)])):
@@ -354,6 +363,9 @@ while(cont):
 
 
         step += step_length
+
+    if(use_drl):
+        structure.drl_decision_making(step, end=True, forced_stop=forced_stop)
 
     traci.close()
 

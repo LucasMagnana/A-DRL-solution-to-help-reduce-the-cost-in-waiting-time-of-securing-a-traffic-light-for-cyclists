@@ -39,6 +39,8 @@ class Structure:
             self.max_reward = 1
             self.cnn = cnn
             self.drl_cum_reward = 0
+            self.global_drl_cum_reward = 0
+            self.drl_mean_reward = -1
             self.drl_decision_made = False
             self.test = test
             if(self.cnn):
@@ -138,6 +140,8 @@ class Structure:
         
 
         if(self.use_drl):
+            if(self.drl_agent.num_decisions_made != 0):                
+                self.drl_mean_reward = self.global_drl_cum_reward/self.drl_agent.num_decisions_made
             self.drl_cum_reward = 0
             self.drl_decision_made = False
             self.action = None
@@ -180,7 +184,7 @@ class Structure:
 
 
 
-    def drl_decision_making(self, step):  
+    def drl_decision_making(self, step, end=False, forced_stop=False):  
         self.ob_prec = self.ob
         if(self.cnn):
             self.ob = self.create_observation_cnn()
@@ -192,17 +196,22 @@ class Structure:
         else:
             if(self.action != None):
                 reward = self.calculate_reward()
+                self.global_drl_cum_reward += reward
                 if(reward < self.max_reward):
                     if(reward != 0):
                         self.max_reward = reward
-                reward /= self.max_reward
+                reward /= self.max_reward #self.drl_mean_reward
                 reward = -reward
+
+                if(forced_stop):
+                    reward = -10000
+                    
                 self.drl_cum_reward += reward
                 if(not self.test):                   
                     if(self.method == "PPO"):                   
-                        self.drl_agent.memorize(self.ob_prec, self.val, self.action_probs, self.action, self.ob, reward, False)  
+                        self.drl_agent.memorize(self.ob_prec, self.val, self.action_probs, self.action, self.ob, reward, end)  
                     else:
-                        self.drl_agent.memorize(self.ob_prec, self.action, self.ob, reward, False)  
+                        self.drl_agent.memorize(self.ob_prec, self.action, self.ob, reward, end)  
 
             if(self.method == "PPO"):  
                 self.action, self.val, self.action_probs = self.drl_agent.act(self.ob)

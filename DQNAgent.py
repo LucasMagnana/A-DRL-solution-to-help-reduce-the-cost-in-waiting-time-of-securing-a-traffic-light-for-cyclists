@@ -26,13 +26,13 @@ class DQNHyperParams :
 
         self.UPDATE_TARGET = 7500
 
-        self.DECISION_COUNT = 1500000
+        self.DECISION_COUNT = 750000
         self.MAX_STEPS = 1000
         self.DECISION_CT_LEARNING_START = 10000
         self.LEARNING_EP = 1
 
         self.EPSILON = 1.0
-        self.MIN_EPSILON = 0
+        self.MIN_EPSILON = 0.05
         self.EPSILON_DECAY = self.EPSILON/(self.DECISION_COUNT)
 
 class DQNAgent(object):
@@ -41,7 +41,7 @@ class DQNAgent(object):
         self.hyperParams = DQNHyperParams()
         
         if(model_to_load != None): #use the good hyper parameters (loaded if it's a test, written in the code if it's a training)
-            self.hyperParams.EPSILON = self.hyperParams.MIN_EPSILON
+            self.hyperParams.EPSILON = 0 #self.hyperParams.MIN_EPSILON
 
         self.action_space = action_space 
         
@@ -88,7 +88,8 @@ class DQNAgent(object):
         self.double = double
 
         self.num_decisions_made = 0
-        
+
+        self.tab_losses = []        
         
 
 
@@ -184,6 +185,7 @@ class DQNAgent(object):
         tens_loss = loss(tens_qvalue, tens_reward+(self.gamma*tens_next_qvalue)*tens_done) #calculate the loss
         print()
         print("loss : ",tens_loss)
+        self.tab_losses.append(tens_loss.item())
         tens_loss.backward() #compute the gradient
         self.optimizer.step() #back-propagate the gradient
 
