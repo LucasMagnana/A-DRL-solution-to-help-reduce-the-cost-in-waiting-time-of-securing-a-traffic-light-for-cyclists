@@ -35,6 +35,7 @@ class DQNHyperParams :
         self.MIN_EPSILON = 0.05
         self.EPSILON_DECAY = self.EPSILON/(self.DECISION_COUNT)
 
+
 class DQNAgent(object):
     def __init__(self, observation_space, action_space, test=False, double=False, duelling=False, PER=False, cnn=None, cuda=False, model_to_load=None):
 
