@@ -183,7 +183,7 @@ if __name__ == "__main__":
         os.makedirs("images/"+sub_folders)
 
     if(not args.test):
-        plot_data([tab_losses[100:]], "evolution_losses.png", "Loss Evolution",labels, ["Simulations", "Loss"], sub_folders)
+        plot_data([tab_losses], "evolution_losses.png", "Loss Evolution",labels, ["Simulations", "Loss"], sub_folders)
 
     plot_data(cars_waiting_time, "cars_evolution_mean_waiting_time.png", "Cars mean waiting time",labels, ["Simulations", "Waiting Time"], sub_folders)
     plot_data(bikes_waiting_time, "bikes_evolution_mean_waiting_time.png", "Bikes mean waiting time",labels, ["Simulations", "Waiting Time"], sub_folders)

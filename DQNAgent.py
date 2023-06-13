@@ -32,7 +32,7 @@ class DQNHyperParams :
         self.LEARNING_EP = 1
 
         self.EPSILON = 1.0
-        self.MIN_EPSILON = 0.05
+        self.MIN_EPSILON = 0.15
         self.EPSILON_DECAY = self.EPSILON/(self.DECISION_COUNT)
 
 
@@ -42,7 +42,7 @@ class DQNAgent(object):
         self.hyperParams = DQNHyperParams()
         
         if(model_to_load != None): #use the good hyper parameters (loaded if it's a test, written in the code if it's a training)
-            self.hyperParams.EPSILON = 0 #self.hyperParams.MIN_EPSILON
+            self.hyperParams.EPSILON = self.hyperParams.MIN_EPSILON
 
         self.action_space = action_space 
         
