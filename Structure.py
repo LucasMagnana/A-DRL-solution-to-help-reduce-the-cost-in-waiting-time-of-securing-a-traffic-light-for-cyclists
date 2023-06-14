@@ -200,7 +200,7 @@ class Structure:
                 if(reward < self.max_reward):
                     if(reward != 0):
                         self.max_reward = reward
-                reward /= self.max_reward #self.drl_mean_reward
+                reward /= self.drl_mean_reward  #self.max_reward
                 reward = -reward
 
                 if(forced_stop):

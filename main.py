@@ -80,36 +80,39 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
 
-    if(args.test):
-        if(not args.load_scenario):
-            num_simu = 20
-            if(args.real_data):
-                num_simu = 1
-                list_bike_poisson_lambdas = []
-                list_car_poisson_lambdas = []
-                with open("./real_data.json", "rb") as infile:
-                    count_data = json.load(infile)
+    if(args.test and not args.load_scenario):
+        num_simu = 20
 
-                first_day_number = None
-                for data in count_data["data"]["values"]:
-                    d = datetime.strptime(data["time"], '%Y-%m-%dT%H:%M:%S.%f%z')
-                    if(first_day_number == None):
-                        first_day_number = d.day
-                    elif(d.day != first_day_number):
-                        if(data["id"] == "S-N"):
-                            list_bike_poisson_lambdas.append(data["count"]*0.5/simu_length)
-                            list_car_poisson_lambdas.append(data["count"]*0.5/simu_length)
+    if(args.real_data):        
+        list_bike_poisson_lambdas = []
+        with open("./real_data.json", "rb") as infile:
+            count_data = json.load(infile)
 
-                print("WARNING : Creating a new scenario using real data...")
-                bike_poisson_distrib = np.empty(0)
-                car_poisson_distrib = np.empty(0)
-                for i in range(len(list_bike_poisson_lambdas)):
-                    car_poisson_lambda = 0.1
-                    bike_poisson_lambda = 0.2 #list_bike_poisson_lambdas[i]
+        first_day_number = None
+        num_data_processed = 0
+        for data in count_data["data"]["values"]:
+            num_data_processed += 1
+            d = datetime.strptime(data["time"], '%Y-%m-%dT%H:%M:%S.%f%z')
+            if(first_day_number == None):
+                first_day_number = d.day
 
-                    bike_poisson_distrib = np.concatenate((bike_poisson_distrib, np.random.poisson(bike_poisson_lambda, simu_length)))
-                    car_poisson_distrib = np.concatenate((car_poisson_distrib, np.random.poisson(car_poisson_lambda, simu_length)))
-    
+            if(not args.test or d.day != first_day_number):
+                if(num_data_processed%2 == 0):
+                    list_bike_poisson_lambdas[-1] += 0 #data["count"]/simu_length
+                else:
+                    list_bike_poisson_lambdas.append(data["count"]*2/simu_length)
+                
+        if(args.test):
+            print("WARNING : Creating a new scenario using real data...")
+            bike_poisson_distrib = np.empty(0)
+            car_poisson_distrib = np.empty(0)
+            for i in range(len(list_bike_poisson_lambdas)):           
+                bike_poisson_lambda = list_bike_poisson_lambdas[i]
+                car_poisson_lambda = bike_poisson_lambda
+
+                bike_poisson_distrib = np.concatenate((bike_poisson_distrib, np.random.poisson(bike_poisson_lambda, simu_length)))
+                car_poisson_distrib = np.concatenate((car_poisson_distrib, np.random.poisson(car_poisson_lambda, simu_length)))
+
 
 
 step_length = 1
@@ -204,13 +207,21 @@ while(cont):
     structure.create_tls_phases()
 
     if(not args.load_scenario):
-        if(not args.real_data):
-            print("WARNING : Creating a new scenario...")
+        print("WARNING : Creating a new scenario...")
+        if(args.real_data):
+            if(not args.test):
+                r = randint(0, len(list_bike_poisson_lambdas)-1)
+                bike_poisson_lambda = list_bike_poisson_lambdas[r]
+                car_poisson_lambda = bike_poisson_lambda
+                bike_poisson_distrib = np.random.poisson(bike_poisson_lambda, simu_length)
+                car_poisson_distrib = np.random.poisson(car_poisson_lambda, simu_length)
+
+        else:
             bike_poisson_lambda = random.uniform(0.15,0.25)
             car_poisson_lambda = bike_poisson_lambda
-            
             bike_poisson_distrib = np.random.poisson(bike_poisson_lambda, simu_length)
             car_poisson_distrib = np.random.poisson(car_poisson_lambda, simu_length)
+    
 
         num_cyclists = sum(bike_poisson_distrib)
         num_cars = sum(car_poisson_distrib)

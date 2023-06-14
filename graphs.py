@@ -62,7 +62,7 @@ def cut_tab_scenarios(tab_scenarios):
     for vehicule_type in tab_scenarios[0]:
         for vehicle_id in tab_scenarios[0][vehicule_type]:
             data = tab_scenarios[0][vehicule_type][vehicle_id]
-            cutted_tab_scenarios[int(data["start_step"]//1800)][vehicule_type][vehicle_id] = data
+            cutted_tab_scenarios[int(data["start_step"]//3600)][vehicule_type][vehicle_id] = data
 
     return cutted_tab_scenarios
 
