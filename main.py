@@ -98,9 +98,9 @@ if __name__ == "__main__":
 
             if(not args.test or d.day != first_day_number):
                 if(num_data_processed%2 == 0):
-                    list_bike_poisson_lambdas[-1] += 0 #data["count"]/simu_length
+                    list_bike_poisson_lambdas[-1] += data["count"]/simu_length
                 else:
-                    list_bike_poisson_lambdas.append(data["count"]*2/simu_length)
+                    list_bike_poisson_lambdas.append(data["count"]/simu_length)
                 
         if(args.test):
             print("WARNING : Creating a new scenario using real data...")
