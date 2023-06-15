@@ -54,11 +54,11 @@ class DuellingActorCNN(nn.Module):
         self.conv1 = nn.Conv2d(size_ob[0], 16, 2)
         out_shape = shape_after_conv_and_flatten(size_ob, self.conv1)
 
-        self.features_layer = nn.Linear(out_shape, 32)
+        self.features_layer = nn.Linear(out_shape, 64)
 
-        self.advantage_out = nn.Linear(32, size_action)
+        self.advantage_out = nn.Linear(64, size_action)
 
-        self.value_out = nn.Linear(32, 1)
+        self.value_out = nn.Linear(64, 1)
 
         self.max_action = max_action
         self.tanh = tanh
@@ -124,23 +124,23 @@ class PPO_Model(nn.Module):
         if(max_action < 0):
             self.actor = nn.Sequential(
                 nn.Tanh(),
-                nn.Linear(out_shape_actor, 32),
+                nn.Linear(out_shape_actor, 64),
                 nn.Tanh(),
-                nn.Linear(32, size_action),
+                nn.Linear(64, size_action),
                 nn.Softmax(dim=-1))
         else:
             self.actor = nn.Sequential(
                 nn.Tanh(),
-                nn.Linear(out_shape_actor, 32),
+                nn.Linear(out_shape_actor, 64),
                 nn.Tanh(),
-                nn.Linear(32, size_action),
+                nn.Linear(64, size_action),
                 nn.Tanh())
 
         self.critic = nn.Sequential(
                 nn.Tanh(),
-                nn.Linear(out_shape_critic, 32),
+                nn.Linear(out_shape_critic, 64),
                 nn.Tanh(),
-                nn.Linear(32, 1)
+                nn.Linear(64, 1)
                 )
     
     def forward(self, ob):

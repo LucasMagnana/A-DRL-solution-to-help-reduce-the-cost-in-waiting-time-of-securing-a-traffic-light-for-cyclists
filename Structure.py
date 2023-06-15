@@ -65,7 +65,7 @@ class Structure:
             elif(self.method == "TD3"):
                 self.drl_agent = TD3Agent(self.ob_shape, 1)
             elif(self.method == "PPO"):
-                self.drl_agent = PPOAgent(self.ob_shape, 1, model_to_load=model_to_load, continuous_action_space=True)
+                self.drl_agent = PPOAgent(self.ob_shape, self.action_space, model_to_load=model_to_load)
                 self.val = None
                 self.action_probs = None
 

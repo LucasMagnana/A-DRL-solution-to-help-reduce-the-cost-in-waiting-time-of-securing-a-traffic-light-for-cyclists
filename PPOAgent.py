@@ -64,6 +64,7 @@ class PPOHyperParams :
         self.EP_LEARNING_START = 1
         self.LEARNING_EP = 5
         self.K = 4
+        self.DECISION_COUNT = 750000
 
         self.COEFF_CRITIC_LOSS = 0.5
         self.COEFF_ENTROPY_LOSS = 0.01
@@ -100,6 +101,10 @@ class PPOAgent():
 
         if(self.continuous_action_space):
             self.action_std = torch.full((ac_space,), 1/120)
+
+        self.num_decisions_made = 0
+
+        self.tab_losses = []
 
         self.reset_batches()
 
@@ -178,6 +183,10 @@ class PPOAgent():
 
             loss = loss_actor + self.hyperParams.COEFF_CRITIC_LOSS * loss_critic -  self.hyperParams.COEFF_ENTROPY_LOSS * entropy_loss
 
+            self.tab_losses.append(loss.item())
+
+            print(loss)
+
             # Reset gradients
             self.optimizer.zero_grad()
             # Calculate gradients
@@ -232,5 +241,7 @@ class PPOAgent():
         else:
             action_probs = action_probs.detach().numpy()
             action = np.random.choice(np.arange(self.ac_space), p=action_probs)
+
+        self.num_decisions_made += 1
 
         return action, val, action_probs

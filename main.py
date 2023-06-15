@@ -51,13 +51,12 @@ def save(tab_dict_scenarios, args, structure, sub_folders, pre_file_name, use_dr
         with open("files/"+sub_folders+pre_file_name+"losses.tab", 'wb') as outfile:
             pickle.dump(structure.drl_agent.tab_losses, outfile)
         torch.save(structure.drl_agent.model.state_dict(), "files/"+sub_folders+pre_file_name+"trained.n")
-        if(use_drl):
+        if("DQN" in args.method):
             torch.save(structure.drl_agent.model_target.state_dict(), "files/"+sub_folders+pre_file_name+"trained_target.n")
 
 
 min_group_size = 5
 
-num_simu = 500
 simu_length = 3600
 
 save_scenario = True
@@ -98,11 +97,12 @@ if __name__ == "__main__":
 
             if(not args.test or d.day != first_day_number):
                 if(num_data_processed%2 == 0):
-                    list_bike_poisson_lambdas[-1] += data["count"]/simu_length
+                    list_bike_poisson_lambdas[-1] += data["count"]*2/simu_length
                 else:
-                    list_bike_poisson_lambdas.append(data["count"]/simu_length)
+                    list_bike_poisson_lambdas.append(data["count"]*2/simu_length)
                 
         if(args.test):
+            num_simu = 1
             print("WARNING : Creating a new scenario using real data...")
             bike_poisson_distrib = np.empty(0)
             car_poisson_distrib = np.empty(0)
@@ -194,7 +194,7 @@ while(cont):
 
     if(not args.test and "PPO" in args.method):
         structure.drl_agent.start_episode()
-        if(s != start_num_simu and s%structure.drl_agent.hyperParams.LEARNING_EP == 0):
+        if((ep-1) != start_num_simu and (ep-1)%structure.drl_agent.hyperParams.LEARNING_EP == 0):
             structure.drl_agent.learn()
 
     next_step_wt_update = 0
@@ -394,7 +394,10 @@ while(cont):
         print("num decisions:", structure.drl_agent.num_decisions_made)
 
     if(args.test):
-        cont = ep < 23
+        if(args.real_data):
+            cont = ep < 1
+        else:
+            cont = ep < 23
     else:
         cont = structure.drl_agent.num_decisions_made < structure.drl_agent.hyperParams.DECISION_COUNT
 

@@ -42,7 +42,7 @@ class DQNAgent(object):
         self.hyperParams = DQNHyperParams()
         
         if(model_to_load != None): #use the good hyper parameters (loaded if it's a test, written in the code if it's a training)
-            self.hyperParams.EPSILON = self.hyperParams.MIN_EPSILON
+            self.hyperParams.EPSILON = 0 #self.hyperParams.MIN_EPSILON
 
         self.action_space = action_space 
         
