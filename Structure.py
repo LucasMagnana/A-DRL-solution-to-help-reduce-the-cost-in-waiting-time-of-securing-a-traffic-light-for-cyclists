@@ -9,7 +9,7 @@ from PPOAgent import PPOAgent
 from TD3Agent import TD3Agent
 
 class Structure:
-    def __init__(self, edges, net, traci, simu_length, method, test, min_group_size, alpha_bike, use_drl=True, cnn=True, open=True):
+    def __init__(self, edges, list_edges_name, net, traci, simu_length, method, test, min_group_size, alpha_bike, use_drl=True, cnn=True, open=True):
 
 
         self.module_traci = traci
@@ -19,7 +19,9 @@ class Structure:
 
         self.net = net  
 
-        self.tls = self.net.getEdge("E0").getTLS()  
+        self.list_edges_name = list_edges_name
+
+        self.tls = self.net.getEdge("E_EW").getTLS()  
 
 
         self.simu_length = simu_length
@@ -44,7 +46,7 @@ class Structure:
             self.drl_decision_made = False
             self.test = test
             if(self.cnn):
-                self.ob_shape = (2, 8, int(self.net.getEdge("E0").getLength()//5)+2)
+                self.ob_shape = (2, 8, int(self.net.getEdge("E_EW").getLength()//5)+2)
             else:
                 self.ob_shape = [21]
                 self.lanes_capacities = [10, 10]
@@ -242,13 +244,13 @@ class Structure:
     def create_observation_cnn(self):
         ob_num = []
         ob_speed = []
-        for edge_id in range(4):
-            edge = self.net.getEdge("E"+str(edge_id))
+        for en in self.list_edges_name:
+            edge = self.net.getEdge("E_"+en)
             ob_lane_num = np.zeros((2, self.ob_shape[-1]))
             ob_lane_speed = np.zeros((2, self.ob_shape[-1]))
             for vehicle_id in self.module_traci.edge.getLastStepVehicleIDs(edge.getID()):
                 index_lane = int(self.module_traci.vehicle.getLaneID(vehicle_id)[-1])
-                if(edge_id%2 == 0):
+                if("N" in en):
                     pos = abs(self.module_traci.vehicle.getPosition(vehicle_id)[1])
                 else:
                     pos = abs(self.module_traci.vehicle.getPosition(vehicle_id)[0])
@@ -272,8 +274,8 @@ class Structure:
 
     def create_observation(self):
         ob = []
-        for edge_id in range(4):
-            edge = self.net.getEdge("E"+str(edge_id))
+        for en in self.list_edges_name:
+            edge = self.net.getEdge("E_"+en)
             edge_start_x = edge.getFromNode().getCoord()[0]
             tab_num_vehicles = [0, 0]
             tab_num_stopped_vehicles = [0, 0]

@@ -15,6 +15,47 @@ from Structure import Structure
 from graphs import *
 from Model import Model
 
+
+def spawn_vehicle(id_start, id_end, list_edges_name, net, dict_scenario, v_type, dict_vehicles, id_vehicle):
+
+    str_id_vehicle = str(id_vehicle)
+
+    if(id_end == None):
+        id_end = id_start
+        while(id_end == id_start or id_start == "NS" and id_end == "EW" or id_start == "EW" and id_end == "SN" or\
+        id_start == "SN" and id_end == "WE" or id_start == "WE" and id_end == "NS"):
+            id_end = list_edges_name[random.randint(0, len(list_edges_name)-1)]
+
+        id_start = "E_"+str(id_start)
+        id_end = "-E_"+str(id_end)
+        
+            
+    e1 = net.getEdge(id_start)
+    e2 = net.getEdge(id_end)
+
+    if(v_type=="bikes"):
+        v_class = "bicycle"
+        id_path = str_id_vehicle + "_sp"
+        id_sumo = str_id_vehicle
+        depart_l = "0"
+    elif(v_type=="cars"):
+        v_class = "passenger"
+        id_path = str_id_vehicle + "_c_sp"
+        id_sumo = str_id_vehicle + "_c"
+        depart_l = "best"
+
+    path = net.getShortestPath(e1, e2, vClass=v_class)[0]
+    dict_scenario[v_type][id_vehicle] = {"start_step": step, "start_edge": e1.getID(), "end_edge": e2.getID(),
+    "distance_travelled": net.getShortestPath(e1, e2, vClass=v_class, fromPos=0)[1], "waiting_time": 0}
+
+    path = [e.getID() for e in path]
+    traci.route.add(id_path, path)      
+    traci.vehicle.add(id_sumo, id_path, departLane=depart_l, typeID=v_class, departSpeed="avg")
+    if(v_type=="bikes"):
+        traci.vehicle.changeLane(id_sumo, 0, 99999)
+
+    dict_vehicles[v_type][str_id_vehicle]=[]
+
 def spawn_cyclist(id_cyclist, step, path, net, dict_bikes):
     path = [e.getID() for e in path]
     traci.route.add(str(id_cyclist)+"_sp", path)      
@@ -78,40 +119,49 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    list_edges_name = ["NS", "SN", "EW", "WE"]
+
+    dict_bike_poisson_lambdas = {}
+    dict_bike_poisson_distrib = {}
+    dict_car_poisson_distrib = {}
+
+    for en in list_edges_name:
+        dict_bike_poisson_lambdas[en] = []
+        dict_bike_poisson_distrib[en] = []
+        dict_car_poisson_distrib[en] = []
+
 
     if(args.test and not args.load_scenario):
         num_simu = 20
 
     if(args.real_data):        
-        list_bike_poisson_lambdas = []
         with open("./real_data.json", "rb") as infile:
             count_data = json.load(infile)
 
         first_day_number = None
-        num_data_processed = 0
         for data in count_data["data"]["values"]:
-            num_data_processed += 1
             d = datetime.strptime(data["time"], '%Y-%m-%dT%H:%M:%S.%f%z')
             if(first_day_number == None):
                 first_day_number = d.day
 
             if(not args.test or d.day != first_day_number):
-                if(num_data_processed%2 == 0):
-                    list_bike_poisson_lambdas[-1] += data["count"]*2/simu_length
-                else:
-                    list_bike_poisson_lambdas.append(data["count"]*2/simu_length)
+                dict_bike_poisson_lambdas[data["id"]].append(data["count"]/simu_length)
+
+        dict_bike_poisson_lambdas["NS"] = copy.deepcopy(dict_bike_poisson_lambdas["EW"])
+        dict_bike_poisson_lambdas["SN"] = copy.deepcopy(dict_bike_poisson_lambdas["WE"])
                 
         if(args.test):
             num_simu = 1
             print("WARNING : Creating a new scenario using real data...")
-            bike_poisson_distrib = np.empty(0)
-            car_poisson_distrib = np.empty(0)
-            for i in range(len(list_bike_poisson_lambdas)):           
-                bike_poisson_lambda = list_bike_poisson_lambdas[i]
-                car_poisson_lambda = bike_poisson_lambda
+            for en in list_edges_name:
+                dict_bike_poisson_distrib[en] = np.empty(0)
+                dict_car_poisson_distrib[en] = np.empty(0)
+                for pl in dict_bike_poisson_lambdas[en]:           
+                    bike_poisson_lambda = pl
+                    car_poisson_lambda = bike_poisson_lambda
 
-                bike_poisson_distrib = np.concatenate((bike_poisson_distrib, np.random.poisson(bike_poisson_lambda, simu_length)))
-                car_poisson_distrib = np.concatenate((car_poisson_distrib, np.random.poisson(car_poisson_lambda, simu_length)))
+                    dict_bike_poisson_distrib[en] = np.concatenate((dict_bike_poisson_distrib[en], np.random.poisson(bike_poisson_lambda, simu_length)))
+                    dict_car_poisson_distrib[en] = np.concatenate((dict_car_poisson_distrib[en], np.random.poisson(car_poisson_lambda, simu_length)))
 
 
 
@@ -157,7 +207,7 @@ else:
     net = sumolib.net.readNet("sumo_files/net.net.xml")
 edges = net.getEdges()
 
-structure = Structure(edges, net, traci, simu_length, args.method, args.test, min_group_size, args.alpha, use_drl=use_drl)
+structure = Structure(edges, list_edges_name, net, traci, simu_length, args.method, args.test, min_group_size, args.alpha, use_drl=use_drl)
 
 pre_file_name = args.method+"_"
 
@@ -210,22 +260,28 @@ while(cont):
         print("WARNING : Creating a new scenario...")
         if(args.real_data):
             if(not args.test):
-                r = randint(0, len(list_bike_poisson_lambdas)-1)
-                bike_poisson_lambda = list_bike_poisson_lambdas[r]
-                car_poisson_lambda = bike_poisson_lambda
-                bike_poisson_distrib = np.random.poisson(bike_poisson_lambda, simu_length)
-                car_poisson_distrib = np.random.poisson(car_poisson_lambda, simu_length)
+                for en in list_edges_name:
+                    r = randint(0, len(dict_bike_poisson_lambdas[en])-1)
+                    bike_poisson_lambda = dict_bike_poisson_lambdas[en][r]
+                    car_poisson_lambda = bike_poisson_lambda
+                    dict_bike_poisson_distrib[en] = np.random.poisson(bike_poisson_lambda, simu_length)
+                    dict_car_poisson_distrib[en] = np.random.poisson(car_poisson_lambda, simu_length)
+            else:
+                simu_length *= 24
 
         else:
-            bike_poisson_lambda = random.uniform(0.15,0.25)
-            car_poisson_lambda = bike_poisson_lambda
-            bike_poisson_distrib = np.random.poisson(bike_poisson_lambda, simu_length)
-            car_poisson_distrib = np.random.poisson(car_poisson_lambda, simu_length)
+            for en in list_edges_name:
+                bike_poisson_lambda = random.uniform(0.05, 0.1)
+                car_poisson_lambda = bike_poisson_lambda
+                dict_bike_poisson_distrib[en] = np.random.poisson(bike_poisson_lambda, simu_length)
+                dict_car_poisson_distrib[en] = np.random.poisson(car_poisson_lambda, simu_length)
     
+        num_cyclists = 0
+        num_cars = 0
 
-        num_cyclists = sum(bike_poisson_distrib)
-        num_cars = sum(car_poisson_distrib)
-        simu_length = len(bike_poisson_distrib)
+        for en in list_edges_name:
+            num_cyclists += sum(dict_bike_poisson_distrib[en])
+            num_cars += sum(dict_car_poisson_distrib[en])
         
     else:
         print("WARNING : Loading the scenario...")
@@ -277,36 +333,16 @@ while(cont):
 
         if(not args.load_scenario): #new_scenario
             if(step<simu_length):
-                for _ in range(int(bike_poisson_distrib[int(step)])):
-                    id_start = random.randint(0, 3)
-                    id_end = id_start
-                    while(id_end == id_start or id_start == 1 and id_end == 0 or id_start == 0 and id_end == 3 or\
-                    id_start == 3 and id_end == 2 or id_start == 2 and id_end == 1):
-                        id_end = random.randint(0, 3)
-                    e1 = net.getEdge("E"+str(id_start))
-                    e2 = net.getEdge("-E"+str(id_end))
-                    path = net.getShortestPath(e1, e2, vClass='bicycle')[0]
-                    max_speed = np.random.normal(15, 3)
-                    dict_scenario["bikes"][id_cyclist] = {"start_step": step, "start_edge": e1.getID(), "end_edge": e2.getID(),
-                    "distance_travelled": net.getShortestPath(e1, e2, vClass='bicycle', fromPos=0)[1], "waiting_time": 0}
-                    spawn_cyclist(id_cyclist, step, path, net, dict_vehicles["bikes"])
-                    id_cyclist+=1
-                bike_poisson_distrib[int(step)] = 0
+                for en in list_edges_name:
+                    for _ in range(int(dict_bike_poisson_distrib[en][int(step)])):
+                        spawn_vehicle(en, None, list_edges_name, net, dict_scenario, "bikes", dict_vehicles, id_cyclist)
+                        id_cyclist+=1
+                    dict_bike_poisson_distrib[en][int(step)] = 0
 
-                for _ in range(int(car_poisson_distrib[int(step)])):
-                    id_start = random.randint(0, 3)
-                    id_end = id_start
-                    while(id_end == id_start or id_start == 1 and id_end == 0 or id_start == 0 and id_end == 3 or\
-                    id_start == 3 and id_end == 2 or id_start == 2 and id_end == 1):
-                        id_end = random.randint(0, 3)
-                    e1 = net.getEdge("E"+str(id_start))
-                    e2 = net.getEdge("-E"+str(id_end))
-                    path = net.getShortestPath(e1, e2, vClass='passenger')[0]
-                    dict_scenario["cars"][id_car] = {"start_step": step, "start_edge": e1.getID(), "end_edge": e2.getID(),
-                    "distance_travelled": net.getShortestPath(e1, e2, vClass='passenger', fromPos=0)[1], "waiting_time": 0}
-                    spawn_car(id_car, step, path, net, dict_vehicles["cars"])
-                    id_car+=1
-                    car_poisson_distrib[int(step)] = 0
+                    for _ in range(int(dict_car_poisson_distrib[en][int(step)])):
+                        spawn_vehicle(en, None, list_edges_name, net, dict_scenario, "cars", dict_vehicles, id_car)
+                        id_car+=1
+                    dict_car_poisson_distrib[en][int(step)] = 0
 
         else:
             while(id_cyclist not in old_dict_scenario["bikes"] and id_cyclist <= max_id_cyclist):
@@ -314,12 +350,8 @@ while(cont):
             if(id_cyclist in old_dict_scenario["bikes"] and step >= old_dict_scenario["bikes"][id_cyclist]["start_step"]):
                 start_edge_id=old_dict_scenario["bikes"][id_cyclist]["start_edge"]
                 end_edge_id=old_dict_scenario["bikes"][id_cyclist]["end_edge"]
-                e1 = net.getEdge(start_edge_id)
-                e2 = net.getEdge(end_edge_id)
-                path = net.getShortestPath(e1, e2, vClass='bicycle')[0]
-                dict_scenario["bikes"][id_cyclist] = {"start_step": step, "start_edge": e1.getID(), "end_edge": e2.getID(),
-                "distance_travelled": net.getShortestPath(e1, e2, vClass='bicycle', fromPos=0)[1], "waiting_time": 0}
-                spawn_cyclist(id_cyclist, step, path, net, dict_vehicles["bikes"])
+
+                spawn_vehicle(start_edge_id, end_edge_id, list_edges_name, net, dict_scenario, "bikes", dict_vehicles, id_cyclist)
                 id_cyclist+=1
 
             while(id_car not in old_dict_scenario["cars"] and id_car <= max_id_car):
@@ -327,12 +359,8 @@ while(cont):
             if(id_car in old_dict_scenario["cars"] and step >= old_dict_scenario["cars"][id_car]["start_step"]):
                 start_edge_id=old_dict_scenario["cars"][id_car]["start_edge"]
                 end_edge_id=old_dict_scenario["cars"][id_car]["end_edge"]
-                e1 = net.getEdge(start_edge_id)
-                e2 = net.getEdge(end_edge_id)
-                path = net.getShortestPath(e1, e2, vClass='passenger')[0]
-                dict_scenario["cars"][id_car] = {"start_step": step, "start_edge": e1.getID(), "end_edge": e2.getID(),
-                "distance_travelled": net.getShortestPath(e1, e2, vClass='passenger', fromPos=0)[1], "waiting_time": 0}
-                spawn_car(id_car, step, path, net, dict_vehicles["cars"])
+
+                spawn_vehicle(start_edge_id, end_edge_id, list_edges_name, net, dict_scenario, "cars", dict_vehicles, id_car)
                 id_car+=1
 
         traci.simulationStep() 
