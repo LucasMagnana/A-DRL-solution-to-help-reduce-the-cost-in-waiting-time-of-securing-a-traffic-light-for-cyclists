@@ -52,7 +52,8 @@ class DuellingActorCNN(nn.Module):
         super(DuellingActorCNN, self).__init__()
 
         self.conv1 = nn.Conv2d(size_ob[0], 16, 2)
-        out_shape = shape_after_conv_and_flatten(size_ob, self.conv1)
+        self.conv2 = nn.Conv2d(16, 16, 2)
+        out_shape = 1728 #shape_after_conv_and_flatten(size_ob, self.conv2)
 
         self.features_layer = nn.Linear(out_shape, 64)
 
@@ -66,6 +67,7 @@ class DuellingActorCNN(nn.Module):
     def forward(self, ob):
         ob = ob.float()
         features = nn.functional.relu(self.conv1(ob))
+        features = nn.functional.relu(self.conv2(features))
         
         if(len(features.shape) == 3):
             features = torch.flatten(features)
