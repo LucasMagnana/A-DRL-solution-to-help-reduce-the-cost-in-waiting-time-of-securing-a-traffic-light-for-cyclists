@@ -158,7 +158,7 @@ if __name__ == "__main__":
                 dict_car_poisson_distrib[en] = np.empty(0)
                 for pl in dict_bike_poisson_lambdas[en]:           
                     bike_poisson_lambda = pl
-                    car_poisson_lambda = bike_poisson_lambda
+                    car_poisson_lambda = bike_poisson_lambda*1.5
 
                     dict_bike_poisson_distrib[en] = np.concatenate((dict_bike_poisson_distrib[en], np.random.poisson(bike_poisson_lambda, simu_length)))
                     dict_car_poisson_distrib[en] = np.concatenate((dict_car_poisson_distrib[en], np.random.poisson(car_poisson_lambda, simu_length)))
@@ -263,7 +263,7 @@ while(cont):
                 for en in list_edges_name:
                     r = randint(0, len(dict_bike_poisson_lambdas[en])-1)
                     bike_poisson_lambda = dict_bike_poisson_lambdas[en][r]
-                    car_poisson_lambda = bike_poisson_lambda
+                    car_poisson_lambda = bike_poisson_lambda*1.5
                     dict_bike_poisson_distrib[en] = np.random.poisson(bike_poisson_lambda, simu_length)
                     dict_car_poisson_distrib[en] = np.random.poisson(car_poisson_lambda, simu_length)
             else:
