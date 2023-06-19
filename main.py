@@ -56,20 +56,6 @@ def spawn_vehicle(id_start, id_end, list_edges_name, net, dict_scenario, v_type,
 
     dict_vehicles[v_type][str_id_vehicle]=[]
 
-def spawn_cyclist(id_cyclist, step, path, net, dict_bikes):
-    path = [e.getID() for e in path]
-    traci.route.add(str(id_cyclist)+"_sp", path)      
-    traci.vehicle.add(str(id_cyclist), str(id_cyclist)+"_sp", departLane="0", typeID='bicycle', departSpeed="avg")
-    traci.vehicle.changeLane(str(id_cyclist), 0, 99999)
-    dict_bikes[str(id_cyclist)]=[]
-
-
-def spawn_car(id_car, step, path, net, dict_cars):
-    path = [e.getID() for e in path]
-    traci.route.add(str(id_car)+"_c_sp", path)
-    traci.vehicle.add(str(id_car)+"_c", str(id_car)+"_c_sp", departLane="best", typeID='car')
-    dict_cars[str(id_car)]=[]
-
 
 def save(tab_dict_scenarios, args, structure, sub_folders, pre_file_name, use_drl):
     print("WARNING: Saving scenario...")
@@ -156,9 +142,10 @@ if __name__ == "__main__":
             for en in list_edges_name:
                 dict_bike_poisson_distrib[en] = np.empty(0)
                 dict_car_poisson_distrib[en] = np.empty(0)
-                for pl in dict_bike_poisson_lambdas[en]:           
+                for pl in dict_bike_poisson_lambdas[en]:   
+                    coeff_car_lambda = 1.5 #random.uniform(1,2)        
                     bike_poisson_lambda = pl
-                    car_poisson_lambda = bike_poisson_lambda*1.5
+                    car_poisson_lambda = bike_poisson_lambda*coeff_car_lambda
 
                     dict_bike_poisson_distrib[en] = np.concatenate((dict_bike_poisson_distrib[en], np.random.poisson(bike_poisson_lambda, simu_length)))
                     dict_car_poisson_distrib[en] = np.concatenate((dict_car_poisson_distrib[en], np.random.poisson(car_poisson_lambda, simu_length)))
@@ -263,7 +250,8 @@ while(cont):
                 for en in list_edges_name:
                     r = randint(0, len(dict_bike_poisson_lambdas[en])-1)
                     bike_poisson_lambda = dict_bike_poisson_lambdas[en][r]
-                    car_poisson_lambda = bike_poisson_lambda*1.5
+                    coeff_car_lambda = random.uniform(1,2) 
+                    car_poisson_lambda = bike_poisson_lambda*coeff_car_lambda
                     dict_bike_poisson_distrib[en] = np.random.poisson(bike_poisson_lambda, simu_length)
                     dict_car_poisson_distrib[en] = np.random.poisson(car_poisson_lambda, simu_length)
             else:
