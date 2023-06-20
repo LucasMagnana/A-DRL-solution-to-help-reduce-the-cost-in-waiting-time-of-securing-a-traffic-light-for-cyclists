@@ -46,9 +46,9 @@ def plot_and_save_bar(data, file_title, labels=None, sub_folders=""):
     plt.savefig("images/"+sub_folders+file_title+".png")
 
 
-def plot_data(data, vehicle_type, y, file_title, sub_folders=""):
+def plot_data(data, vehicle_type, x_axis_label, y, file_title, sub_folders="", estimator="mean"):
     plt.clf()
-    fig = sns.lineplot(data[data["Vehicle type"]==vehicle_type], x="x_axis", y=y, hue="Method").get_figure()
+    fig = sns.lineplot(data[data["Vehicle type"]==vehicle_type], x=x_axis_label, y=y, hue="Method", estimator=estimator).get_figure()
     plt.title(y+" of "+vehicle_type)
     plt.savefig("images/"+sub_folders+file_title)
 
@@ -66,6 +66,7 @@ def cut_tab_scenarios(tab_scenarios):
 
 def add_scenario_data_to_df(tab_scenarios, tab_scenarios_actuated, label, x_axis, columns):
     data = pd.DataFrame(columns=columns)
+    sum_waiting_time = 0
     for num_simu in range(len(tab_scenarios)):
         sum_travel_time_bikes, sum_waiting_time_bikes, num_bikes = compute_data(tab_scenarios[num_simu]["bikes"])
         sum_travel_time_cars, sum_waiting_time_cars, num_cars = compute_data(tab_scenarios[num_simu]["cars"])
@@ -88,12 +89,14 @@ def add_scenario_data_to_df(tab_scenarios, tab_scenarios_actuated, label, x_axis
         else:
             x = x_axis
 
-        data = pd.concat([data, pd.DataFrame([[label, "bikes", x, mean_waiting_time_bikes, mean_waiting_time_bikes-mean_waiting_time_bikes_actuated, sum_travel_time_bikes]], columns=columns)], ignore_index=True)
-        data = pd.concat([data, pd.DataFrame([[label, "cars", x, mean_waiting_time_cars, mean_waiting_time_cars-mean_waiting_time_cars_actuated, sum_travel_time_cars]], columns=columns)], ignore_index=True)
+        data = pd.concat([data, pd.DataFrame([[label, "bikes", x, mean_waiting_time_bikes, mean_waiting_time_bikes-mean_waiting_time_bikes_actuated]], columns=columns)], ignore_index=True)
+        data = pd.concat([data, pd.DataFrame([[label, "cars", x, mean_waiting_time_cars, mean_waiting_time_cars-mean_waiting_time_cars_actuated]], columns=columns)], ignore_index=True)
         data = pd.concat([data, pd.DataFrame([[label, "both", x, mean_waiting_time_bikes+mean_waiting_time_cars,\
-        (mean_waiting_time_bikes+mean_waiting_time_cars)-(mean_waiting_time_bikes_actuated+mean_waiting_time_cars_actuated), sum_travel_time_bikes+sum_travel_time_cars]], columns=columns)], ignore_index=True)
-    
-    return data
+        (mean_waiting_time_bikes+mean_waiting_time_cars)-(mean_waiting_time_bikes_actuated+mean_waiting_time_cars_actuated)]], columns=columns)], ignore_index=True)
+
+        sum_waiting_time += sum_waiting_time_bikes+sum_waiting_time_cars
+
+    return data, sum_waiting_time
 
 if __name__ == "__main__": 
 
@@ -110,13 +113,16 @@ if __name__ == "__main__":
     if(args.full_test):
         sub_folders = "full_test/"
         start_coeff_car_lambda = 1
-        num_scenario_same_param = 5
+        num_scenario_same_param = 10
         coeff_car_lambda = start_coeff_car_lambda
+        x_axis_label = "Multiply coefficient lambda cars"
         
     elif(args.test):
         sub_folders = "test/"
+        x_axis_label = "Hours"
     else:   
         sub_folders = "train/"
+        x_axis_label = "Simulations"
     
 
     labels = {}
@@ -126,31 +132,45 @@ if __name__ == "__main__":
     list_tab_scenarios_actuated = []
     list_tab_scenarios = []
 
-    columns=["Method", "Vehicle type", "x_axis", "Mean waiting time", "Difference of mean waiting time with actuated", "Sum of waiting times"]
+
+    columns=["Method", "Vehicle type", x_axis_label, "Mean waiting time", "Difference of mean waiting time with actuated"]
     data = pd.DataFrame(columns=columns)
+
+    if(args.full_test or not args.test):
+        columns_sum=["Method", "Vehicle type", x_axis_label, "Sum of waiting times"]
+        data_sum = pd.DataFrame(columns=columns_sum)
 
     if os.path.exists("files/"+sub_folders+"actuated_scenarios.tab"):
         with open("files/"+sub_folders+"actuated_scenarios.tab", 'rb') as infile:
             tab_scenarios_actuated = pickle.load(infile)
 
 
-        if(args.test and len(tab_scenarios_actuated) == 1 or args.full_test):
-            for num_scenario in range(len(tab_scenarios_actuated)):
+        for num_scenario in range(len(tab_scenarios_actuated)):
 
-                tab_actuated = tab_scenarios_actuated[num_scenario]
+            tab_actuated = tab_scenarios_actuated[num_scenario]
 
-                if(args.full_test and num_scenario > 0 and num_scenario%num_scenario_same_param == 0):
-                    coeff_car_lambda += 0.1
+            if(args.full_test and num_scenario > 0 and num_scenario%num_scenario_same_param == 0):
+                coeff_car_lambda += 0.1
 
-                if(args.full_test):
-                    x_axis = coeff_car_lambda
-                else:
-                    x_axis = None
+            if(args.full_test):
+                x_axis = coeff_car_lambda
+            else:
+                x_axis = None
 
+            sum_travel_time_bikes, sum_waiting_time_bikes, num_bikes = compute_data(tab_actuated["bikes"])
+            sum_travel_time_cars, sum_waiting_time_cars, num_cars = compute_data(tab_actuated["cars"])
+
+            if(args.test and len(tab_scenarios_actuated) == 1 or args.full_test):
                 tab_actuated = cut_tab_scenarios(tab_actuated)
-                
-                data = pd.concat([data, add_scenario_data_to_df(tab_actuated, tab_actuated, "actuated", x_axis, columns)], ignore_index=True)
-                list_tab_scenarios_actuated.append(tab_actuated)
+
+            new_data, sum_waiting_time = add_scenario_data_to_df(tab_actuated, tab_actuated, "actuated", x_axis, columns))
+
+            data = pd.concat([data, new_data], ignore_index=True)
+
+            if(args.full_test or not args.test):
+                data_sum = pd.concat([data_sum, pd.DataFrame([["actuated", "both", x_axis, sum_waiting_time]], columns=columns_sum)])
+            
+            list_tab_scenarios_actuated.append(tab_actuated)
 
     if(not args.full_test):
         sub_folders += str(args.alpha)+"/"
@@ -199,13 +219,14 @@ if __name__ == "__main__":
         else:
             tab_scenarios_actuated = tab_scenarios
 
+        new_data, sum_waiting_time = add_scenario_data_to_df(tab_scenarios, tab_scenarios_actuated, label, x_axis, columns)
+        data = pd.concat([data, new_data], ignore_index=True)
 
-        data = pd.concat([data, add_scenario_data_to_df(tab_scenarios, tab_scenarios_actuated, label, x_axis, columns)], ignore_index=True)
+        if(args.full_test or not args.test):
+            data_sum = pd.concat([data_sum, pd.DataFrame([[label, "both", x_axis, sum_waiting_time]], columns=columns_sum)])
 
         i+=1
     
-
-    print(data)
 
     if(not os.path.exists("images/"+sub_folders)):
         os.makedirs("images/"+sub_folders)
@@ -214,12 +235,13 @@ if __name__ == "__main__":
         plot_data([tab_losses], "evolution_losses.png", "Loss Evolution",labels, ["Simulations", "Loss"], sub_folders)
 
 
-    plot_data(data, "cars", "Mean waiting time", "cars_evolution_mean_waiting_time.png", sub_folders)
-    plot_data(data, "bikes", "Mean waiting time", "bikes_evolution_mean_waiting_time.png", sub_folders)
-    plot_data(data, "bikes" , "Difference of mean waiting time with actuated", "bikes_diff_mean_waiting_time.png", sub_folders)
-    plot_data(data, "cars", "Difference of mean waiting time with actuated", "car_diff_mean_waiting_time.png", sub_folders)
+    plot_data(data, "cars", x_axis_label, "Mean waiting time", "cars_evolution_mean_waiting_time.png", sub_folders)
+    plot_data(data, "bikes", x_axis_label, "Mean waiting time", "bikes_evolution_mean_waiting_time.png", sub_folders)
+    plot_data(data, "bikes", x_axis_label, "Difference of mean waiting time with actuated", "bikes_diff_mean_waiting_time.png", sub_folders)
+    plot_data(data, "cars", x_axis_label, "Difference of mean waiting time with actuated", "car_diff_mean_waiting_time.png", sub_folders)
 
-    plot_data(data, "both", "Mean waiting time", "evolution_mean_waiting_time.png", sub_folders)
-    plot_data(data, "both", "Difference of mean waiting time with actuated", "diff_mean_waiting_time.png", sub_folders)
+    plot_data(data, "both", x_axis_label, "Mean waiting time", "evolution_mean_waiting_time.png", sub_folders)
+    plot_data(data, "both", x_axis_label, "Difference of mean waiting time with actuated", "diff_mean_waiting_time.png", sub_folders)
 
-    plot_data(data, "both", "Sum of waiting times", "sum_waiting_times.png", sub_folders)
+    if(args.full_test or not args.test):
+        plot_data(data_sum, "both", x_axis_label, "Sum of waiting times", "sum_waiting_times.png", sub_folders)

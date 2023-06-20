@@ -113,7 +113,7 @@ if __name__ == "__main__":
     if(args.full_test):
         args.test = True
         args.real_data = True
-        num_simu_same_param = 5
+        num_simu_same_param = 10
 
     list_edges_name = ["NS", "SN", "EW", "WE"]
 
