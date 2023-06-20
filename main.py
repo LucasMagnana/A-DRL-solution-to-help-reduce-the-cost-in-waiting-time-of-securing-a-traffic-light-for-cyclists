@@ -88,6 +88,8 @@ simu_length = 3600
 
 save_scenario = True
 
+coeff_car_lambda = 1 #random.uniform(1,2)    
+
 if __name__ == "__main__": 
     parser = argparse.ArgumentParser()
 
@@ -103,7 +105,15 @@ if __name__ == "__main__":
     parser.add_argument("--test", action="store_true")
     parser.add_argument("--real-data", action="store_true")
 
+    parser.add_argument("--full-test", action="store_true")
+
+
     args = parser.parse_args()
+
+    if(args.full_test):
+        args.test = True
+        args.real_data = True
+        num_simu_same_param = 5
 
     list_edges_name = ["NS", "SN", "EW", "WE"]
 
@@ -118,7 +128,14 @@ if __name__ == "__main__":
 
 
     if(args.test and not args.load_scenario):
-        num_simu = 20
+        if(args.full_test):
+            num_simu = 10*num_simu_same_param
+            simu_length *= 24
+        elif(args.real_data):
+            num_simu = 1
+            simu_length *= 24
+        else:
+            num_simu = 20
 
     if(args.real_data):        
         with open("./real_data.json", "rb") as infile:
@@ -131,24 +148,11 @@ if __name__ == "__main__":
                 first_day_number = d.day
 
             if(not args.test or d.day != first_day_number):
-                dict_bike_poisson_lambdas[data["id"]].append(data["count"]/simu_length)
+                dict_bike_poisson_lambdas[data["id"]].append(data["count"]/3600)
 
         dict_bike_poisson_lambdas["NS"] = copy.deepcopy(dict_bike_poisson_lambdas["EW"])
         dict_bike_poisson_lambdas["SN"] = copy.deepcopy(dict_bike_poisson_lambdas["WE"])
                 
-        if(args.test):
-            num_simu = 1
-            print("WARNING : Creating a new scenario using real data...")
-            for en in list_edges_name:
-                dict_bike_poisson_distrib[en] = np.empty(0)
-                dict_car_poisson_distrib[en] = np.empty(0)
-                for pl in dict_bike_poisson_lambdas[en]:   
-                    coeff_car_lambda = 1.5 #random.uniform(1,2)        
-                    bike_poisson_lambda = pl
-                    car_poisson_lambda = bike_poisson_lambda*coeff_car_lambda
-
-                    dict_bike_poisson_distrib[en] = np.concatenate((dict_bike_poisson_distrib[en], np.random.poisson(bike_poisson_lambda, simu_length)))
-                    dict_car_poisson_distrib[en] = np.concatenate((dict_car_poisson_distrib[en], np.random.poisson(car_poisson_lambda, simu_length)))
 
 
 
@@ -175,15 +179,16 @@ sumoBinary = "/usr/bin/sumo"
 if(args.gui):
     sumoBinary += "-gui"
 sumoCmd = [sumoBinary, "-c", conf, "--quit-on-end", "--waiting-time-memory", '10000', '--start', '--delay', '1000', '--step-length', str(step_length),\
-'--time-to-teleport', '-1'] #, "--no-warnings"]
+'--time-to-teleport', '-1', "--no-warnings"]
 
 import traci
 import traci.constants as tc
 import sumolib
 
 
-
-if(args.test):
+if(args.full_test):
+    sub_folders = "full_test/"
+elif(args.test):
     sub_folders = "test/"
 else:
     sub_folders = "train/"
@@ -194,7 +199,7 @@ else:
     net = sumolib.net.readNet("sumo_files/net.net.xml")
 edges = net.getEdges()
 
-structure = Structure(edges, list_edges_name, net, traci, simu_length, args.method, args.test, min_group_size, args.alpha, use_drl=use_drl)
+structure = Structure(edges, list_edges_name, net, traci, args.method, args.test, min_group_size, args.alpha, use_drl=use_drl)
 
 pre_file_name = args.method+"_"
 
@@ -216,7 +221,8 @@ if(args.load_scenario):
 if(args.method != "actuated"):
     sub_folders += str(args.alpha)+"/"
 
-#for s in range(start_num_simu, num_simu):
+
+print("Simulating", num_simu, "scenario of", simu_length, "steps...")
 
 ep = 0
 
@@ -224,14 +230,15 @@ cont = True
 
 while(cont):
 
-    ep += 1
+    if(ep > 0 and ep%num_simu_same_param == 0):
+        coeff_car_lambda += 0.1
 
     if(not args.test and "DQN" in args.method and structure.drl_agent.num_decisions_made >= structure.drl_agent.hyperParams.DECISION_CT_LEARNING_START):
         structure.drl_agent.learn()
 
     if(not args.test and "PPO" in args.method):
         structure.drl_agent.start_episode()
-        if((ep-1) != start_num_simu and (ep-1)%structure.drl_agent.hyperParams.LEARNING_EP == 0):
+        if(ep != start_num_simu and ep%structure.drl_agent.hyperParams.LEARNING_EP == 0):
             structure.drl_agent.learn()
 
     next_step_wt_update = 0
@@ -244,20 +251,34 @@ while(cont):
     structure.create_tls_phases()
 
     if(not args.load_scenario):
-        print("WARNING : Creating a new scenario...")
         if(args.real_data):
+            print("WARNING : Creating a new scenario using real data...")
+            print("coeff_car_lambda:", coeff_car_lambda)
             if(not args.test):
                 for en in list_edges_name:
                     r = randint(0, len(dict_bike_poisson_lambdas[en])-1)
                     bike_poisson_lambda = dict_bike_poisson_lambdas[en][r]
                     coeff_car_lambda = random.uniform(1,2) 
                     car_poisson_lambda = bike_poisson_lambda*coeff_car_lambda
-                    dict_bike_poisson_distrib[en] = np.random.poisson(bike_poisson_lambda, simu_length)
-                    dict_car_poisson_distrib[en] = np.random.poisson(car_poisson_lambda, simu_length)
+                    dict_bike_poisson_distrib[en] = np.random.poisson(bike_poisson_lambda, 3600)
+                    dict_car_poisson_distrib[en] = np.random.poisson(car_poisson_lambda, 3600)
             else:
-                simu_length *= 24
+                for en in list_edges_name:
+                    dict_bike_poisson_distrib[en] = np.empty(0)
+                    dict_car_poisson_distrib[en] = np.empty(0)
+                    for pl in dict_bike_poisson_lambdas[en]:
+
+                        if(not args.full_test):
+                            coeff_car_lambda = 1.5 #random.uniform(1,2)    
+
+                        bike_poisson_lambda = pl
+                        car_poisson_lambda = bike_poisson_lambda*coeff_car_lambda
+
+                        dict_bike_poisson_distrib[en] = np.concatenate((dict_bike_poisson_distrib[en], np.random.poisson(bike_poisson_lambda, 3600)))
+                        dict_car_poisson_distrib[en] = np.concatenate((dict_car_poisson_distrib[en], np.random.poisson(car_poisson_lambda, 3600)))
 
         else:
+            print("WARNING : Creating a new scenario...")
             for en in list_edges_name:
                 bike_poisson_lambda = random.uniform(0.05, 0.1)
                 car_poisson_lambda = bike_poisson_lambda
@@ -273,13 +294,10 @@ while(cont):
         
     else:
         print("WARNING : Loading the scenario...")
-        old_dict_scenario = tab_dict_old_scenarios[ep-1]
+        old_dict_scenario = tab_dict_old_scenarios[ep]
 
         num_cyclists = len(old_dict_scenario["bikes"])
         num_cars = len(old_dict_scenario["cars"])
-
-        if(args.real_data or num_simu == 1):
-            simu_length *= 24
 
         if(len(old_dict_scenario["bikes"].keys()) == 0):
             max_id_cyclist = 0
@@ -291,16 +309,23 @@ while(cont):
         else:
             max_id_car = max(old_dict_scenario["cars"].keys())
 
-    num_data = num_cyclists + num_cars
+
+        if(max_id_car > 0 and max_id_cyclist > 0):
+            simu_length = max(old_dict_scenario["cars"][max_id_car]["start_step"], old_dict_scenario["bikes"][max_id_cyclist]["start_step"])
+        elif(max_id_car == 0):
+            simu_length = old_dict_scenario["bikes"][max_id_cyclist]["start_step"]
+        else:
+            simu_length = old_dict_scenario["cars"][max_id_car]["start_step"]
+
         
-    print("num_cyclists: ", num_cyclists, ", num_cars :", num_cars, ", num_data :", num_data)
+    print("num_cyclists: ", num_cyclists, ", num_cars :", num_cars, ", num_data :", num_cyclists + num_cars)
 
 
     dict_scenario={"cars": {}, "bikes": {}}
 
     dict_vehicles = {"bikes": {}, "cars": {}}
 
-    structure.reset(dict_vehicles["bikes"], dict_scenario)
+    structure.reset(dict_scenario)
 
 
     id_cyclist = 0
@@ -310,8 +335,6 @@ while(cont):
     continue_simu = True
 
     forced_stop = False
-
-    print(simu_length)
 
     while(step<=simu_length or len(traci.vehicle.getIDList()) > 0):
 
@@ -410,12 +433,11 @@ while(cont):
         print("num decisions:", structure.drl_agent.num_decisions_made)
 
     if(args.test):
-        if(args.real_data):
-            cont = ep < 1
-        else:
-            cont = ep < 23
+        cont = ep < num_simu-1
     else:
         cont = structure.drl_agent.num_decisions_made < structure.drl_agent.hyperParams.DECISION_COUNT
+
+    ep += 1
 
 
     if(save_scenario):

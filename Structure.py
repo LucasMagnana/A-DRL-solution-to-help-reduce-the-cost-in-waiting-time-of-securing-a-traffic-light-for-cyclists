@@ -9,7 +9,7 @@ from PPOAgent import PPOAgent
 from TD3Agent import TD3Agent
 
 class Structure:
-    def __init__(self, edges, list_edges_name, net, traci, simu_length, method, test, min_group_size, alpha_bike, use_drl=True, cnn=True, open=True):
+    def __init__(self, edges, list_edges_name, net, traci, method, test, min_group_size, alpha_bike, use_drl=True, cnn=True, open=True):
 
 
         self.module_traci = traci
@@ -22,9 +22,6 @@ class Structure:
         self.list_edges_name = list_edges_name
 
         self.tls = self.net.getEdge("E_EW").getTLS()  
-
-
-        self.simu_length = simu_length
 
         self.method = method
 
@@ -128,8 +125,7 @@ class Structure:
         
 
 
-    def reset(self, dict_cyclists, dict_scenario):
-        self.dict_cyclists = dict_cyclists
+    def reset(self, dict_scenario):
         self.dict_scenario = dict_scenario
 
         self.id_cyclists_crossing_struct = []
