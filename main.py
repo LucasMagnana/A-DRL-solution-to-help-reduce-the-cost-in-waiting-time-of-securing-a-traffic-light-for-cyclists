@@ -129,7 +129,7 @@ if __name__ == "__main__":
 
     if(args.test and not args.load_scenario):
         if(args.full_test):
-            num_simu = 10*num_simu_same_param
+            num_simu = 20*num_simu_same_param
             simu_length *= 24
         elif(args.real_data):
             num_simu = 1
