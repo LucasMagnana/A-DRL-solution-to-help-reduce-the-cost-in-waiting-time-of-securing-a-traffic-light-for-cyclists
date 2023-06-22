@@ -117,14 +117,18 @@ if __name__ == "__main__":
 
     list_edges_name = ["NS", "SN", "EW", "WE"]
 
-    dict_bike_poisson_lambdas = {}
+    list_date_in_data = []
+
+    dict_poisson_lambdas = {"bikes": {}, "cars": {}}
+
     dict_bike_poisson_distrib = {}
     dict_car_poisson_distrib = {}
 
     for en in list_edges_name:
-        dict_bike_poisson_lambdas[en] = []
-        dict_bike_poisson_distrib[en] = []
-        dict_car_poisson_distrib[en] = []
+        for vt in dict_poisson_lambdas:
+            dict_poisson_lambdas[vt][en] = {}
+        dict_bike_poisson_distrib[en] = {}
+        dict_car_poisson_distrib[en] = {}
 
 
     if(args.test and not args.load_scenario):
@@ -137,23 +141,53 @@ if __name__ == "__main__":
         else:
             num_simu = 20
 
-    if(args.real_data):        
-        with open("./real_data.json", "rb") as infile:
-            count_data = json.load(infile)
+    if(args.real_data): 
+
+        with open("./real_data/bikes_counts.json", "rb") as infile:
+            counts_data = json.load(infile)
 
         first_day_number = None
-        for data in count_data["data"]["values"]:
-            d = datetime.strptime(data["time"], '%Y-%m-%dT%H:%M:%S.%f%z')
-            if(first_day_number == None):
-                first_day_number = d.day
+        for i in range(len(counts_data)):
+            data = counts_data[i]
+            d = datetime.strptime(data["date"][:-6], '%Y-%m-%dT%H:%M:%S')
+            if("E-O" in data["nom_compteur"]):
+                orientation = "EW"
+            elif("O-E" in data["nom_compteur"]):
+                orientation = "WE"
 
-            if(not args.test or d.day != first_day_number):
-                dict_bike_poisson_lambdas[data["id"]].append(data["count"]/3600)
+            dict_poisson_lambdas["bikes"][orientation][d] = data["sum_counts"]/3600
+            if(d not in list_date_in_data):
+                list_date_in_data.append(d)
 
-        dict_bike_poisson_lambdas["NS"] = copy.deepcopy(dict_bike_poisson_lambdas["EW"])
-        dict_bike_poisson_lambdas["SN"] = copy.deepcopy(dict_bike_poisson_lambdas["WE"])
+
+        with open("./real_data/cars_counts.json", "rb") as infile:
+            counts_data = json.load(infile)
+
+        first_day_number = None
+        for i in range(len(counts_data)):
+            data = counts_data[i]
+            if(data["q"] == None):
+                continue
+            d = datetime.strptime(data["t_1h"][:-6], '%Y-%m-%dT%H:%M:%S')
+
+            if(d not in dict_poisson_lambdas["cars"]["EW"]):
+                dict_poisson_lambdas["cars"]["EW"][d] = [data["q"]]
+            else:
+                dict_poisson_lambdas["cars"]["EW"][d].append(data["q"])
+
+        for d in copy.deepcopy(list(dict_poisson_lambdas["cars"]["EW"].keys())):
+            if(d in list_date_in_data):
+                dict_poisson_lambdas["cars"]["EW"][d] = sum(dict_poisson_lambdas["cars"]["EW"][d])/len(dict_poisson_lambdas["cars"]["EW"][d])
+                dict_poisson_lambdas["cars"]["EW"][d] = (dict_poisson_lambdas["cars"]["EW"][d]/2)/3600
+                dict_poisson_lambdas["cars"]["WE"][d] = dict_poisson_lambdas["cars"]["EW"][d]
+            else:
+                del dict_poisson_lambdas["cars"]["EW"][d]
+            
+
+        for vt in dict_poisson_lambdas:
+            dict_poisson_lambdas[vt]["NS"] = copy.deepcopy(dict_poisson_lambdas[vt]["EW"])
+            dict_poisson_lambdas[vt]["SN"] = copy.deepcopy(dict_poisson_lambdas[vt]["WE"])
                 
-
 
 
 step_length = 1
@@ -218,8 +252,8 @@ if(args.load_scenario):
             start_num_simu = len(tab_dict_scenarios)
 
 
-if(args.method != "actuated"):
-    sub_folders += str(args.alpha)+"/"
+'''if(args.method != "actuated"):
+    sub_folders += str(args.alpha)+"/"'''
 
 
 print("Simulating", num_simu, "scenario of", simu_length, "steps...")
