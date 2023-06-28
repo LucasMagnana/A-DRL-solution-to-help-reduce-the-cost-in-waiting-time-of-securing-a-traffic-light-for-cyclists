@@ -1,3 +1,4 @@
 *.pyc
-files/train/0.5/3DQN_scenarios.tab     
+files/train/3DQN_scenarios.tab     
+files/test/3DQN_scenarios.tab     
 files/full_test/

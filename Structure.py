@@ -51,9 +51,11 @@ class Structure:
 
             self.action_space = 4
 
-            if(os.path.exists("files/train/"+str(alpha_bike)+"/"+self.method+"_trained.n")):
-                model_to_load = "files/train/"+str(alpha_bike)+"/"+self.method+"_trained.n"
+            if(os.path.exists("files/train/"+self.method+"_trained.n")):
+                print("WARNING: Loading model...")
+                model_to_load = "files/train/"+self.method+"_trained.n"
             else:
+                print("WARNING: Creating a new model...")
                 model_to_load = None
 
 

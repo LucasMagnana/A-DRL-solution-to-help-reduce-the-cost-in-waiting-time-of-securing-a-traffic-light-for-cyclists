@@ -26,13 +26,13 @@ class DQNHyperParams :
 
         self.UPDATE_TARGET = 7500
 
-        self.DECISION_COUNT = 750000
+        self.DECISION_COUNT = 1500000
         self.MAX_STEPS = 1000
         self.DECISION_CT_LEARNING_START = 10000
         self.LEARNING_EP = 1
 
         self.EPSILON = 1.0
-        self.MIN_EPSILON = 0.15
+        self.MIN_EPSILON = 0.1
         self.EPSILON_DECAY = self.EPSILON/(self.DECISION_COUNT)
 
 

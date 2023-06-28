@@ -151,8 +151,10 @@ if __name__ == "__main__":
         with open("files/"+sub_folders+"actuated_scenarios.tab", 'rb') as infile:
             tab_scenarios_actuated = pickle.load(infile)
 
+        if(args.slice != -1):
+            tab_scenarios_actuated = tab_scenarios_actuated[:args.slice]
 
-        for num_scenario in range(len(tab_scenarios_actuated[:args.slice])):
+        for num_scenario in range(len(tab_scenarios_actuated)):
 
             tab_actuated = tab_scenarios_actuated[num_scenario]
 
@@ -185,7 +187,6 @@ if __name__ == "__main__":
             
             list_tab_scenarios_actuated.append(tab_actuated)
 
-    sub_folders += str(args.alpha)+"/"
 
     for root, dirs, files in os.walk("files/"+sub_folders):
         for filename in files:
@@ -196,12 +197,14 @@ if __name__ == "__main__":
                 elif("scenarios" in filename):
                     with open("files/"+sub_folders+filename, 'rb') as infile:
                         tab_scenarios = pickle.load(infile)
+                    if(args.slice != -1):
+                        tab_scenarios = tab_scenarios[:args.slice]
                     for l in possible_labels:
                         if(l in filename):
                             labels[len(list_tab_scenarios)] = l
                             break
 
-                    for tab in tab_scenarios[:args.slice]:
+                    for tab in tab_scenarios:
                         if(args.test and len(tab_scenarios) == 1 or args.full_test):
                             tab = cut_tab_scenarios(tab)   
                         else:
@@ -211,6 +214,9 @@ if __name__ == "__main__":
 
     
     i = 0
+    if(len(labels) == 0):
+        labels[0] = "actuated"
+        list_tab_scenarios = list_tab_scenarios_actuated
     label = labels[i]
     
 
@@ -244,7 +250,7 @@ if __name__ == "__main__":
 
         i+=1
     
-    print(data_sum)
+   
 
     if(not os.path.exists("images/"+sub_folders)):
         os.makedirs("images/"+sub_folders)

@@ -75,6 +75,7 @@ def save(tab_dict_scenarios, args, structure, sub_folders, pre_file_name, use_dr
         pickle.dump(tab_saved_dict_scenarios, outfile)
 
     if(not args.test and use_drl):
+        print("WARNING: Saving model...")
         with open("files/"+sub_folders+pre_file_name+"losses.tab", 'wb') as outfile:
             pickle.dump(structure.drl_agent.tab_losses, outfile)
         torch.save(structure.drl_agent.model.state_dict(), "files/"+sub_folders+pre_file_name+"trained.n")
@@ -84,7 +85,7 @@ def save(tab_dict_scenarios, args, structure, sub_folders, pre_file_name, use_dr
 
 min_group_size = 5
 
-simu_length = 3600
+simu_length = 7200
 
 save_scenario = True
 
@@ -131,13 +132,15 @@ if __name__ == "__main__":
         dict_car_poisson_distrib[en] = {}
 
 
-    if(args.test and not args.load_scenario):
+    if(not args.test):
+        num_simu = "?"
+    elif(args.test and not args.load_scenario):
         if(args.full_test):
             num_simu = 20*num_simu_same_param
-            simu_length *= 24
+            simu_length = 3600*24
         elif(args.real_data):
             num_simu = 1
-            simu_length *= 24
+            simu_length = 3600*24
         else:
             num_simu = 20
 
@@ -170,19 +173,21 @@ if __name__ == "__main__":
                 continue
             d = datetime.strptime(data["t_1h"][:-6], '%Y-%m-%dT%H:%M:%S')
 
-            if(d not in dict_poisson_lambdas["cars"]["EW"]):
-                dict_poisson_lambdas["cars"]["EW"][d] = [data["q"]]
-            else:
-                dict_poisson_lambdas["cars"]["EW"][d].append(data["q"])
+            if(data["iu_ac"] == "5778"):
+                orientation = "WE"
+            elif(data["iu_ac"] == "5779"):
+                orientation = "EW"
 
-        for d in copy.deepcopy(list(dict_poisson_lambdas["cars"]["EW"].keys())):
-            if(d in list_date_in_data):
-                dict_poisson_lambdas["cars"]["EW"][d] = sum(dict_poisson_lambdas["cars"]["EW"][d])/len(dict_poisson_lambdas["cars"]["EW"][d])
-                dict_poisson_lambdas["cars"]["EW"][d] = (dict_poisson_lambdas["cars"]["EW"][d]/2)/3600
-                dict_poisson_lambdas["cars"]["WE"][d] = dict_poisson_lambdas["cars"]["EW"][d]
+            if(d not in dict_poisson_lambdas["cars"][orientation]):
+                dict_poisson_lambdas["cars"][orientation][d] = [data["q"]]
             else:
-                del dict_poisson_lambdas["cars"]["EW"][d]
-            
+                dict_poisson_lambdas["cars"][orientation][d].append(data["q"])
+
+        for orientation in dict_poisson_lambdas["cars"]:
+            for d in dict_poisson_lambdas["cars"][orientation]:
+                if(d in list_date_in_data):
+                    dict_poisson_lambdas["cars"][orientation][d] = sum(dict_poisson_lambdas["cars"][orientation][d])/len(dict_poisson_lambdas["cars"][orientation][d])
+                    dict_poisson_lambdas["cars"][orientation][d] = (dict_poisson_lambdas["cars"][orientation][d]/4)/3600
 
         for vt in dict_poisson_lambdas:
             dict_poisson_lambdas[vt]["NS"] = copy.deepcopy(dict_poisson_lambdas[vt]["EW"])
@@ -264,11 +269,8 @@ cont = True
 
 while(cont):
 
-    if(ep > 0 and ep%num_simu_same_param == 0):
+    if(args.full_test and ep > 0 and ep%num_simu_same_param == 0):
         coeff_car_lambda += 0.1
-
-    if(not args.test and "DQN" in args.method and structure.drl_agent.num_decisions_made >= structure.drl_agent.hyperParams.DECISION_CT_LEARNING_START):
-        structure.drl_agent.learn()
 
     if(not args.test and "PPO" in args.method):
         structure.drl_agent.start_episode()
@@ -288,28 +290,33 @@ while(cont):
         if(args.real_data):
             print("WARNING : Creating a new scenario using real data...")
             print("coeff_car_lambda:", coeff_car_lambda)
-            if(not args.test):
-                for en in list_edges_name:
-                    r = randint(0, len(dict_bike_poisson_lambdas[en])-1)
-                    bike_poisson_lambda = dict_bike_poisson_lambdas[en][r]
-                    coeff_car_lambda = random.uniform(1,2) 
-                    car_poisson_lambda = bike_poisson_lambda*coeff_car_lambda
-                    dict_bike_poisson_distrib[en] = np.random.poisson(bike_poisson_lambda, 3600)
-                    dict_car_poisson_distrib[en] = np.random.poisson(car_poisson_lambda, 3600)
+            d = list_date_in_data[0]
+            if(args.test):
+                start_hour = 0
+                num_hours = 24
             else:
+                num_hours = 6
+                start_hour = randint(0, 23)
+
+            for en in list_edges_name:
+                dict_bike_poisson_distrib[en] = []
+                dict_car_poisson_distrib[en] = []
+            for hour in range(start_hour, start_hour+num_hours):
+                d = d.replace(hour=hour%24)
                 for en in list_edges_name:
-                    dict_bike_poisson_distrib[en] = np.empty(0)
-                    dict_car_poisson_distrib[en] = np.empty(0)
-                    for pl in dict_bike_poisson_lambdas[en]:
+                    bike_poisson_lambda = dict_poisson_lambdas["bikes"][en][d]
+                    car_poisson_lambda = dict_poisson_lambdas["cars"][en][d]
+                    distrib_bike = np.random.poisson(bike_poisson_lambda, 3600)
+                    distrib_car = np.random.poisson(car_poisson_lambda, 3600)
+                    if(len(dict_bike_poisson_distrib[en]) == 0):
+                        dict_bike_poisson_distrib[en] = distrib_bike
+                        dict_car_poisson_distrib[en] = distrib_car
+                    else:
+                        dict_bike_poisson_distrib[en] = np.concatenate((dict_bike_poisson_distrib[en], distrib_bike))
+                        dict_car_poisson_distrib[en] = np.concatenate((dict_car_poisson_distrib[en], distrib_car))
 
-                        if(not args.full_test):
-                            coeff_car_lambda = 1.5 #random.uniform(1,2)    
+            simu_length = 3600*num_hours
 
-                        bike_poisson_lambda = pl
-                        car_poisson_lambda = bike_poisson_lambda*coeff_car_lambda
-
-                        dict_bike_poisson_distrib[en] = np.concatenate((dict_bike_poisson_distrib[en], np.random.poisson(bike_poisson_lambda, 3600)))
-                        dict_car_poisson_distrib[en] = np.concatenate((dict_car_poisson_distrib[en], np.random.poisson(car_poisson_lambda, 3600)))
 
         else:
             print("WARNING : Creating a new scenario...")
@@ -375,6 +382,9 @@ while(cont):
         if(step >= simu_length*2):
             forced_stop = True
             break 
+
+        if(not args.test and "DQN" in args.method and structure.drl_agent.num_decisions_made >= structure.drl_agent.hyperParams.DECISION_CT_LEARNING_START and step%3600 == 0):
+            structure.drl_agent.learn()
 
         if(not args.load_scenario): #new_scenario
             if(step<simu_length):
