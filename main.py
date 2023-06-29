@@ -187,7 +187,7 @@ if __name__ == "__main__":
             for d in dict_poisson_lambdas["cars"][orientation]:
                 if(d in list_date_in_data):
                     dict_poisson_lambdas["cars"][orientation][d] = sum(dict_poisson_lambdas["cars"][orientation][d])/len(dict_poisson_lambdas["cars"][orientation][d])
-                    dict_poisson_lambdas["cars"][orientation][d] = (dict_poisson_lambdas["cars"][orientation][d]/4)/3600
+                    dict_poisson_lambdas["cars"][orientation][d] = (dict_poisson_lambdas["cars"][orientation][d]/2)/3600
 
         for vt in dict_poisson_lambdas:
             dict_poisson_lambdas[vt]["NS"] = copy.deepcopy(dict_poisson_lambdas[vt]["EW"])
