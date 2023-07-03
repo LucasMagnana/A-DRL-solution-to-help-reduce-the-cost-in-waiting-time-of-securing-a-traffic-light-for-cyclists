@@ -55,11 +55,11 @@ class DuellingActorCNN(nn.Module):
         self.conv2 = nn.Conv2d(16, 16, 2)
         out_shape = 1728 #shape_after_conv_and_flatten(size_ob, self.conv2)
 
-        self.features_layer = nn.Linear(out_shape, 64)
+        self.features_layer = nn.Linear(out_shape, 128)
 
-        self.advantage_out = nn.Linear(64, size_action)
+        self.advantage_out = nn.Linear(128, size_action)
 
-        self.value_out = nn.Linear(64, 1)
+        self.value_out = nn.Linear(128, 1)
 
         self.max_action = max_action
         self.tanh = tanh

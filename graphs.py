@@ -46,9 +46,9 @@ def plot_and_save_bar(data, file_title, labels=None, sub_folders=""):
     plt.savefig("images/"+sub_folders+file_title+".png")
 
 
-def plot_data(data, vehicle_type, x_axis_label, y, file_title, sub_folders="", estimator="mean"):
+def plot_data(data, vehicle_type, x_axis_label, y, file_title, sub_folders="", estimator="mean", hue="Method", palette=None):
     plt.clf()
-    fig = sns.lineplot(data[data["Vehicle type"]==vehicle_type], x=x_axis_label, y=y, hue="Method", estimator=estimator).get_figure()
+    fig = sns.lineplot(data, x=x_axis_label, y=y, hue=hue, estimator=estimator, palette=palette).get_figure()
     plt.title(y+" of "+vehicle_type)
     plt.savefig("images/"+sub_folders+file_title)
 
@@ -94,9 +94,9 @@ def add_scenario_data_to_df(tab_scenarios, tab_scenarios_actuated, label, x_axis
         else:
             x = x_axis
 
-        data = pd.concat([data, pd.DataFrame([[label, "bikes", x, mean_waiting_time_bikes, mean_waiting_time_bikes-mean_waiting_time_bikes_actuated]], columns=columns)], ignore_index=True)
-        data = pd.concat([data, pd.DataFrame([[label, "cars", x, mean_waiting_time_cars, mean_waiting_time_cars-mean_waiting_time_cars_actuated]], columns=columns)], ignore_index=True)
-        data = pd.concat([data, pd.DataFrame([[label, "both", x, mean_waiting_time_bikes+mean_waiting_time_cars,\
+        data = pd.concat([data, pd.DataFrame([[label, "bikes", x, num_bikes, mean_waiting_time_bikes, mean_waiting_time_bikes-mean_waiting_time_bikes_actuated]], columns=columns)], ignore_index=True)
+        data = pd.concat([data, pd.DataFrame([[label, "cars", x, num_cars, mean_waiting_time_cars, mean_waiting_time_cars-mean_waiting_time_cars_actuated]], columns=columns)], ignore_index=True)
+        data = pd.concat([data, pd.DataFrame([[label, "both", x, num_bikes+num_cars, mean_waiting_time_bikes+mean_waiting_time_cars,\
         (mean_waiting_time_bikes+mean_waiting_time_cars)-(mean_waiting_time_bikes_actuated+mean_waiting_time_cars_actuated)]], columns=columns)], ignore_index=True)
 
         sum_waiting_time += sum_waiting_time_bikes+sum_waiting_time_cars
@@ -119,10 +119,10 @@ if __name__ == "__main__":
 
     if(args.full_test):
         sub_folders = "full_test/"
-        start_coeff_car_lambda = 1
-        num_scenario_same_param = 10
-        coeff_car_lambda = start_coeff_car_lambda
-        x_axis_label = "Multiply coefficient lambda cars"
+        start_variable_evoluting = 0.5
+        num_scenario_same_param = 5
+        variable_evoluting = start_variable_evoluting
+        x_axis_label = "Multiply coefficient lambda bikes"
         
     elif(args.test):
         sub_folders = "test/"
@@ -140,7 +140,7 @@ if __name__ == "__main__":
     list_tab_scenarios = []
 
 
-    columns=["Method", "Vehicle type", x_axis_label, "Mean waiting time", "Difference of mean waiting time with actuated"]
+    columns=["Method", "Vehicle type", x_axis_label, "Number", "Mean waiting time", "Difference of mean waiting time with actuated"]
     data = pd.DataFrame(columns=columns)
 
     if(args.full_test or not args.test):
@@ -159,10 +159,10 @@ if __name__ == "__main__":
             tab_actuated = tab_scenarios_actuated[num_scenario]
 
             if(args.full_test and num_scenario > 0 and num_scenario%num_scenario_same_param == 0):
-                coeff_car_lambda += 0.1
+                variable_evoluting += 0.1
 
             if(args.full_test):
-                x_axis = coeff_car_lambda
+                x_axis = variable_evoluting
             elif(args.test):
                 x_axis = None
             else:
@@ -225,13 +225,13 @@ if __name__ == "__main__":
         if(i in labels):
             label = labels[i]
             if(args.full_test):
-                coeff_car_lambda = start_coeff_car_lambda
+                variable_evoluting = start_variable_evoluting
 
         if(args.full_test and num_scenario > 0 and num_scenario%num_scenario_same_param == 0):
-            coeff_car_lambda += 0.1
+            variable_evoluting += 0.1
 
         if(args.full_test):
-            x_axis = coeff_car_lambda
+            x_axis = variable_evoluting
         elif(args.test):
             x_axis = None
         else:
@@ -256,9 +256,11 @@ if __name__ == "__main__":
         os.makedirs("images/"+sub_folders)
 
     if(args.test or args.full_test):
-        plot_data(data, "bikes", x_axis_label, "Difference of mean waiting time with actuated", "bikes_diff_mean_waiting_time.png", sub_folders)
-        plot_data(data, "cars", x_axis_label, "Difference of mean waiting time with actuated", "car_diff_mean_waiting_time.png", sub_folders)
-        plot_data(data, "both", x_axis_label, "Difference of mean waiting time with actuated", "diff_mean_waiting_time.png", sub_folders)
+        plot_data(data[data["Vehicle type"]=="bikes"], "bikes", x_axis_label, "Difference of mean waiting time with actuated", "bikes_diff_mean_waiting_time.png", sub_folders)
+        plot_data(data[data["Vehicle type"]=="cars"], "cars", x_axis_label, "Difference of mean waiting time with actuated", "car_diff_mean_waiting_time.png", sub_folders)
+        plot_data(data[data["Vehicle type"]=="both"], "both", x_axis_label, "Difference of mean waiting time with actuated", "diff_mean_waiting_time.png", sub_folders)
+        plot_data(data[(data["Vehicle type"]=="cars")|(data["Vehicle type"]=="bikes")], "both", x_axis_label, "Number", "evolution_number_vehicules.png", sub_folders,\
+         hue="Vehicle type", palette=["green", "red"])
     else:
         plt.clf()
         fig = sns.lineplot(tab_losses).get_figure()
@@ -266,9 +268,9 @@ if __name__ == "__main__":
         plt.savefig("images/"+sub_folders+"evolution_losses.png")
 
     
-    plot_data(data, "cars", x_axis_label, "Mean waiting time", "cars_evolution_mean_waiting_time.png", sub_folders)
-    plot_data(data, "bikes", x_axis_label, "Mean waiting time", "bikes_evolution_mean_waiting_time.png", sub_folders)
-    plot_data(data, "both", x_axis_label, "Mean waiting time", "evolution_mean_waiting_time.png", sub_folders)
+    plot_data(data[data["Vehicle type"]=="cars"], "cars", x_axis_label, "Mean waiting time", "cars_evolution_mean_waiting_time.png", sub_folders)
+    plot_data(data[data["Vehicle type"]=="bikes"], "bikes", x_axis_label, "Mean waiting time", "bikes_evolution_mean_waiting_time.png", sub_folders)
+    plot_data(data[data["Vehicle type"]=="both"], "both", x_axis_label, "Mean waiting time", "evolution_mean_waiting_time.png", sub_folders)
 
     if(args.full_test or not args.test):
         plot_data(data_sum, "both", x_axis_label, "Sum of waiting times", "sum_waiting_times.png", sub_folders)

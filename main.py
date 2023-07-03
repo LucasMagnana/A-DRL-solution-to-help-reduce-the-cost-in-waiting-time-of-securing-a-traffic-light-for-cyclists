@@ -114,7 +114,7 @@ if __name__ == "__main__":
     if(args.full_test):
         args.test = True
         args.real_data = True
-        num_simu_same_param = 10
+        num_simu_same_param = 5
 
     list_edges_name = ["NS", "SN", "EW", "WE"]
 
@@ -136,11 +136,15 @@ if __name__ == "__main__":
         num_simu = "?"
     elif(args.test and not args.load_scenario):
         if(args.full_test):
-            num_simu = 20*num_simu_same_param
+            num_simu = 10*num_simu_same_param
             simu_length = 3600*24
+            coeff_car_lambda = 1
+            coeff_bike_lambda = 0.5
         elif(args.real_data):
             num_simu = 1
             simu_length = 3600*24
+            coeff_car_lambda = 1
+            coeff_bike_lambda = 1
         else:
             num_simu = 20
 
@@ -269,8 +273,8 @@ cont = True
 
 while(cont):
 
-    if(args.full_test and ep > 0 and ep%num_simu_same_param == 0):
-        coeff_car_lambda += 0.1
+    if(args.full_test and not args.load_scenario and ep > 0 and ep%num_simu_same_param == 0):
+        coeff_bike_lambda += 0.1
 
     if(not args.test and "PPO" in args.method):
         structure.drl_agent.start_episode()
@@ -289,7 +293,7 @@ while(cont):
     if(not args.load_scenario):
         if(args.real_data):
             print("WARNING : Creating a new scenario using real data...")
-            print("coeff_car_lambda:", coeff_car_lambda)
+            print("coeff_bike_lambda:", coeff_bike_lambda)
             d = list_date_in_data[0]
             if(args.test):
                 start_hour = 0
@@ -304,8 +308,11 @@ while(cont):
             for hour in range(start_hour, start_hour+num_hours):
                 d = d.replace(hour=hour%24)
                 for en in list_edges_name:
-                    bike_poisson_lambda = dict_poisson_lambdas["bikes"][en][d]
-                    car_poisson_lambda = dict_poisson_lambdas["cars"][en][d]
+                    if(not args.test):
+                        coeff_car_lambda = 1
+                        coeff_bike_lambda = random.uniform(0.5, 1.5)
+                    bike_poisson_lambda = dict_poisson_lambdas["bikes"][en][d]*coeff_bike_lambda
+                    car_poisson_lambda = dict_poisson_lambdas["cars"][en][d]*coeff_car_lambda
                     distrib_bike = np.random.poisson(bike_poisson_lambda, 3600)
                     distrib_car = np.random.poisson(car_poisson_lambda, 3600)
                     if(len(dict_bike_poisson_distrib[en]) == 0):
