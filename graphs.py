@@ -120,7 +120,7 @@ if __name__ == "__main__":
     if(args.full_test):
         sub_folders = "full_test/"
         start_variable_evoluting = 0.5
-        num_scenario_same_param = 5
+        num_scenario_same_param = 10
         variable_evoluting = start_variable_evoluting
         x_axis_label = "Multiply coefficient lambda bikes"
         
@@ -134,7 +134,7 @@ if __name__ == "__main__":
 
     labels = {}
 
-    possible_labels = ["2DQN", "3DQN", "DQN", "PPO", "static"]
+    possible_labels = ["2DQN", "3DQN", "DQN", "PPO", "40s", "20s", "normal", "actuated_b"]
 
     list_tab_scenarios_actuated = []
     list_tab_scenarios = []
@@ -190,7 +190,7 @@ if __name__ == "__main__":
 
     for root, dirs, files in os.walk("files/"+sub_folders):
         for filename in files:
-            if("actuated" not in filename):
+            if("actuated_b" in filename or "actuated" not in filename):
                 if("losses" in filename):
                     with open("files/"+sub_folders+filename, 'rb') as infile:
                         tab_losses = pickle.load(infile)
@@ -218,7 +218,6 @@ if __name__ == "__main__":
         labels[0] = "actuated"
         list_tab_scenarios = list_tab_scenarios_actuated
     label = labels[i]
-    
 
     for num_scenario in range(len(list_tab_scenarios)):
         tab_scenarios = list_tab_scenarios[num_scenario]
@@ -238,7 +237,11 @@ if __name__ == "__main__":
             x_axis = num_scenario
 
         if(len(list_tab_scenarios_actuated) > 0):
-            tab_scenarios_actuated = list_tab_scenarios_actuated[num_scenario]
+            if(len(labels) == 1):
+                num_scenario_actuated = num_scenario
+            else:
+                num_scenario_actuated = num_scenario%list(labels.keys())[1]
+            tab_scenarios_actuated = list_tab_scenarios_actuated[num_scenario_actuated]
         else:
             tab_scenarios_actuated = tab_scenarios
 

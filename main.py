@@ -54,6 +54,8 @@ def spawn_vehicle(id_start, id_end, list_edges_name, net, dict_scenario, v_type,
     if(v_type=="bikes"):
         traci.vehicle.changeLane(id_sumo, 0, 99999)
 
+    #print(v_type, str_id_vehicle, "spawn at", step)
+
     dict_vehicles[v_type][str_id_vehicle]=[]
 
 
@@ -114,7 +116,7 @@ if __name__ == "__main__":
     if(args.full_test):
         args.test = True
         args.real_data = True
-        num_simu_same_param = 5
+        num_simu_same_param = 10
 
     list_edges_name = ["NS", "SN", "EW", "WE"]
 
@@ -136,10 +138,10 @@ if __name__ == "__main__":
         num_simu = "?"
     elif(args.test and not args.load_scenario):
         if(args.full_test):
-            num_simu = 10*num_simu_same_param
+            num_simu = 11*num_simu_same_param
             simu_length = 3600*24
             coeff_car_lambda = 1
-            coeff_bike_lambda = 0.5
+            coeff_bike_lambda = 1
         elif(args.real_data):
             num_simu = 1
             simu_length = 3600*24
@@ -213,8 +215,8 @@ else:
 use_drl = "DQN" in args.method or "PPO" in args.method
 
 
-if("actuated" in args.method):
-    conf = "sumo_files/sumo_act.sumocfg"
+if("actuated" in args.method or "normal" in args.method):
+    conf = "sumo_files/sumo_"+args.method+".sumocfg"
 else:
     conf = "sumo_files/sumo.sumocfg"
 
@@ -236,8 +238,8 @@ elif(args.test):
 else:
     sub_folders = "train/"
 
-if("actuated" in args.method):
-    net = sumolib.net.readNet("sumo_files/net_act.net.xml")
+if("actuated" in args.method or "normal" in args.method):
+    net = sumolib.net.readNet("sumo_files/net_"+args.method+".net.xml")
 else:
     net = sumolib.net.readNet("sumo_files/net.net.xml")
 edges = net.getEdges()
@@ -293,7 +295,8 @@ while(cont):
     if(not args.load_scenario):
         if(args.real_data):
             print("WARNING : Creating a new scenario using real data...")
-            print("coeff_bike_lambda:", coeff_bike_lambda)
+            if(args.test):
+                print("coeff_bike_lambda:", coeff_bike_lambda)
             d = list_date_in_data[0]
             if(args.test):
                 start_hour = 0
@@ -310,7 +313,7 @@ while(cont):
                 for en in list_edges_name:
                     if(not args.test):
                         coeff_car_lambda = 1
-                        coeff_bike_lambda = random.uniform(0.5, 1.5)
+                        coeff_bike_lambda = 1 #random.uniform(1, 1)
                     bike_poisson_lambda = dict_poisson_lambdas["bikes"][en][d]*coeff_bike_lambda
                     car_poisson_lambda = dict_poisson_lambdas["cars"][en][d]*coeff_car_lambda
                     distrib_bike = np.random.poisson(bike_poisson_lambda, 3600)
@@ -407,23 +410,33 @@ while(cont):
                     dict_car_poisson_distrib[en][int(step)] = 0
 
         else:
+            dict_spawn_vehicle = {}
+            for en in list_edges_name:
+                dict_spawn_vehicle["E_"+en] = {"bikes": {}, "cars": {}}
+
             while(id_cyclist not in old_dict_scenario["bikes"] and id_cyclist <= max_id_cyclist):
                 id_cyclist += 1
-            if(id_cyclist in old_dict_scenario["bikes"] and step >= old_dict_scenario["bikes"][id_cyclist]["start_step"]):
+            while(id_cyclist in old_dict_scenario["bikes"] and step >= old_dict_scenario["bikes"][id_cyclist]["start_step"]):
                 start_edge_id=old_dict_scenario["bikes"][id_cyclist]["start_edge"]
-                end_edge_id=old_dict_scenario["bikes"][id_cyclist]["end_edge"]
-
-                spawn_vehicle(start_edge_id, end_edge_id, list_edges_name, net, dict_scenario, "bikes", dict_vehicles, id_cyclist)
+                dict_spawn_vehicle[start_edge_id]["bikes"][id_cyclist] = old_dict_scenario["bikes"][id_cyclist]
                 id_cyclist+=1
 
             while(id_car not in old_dict_scenario["cars"] and id_car <= max_id_car):
                 id_car += 1
-            if(id_car in old_dict_scenario["cars"] and step >= old_dict_scenario["cars"][id_car]["start_step"]):
+            while(id_car in old_dict_scenario["cars"] and step >= old_dict_scenario["cars"][id_car]["start_step"]):
                 start_edge_id=old_dict_scenario["cars"][id_car]["start_edge"]
-                end_edge_id=old_dict_scenario["cars"][id_car]["end_edge"]
-
-                spawn_vehicle(start_edge_id, end_edge_id, list_edges_name, net, dict_scenario, "cars", dict_vehicles, id_car)
+                dict_spawn_vehicle[start_edge_id]["cars"][id_car] = old_dict_scenario["cars"][id_car]
                 id_car+=1
+
+            for en in dict_spawn_vehicle:
+                for vt in dict_spawn_vehicle[en]:
+                    for id_v in dict_spawn_vehicle[en][vt]:
+
+                        start_edge_id=dict_spawn_vehicle[en][vt][id_v]["start_edge"]
+                        end_edge_id=dict_spawn_vehicle[en][vt][id_v]["end_edge"]
+
+                        spawn_vehicle(start_edge_id, end_edge_id, list_edges_name, net, dict_scenario, vt, dict_vehicles, id_v)
+                
 
         traci.simulationStep() 
 
@@ -445,6 +458,7 @@ while(cont):
                         try:
                             if(traci.vehicle.getSpeed(sumo_id)< speed_threshold):
                                 dict_scenario[vehicle_type][int(i)]["waiting_time"] += 1
+                                #print(vehicle_type, int(i), dict_scenario[vehicle_type][int(i)]["waiting_time"])
                             #dict_scenario[vehicle_type][int(i)]["waiting_time"] = traci.vehicle.getAccumulatedWaitingTime(sumo_id)
                         except traci.exceptions.TraCIException:
                             del dict_scenario[vehicle_type][int(i)]

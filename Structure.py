@@ -216,7 +216,7 @@ class Structure:
             if(self.method == "PPO"):  
                 self.action, self.val, self.action_probs = self.drl_agent.act(self.ob)
             else:
-                self.action = self.drl_agent.act(self.ob)
+                self.action =       self.drl_agent.act(self.ob)
 
             #print("decision", self.actual_phase, "->", self.action)
             if(self.action != self.actual_phase):

@@ -16,7 +16,6 @@ from NeuralNetworks import Actor, DuellingActorCNN, DuellingActor
 class DQNHyperParams :
     def __init__(self):
         self.BUFFER_SIZE = 25000 
-        self.ALPHA = 0.05 #
         self.GAMMA = 0.99
         self.LR = 0.001
         self.BATCH_SIZE = 128
@@ -42,7 +41,7 @@ class DQNAgent(object):
         self.hyperParams = DQNHyperParams()
         
         if(model_to_load != None): #use the good hyper parameters (loaded if it's a test, written in the code if it's a training)
-            self.hyperParams.EPSILON = 0 #self.hyperParams.MIN_EPSILON
+            self.hyperParams.EPSILON = self.hyperParams.MIN_EPSILON
 
         self.action_space = action_space 
         
@@ -53,7 +52,7 @@ class DQNAgent(object):
             else:
                 self.buffer = data.ReplayBuffer(int(self.hyperParams.BUFFER_SIZE))
 
-        self.alpha = self.hyperParams.ALPHA
+        #self.alpha = self.hyperParams.ALPHA
         self.epsilon = self.hyperParams.EPSILON
         self.gamma = self.hyperParams.GAMMA
 
