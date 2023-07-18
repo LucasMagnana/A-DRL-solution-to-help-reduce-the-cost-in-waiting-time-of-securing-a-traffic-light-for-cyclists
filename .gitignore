@@ -2,4 +2,4 @@
 files/train/3DQN_scenarios.tab     
 files/test/3DQN_scenarios.tab     
 files/test/actuated_scenarios.tab     
-files/full_test/
+files/full_test/actuated_scenarios.tab    

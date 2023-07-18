@@ -116,7 +116,7 @@ if __name__ == "__main__":
     if(args.full_test):
         args.test = True
         args.real_data = True
-        num_simu_same_param = 10
+        num_simu_same_param = 5
 
     list_edges_name = ["NS", "SN", "EW", "WE"]
 
@@ -141,7 +141,7 @@ if __name__ == "__main__":
             num_simu = 11*num_simu_same_param
             simu_length = 3600*24
             coeff_car_lambda = 1
-            coeff_bike_lambda = 1
+            coeff_bike_lambda = 1.5
         elif(args.real_data):
             num_simu = 1
             simu_length = 3600*24
@@ -269,14 +269,17 @@ if(args.load_scenario):
 
 print("Simulating", num_simu, "scenario of", simu_length, "steps...")
 
-ep = 0
+if(args.full_test):
+    ep = num_simu
+else:
+    ep = 0
 
 cont = True
 
 while(cont):
 
-    if(args.full_test and not args.load_scenario and ep > 0 and ep%num_simu_same_param == 0):
-        coeff_bike_lambda += 0.1
+    if(args.full_test and not args.load_scenario and ep < num_simu and ep%num_simu_same_param == 0):
+        coeff_bike_lambda -= 0.1
 
     if(not args.test and "PPO" in args.method):
         structure.drl_agent.start_episode()
@@ -497,12 +500,15 @@ while(cont):
     if(use_drl):
         print("num decisions:", structure.drl_agent.num_decisions_made)
 
-    if(args.test):
+    if(args.full_test):
+        cont = ep > 0
+        ep -= 1
+    elif(args.test):
         cont = ep < num_simu-1
+        ep += 1
     else:
         cont = structure.drl_agent.num_decisions_made < structure.drl_agent.hyperParams.DECISION_COUNT
-
-    ep += 1
+        ep += 1
 
 
     if(save_scenario):

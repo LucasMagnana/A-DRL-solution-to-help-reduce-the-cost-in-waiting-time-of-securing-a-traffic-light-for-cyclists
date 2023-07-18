@@ -119,8 +119,8 @@ if __name__ == "__main__":
 
     if(args.full_test):
         sub_folders = "full_test/"
-        start_variable_evoluting = 0.5
-        num_scenario_same_param = 10
+        start_variable_evoluting = 1.5
+        num_scenario_same_param = 5
         variable_evoluting = start_variable_evoluting
         x_axis_label = "Multiply coefficient lambda bikes"
         
@@ -159,7 +159,7 @@ if __name__ == "__main__":
             tab_actuated = tab_scenarios_actuated[num_scenario]
 
             if(args.full_test and num_scenario > 0 and num_scenario%num_scenario_same_param == 0):
-                variable_evoluting += 0.1
+                variable_evoluting -= 0.1
 
             if(args.full_test):
                 x_axis = variable_evoluting
@@ -227,7 +227,7 @@ if __name__ == "__main__":
                 variable_evoluting = start_variable_evoluting
 
         if(args.full_test and num_scenario > 0 and num_scenario%num_scenario_same_param == 0):
-            variable_evoluting += 0.1
+            variable_evoluting -= 0.1
 
         if(args.full_test):
             x_axis = variable_evoluting
