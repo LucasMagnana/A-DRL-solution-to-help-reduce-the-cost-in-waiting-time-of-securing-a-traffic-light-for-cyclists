@@ -253,14 +253,19 @@ tab_dict_scenarios = []
 start_num_simu = 0
 
 if(args.load_scenario):
-    with open("files/"+sub_folders+"actuated_scenarios.tab", 'rb') as infile:
-        tab_dict_old_scenarios = pickle.load(infile)
-        num_simu = len(tab_dict_old_scenarios)
+    if(os.path.exists("files/"+sub_folders+"actuated_scenarios.tab")):
+        with open("files/"+sub_folders+"actuated_scenarios.tab", 'rb') as infile:
+            tab_dict_old_scenarios = pickle.load(infile)
+    else:
+        with open("files/"+sub_folders+"3DQN_scenarios.tab", 'rb') as infile:
+            tab_dict_old_scenarios = pickle.load(infile)
 
-    if(os.path.exists("files/"+sub_folders+pre_file_name+"scenarios.tab")):
+    num_simu = len(tab_dict_old_scenarios)
+
+    '''if(os.path.exists("files/"+sub_folders+pre_file_name+"scenarios.tab")):
         with open("files/"+sub_folders+pre_file_name+"scenarios.tab", 'rb') as infile:
             tab_dict_scenarios = pickle.load(infile)
-            start_num_simu = len(tab_dict_scenarios)
+            start_num_simu = len(tab_dict_scenarios)'''
 
 
 '''if(args.method != "actuated"):
@@ -269,7 +274,7 @@ if(args.load_scenario):
 
 print("Simulating", num_simu, "scenario of", simu_length, "steps...")
 
-if(args.full_test):
+if(args.full_test and not args.load_scenario):
     ep = num_simu
 else:
     ep = 0
@@ -500,7 +505,7 @@ while(cont):
     if(use_drl):
         print("num decisions:", structure.drl_agent.num_decisions_made)
 
-    if(args.full_test):
+    if(args.full_test and not args.load_scenario):
         cont = ep > 0
         ep -= 1
     elif(args.test):
