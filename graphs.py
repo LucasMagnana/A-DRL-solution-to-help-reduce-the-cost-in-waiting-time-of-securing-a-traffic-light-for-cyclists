@@ -14,6 +14,7 @@ def compute_data(dict_scenario):
             if("finish_step" in dict_scenario[v]):
                 tab_travel_time.append(dict_scenario[v]["finish_step"]-dict_scenario[v]["start_step"])
                 tab_waiting_time.append(dict_scenario[v]["waiting_time"])
+
         if(len(tab_travel_time)>0):
             return sum(tab_travel_time), sum(tab_waiting_time), len(tab_travel_time)
         else:
@@ -73,12 +74,12 @@ def add_scenario_data_to_df(tab_scenarios, tab_scenarios_actuated, label, x_axis
     sum_num_bikes = 0
     sum_num_cars = 0
     for num_simu in range(len(tab_scenarios)):
-        sum_travel_time_bikes, sum_waiting_time_bikes, num_bikes = compute_data(tab_scenarios[num_simu]["bikes"])
-        sum_travel_time_cars, sum_waiting_time_cars, num_cars = compute_data(tab_scenarios[num_simu]["cars"])
+        sum_travel_time_bikes, waiting_time_bikes, num_bikes = compute_data(tab_scenarios[num_simu]["bikes"])
+        sum_travel_time_cars, waiting_time_cars, num_cars = compute_data(tab_scenarios[num_simu]["cars"])
 
-        mean_waiting_time_bikes = sum_waiting_time_bikes/num_bikes
-        mean_waiting_time_cars = sum_waiting_time_cars/num_cars
-        mean_waiting_time_vehicles = (sum_waiting_time_bikes+sum_waiting_time_cars)/(num_bikes+num_cars)
+        mean_waiting_time_bikes = waiting_time_bikes/num_bikes
+        mean_waiting_time_cars = waiting_time_cars/num_cars
+        mean_waiting_time_vehicles = (waiting_time_bikes+waiting_time_cars)/(num_bikes+num_cars)
 
         if(len(tab_scenarios_actuated) == 0):
             mean_waiting_time_bikes_actuated = mean_waiting_time_bikes
@@ -87,11 +88,11 @@ def add_scenario_data_to_df(tab_scenarios, tab_scenarios_actuated, label, x_axis
             mean_waiting_time_bikes_actuated = 0
             mean_waiting_time_cars_actuated = 0
         else:
-            sum_travel_time_cars_actuated, sum_waiting_time_cars_actuated, num_cars_actuated = compute_data(tab_scenarios_actuated[num_simu]["cars"])
-            sum_travel_time_bikes_actuated, sum_waiting_time_bikes_actuated, num_bikes_actuated = compute_data(tab_scenarios_actuated[num_simu]["bikes"])
+            sum_travel_time_cars_actuated, waiting_time_cars_actuated, num_cars_actuated = compute_data(tab_scenarios_actuated[num_simu]["cars"])
+            sum_travel_time_bikes_actuated, waiting_time_bikes_actuated, num_bikes_actuated = compute_data(tab_scenarios_actuated[num_simu]["bikes"])
             
-            mean_waiting_time_bikes_actuated = sum_waiting_time_bikes_actuated/num_bikes_actuated
-            mean_waiting_time_cars_actuated = sum_waiting_time_cars_actuated/num_cars_actuated
+            mean_waiting_time_bikes_actuated = waiting_time_bikes_actuated/num_bikes_actuated
+            mean_waiting_time_cars_actuated = waiting_time_cars_actuated/num_cars_actuated
 
         if(x_axis == None):
             x = num_simu
@@ -103,12 +104,11 @@ def add_scenario_data_to_df(tab_scenarios, tab_scenarios_actuated, label, x_axis
         data = pd.concat([data, pd.DataFrame([[label, "vehicles", x, num_bikes+num_cars, mean_waiting_time_vehicles,\
         (mean_waiting_time_bikes+mean_waiting_time_cars)-(mean_waiting_time_bikes_actuated+mean_waiting_time_cars_actuated)]], columns=columns)], ignore_index=True)
 
-        sum_waiting_time_bikes += sum_waiting_time_bikes
+        sum_waiting_time_bikes += waiting_time_bikes
         sum_num_bikes += num_bikes
 
-        sum_waiting_time_cars += sum_waiting_time_cars
+        sum_waiting_time_cars += waiting_time_cars
         sum_num_cars += num_cars
-
 
     return data, sum_waiting_time_bikes, sum_waiting_time_cars, sum_num_bikes, sum_num_cars
 
@@ -130,7 +130,7 @@ if __name__ == "__main__":
         start_variable_evoluting = 1.5
         num_scenario_same_param = 5
         variable_evoluting = start_variable_evoluting
-        x_axis_label = "Multiply coefficient lambda bikes"
+        x_axis_label = "Multiplying coefficient for bicycle traffic"
         
     elif(args.test):
         sub_folders = "test/"
@@ -151,8 +151,10 @@ if __name__ == "__main__":
     columns=["Method", "Vehicle type", x_axis_label, "Number", "Mean waiting time", "Difference of mean waiting time with actuated"]
     data = pd.DataFrame(columns=columns)
 
+    num_veh_act = []
+
     if(args.full_test or not args.test):
-        columns_sum=["Method", "Vehicle type", x_axis_label, "Sum of waiting times", "Sum of vehicles"]
+        columns_sum=["Method", "Vehicle type", x_axis_label, "Sum of waiting times", "Number"]
         data_sum = pd.DataFrame(columns=columns_sum)
 
     if os.path.exists("files/"+sub_folders+"actuated_scenarios.tab"):
@@ -161,6 +163,8 @@ if __name__ == "__main__":
 
         if(args.slice != -1):
             tab_scenarios_actuated = tab_scenarios_actuated[:args.slice]
+
+            
 
         for num_scenario in range(len(tab_scenarios_actuated)):
 
@@ -176,24 +180,25 @@ if __name__ == "__main__":
             else:
                 x_axis = num_scenario
 
-            sum_travel_time_bikes, sum_waiting_time_bikes, num_bikes = compute_data(tab_actuated["bikes"])
-            sum_travel_time_cars, sum_waiting_time_cars, num_cars = compute_data(tab_actuated["cars"])
+            sum_travel_time_bikes, waiting_time_bikes, num_bikes = compute_data(tab_actuated["bikes"])
+            sum_travel_time_cars, waiting_time_cars, num_cars = compute_data(tab_actuated["cars"])
 
 
-            if(args.test and len(tab_scenarios_actuated) == 1 or args.full_test):
+            if(args.test and len(tab_scenarios_actuated) == 1 or args.full_test):        
+                num_veh_act.append(waiting_time_bikes+waiting_time_cars) 
+                
                 tab_actuated = cut_tab_scenarios(tab_actuated)
             else:
                 tab_actuated = [tab_actuated]
 
             new_data, sum_waiting_time_bikes, sum_waiting_time_cars, sum_num_bikes, sum_num_cars = add_scenario_data_to_df(tab_actuated, tab_actuated, "actuated", x_axis, columns)
 
-
             data = pd.concat([data, new_data], ignore_index=True)
 
             if(args.full_test or not args.test):
                 data_sum = pd.concat([data_sum, pd.DataFrame([["actuated", "vehicles", x_axis, sum_waiting_time_bikes+sum_waiting_time_cars, sum_num_bikes+sum_num_cars],\
             ["actuated", "bikes", x_axis, sum_waiting_time_bikes, sum_num_bikes],\
-            ["actuated", "cars", x_axis, sum_waiting_time_cars, sum_num_cars]], columns=columns_sum)])
+            ["actuated", "cars", x_axis, sum_waiting_time_cars, sum_num_cars]], columns=columns_sum)], ignore_index=True)
             
             list_tab_scenarios_actuated.append(tab_actuated)
 
@@ -214,11 +219,14 @@ if __name__ == "__main__":
                             labels[len(list_tab_scenarios)] = l
                             break
 
-                    for tab in tab_scenarios:
+                    for num_scenario in range(len(tab_scenarios)):
                         if(args.test and len(tab_scenarios) == 1 or args.full_test):
-                            tab = cut_tab_scenarios(tab)   
+                            sum_travel_time_bikes, sum_waiting_time_bikes, num_bikes = compute_data(tab_scenarios[num_scenario]["bikes"])
+                            sum_travel_time_cars, sum_waiting_time_cars, num_cars = compute_data(tab_scenarios[num_scenario]["cars"])  
+
+                            tab = cut_tab_scenarios(tab_scenarios[num_scenario])   
                         else:
-                            tab = [tab]
+                            tab = [tab_scenarios[num_scenario]]
                         list_tab_scenarios.append(tab)
                 #list_tab_scenarios.append(tab_scenarios[len(tab_scenarios)-len(list_tab_scenarios[0]):])
 
@@ -258,10 +266,11 @@ if __name__ == "__main__":
         new_data, sum_waiting_time_bikes, sum_waiting_time_cars, sum_num_bikes, sum_num_cars = add_scenario_data_to_df(tab_scenarios, tab_scenarios_actuated, label, x_axis, columns)
         data = pd.concat([data, new_data], ignore_index=True)
 
+
         if(args.full_test or not args.test):
             data_sum = pd.concat([data_sum, pd.DataFrame([[label, "vehicles", x_axis, sum_waiting_time_bikes+sum_waiting_time_cars, sum_num_bikes+sum_num_cars],\
             [label, "bikes", x_axis, sum_waiting_time_bikes, sum_num_bikes],\
-            [label, "cars", x_axis, sum_waiting_time_cars, sum_num_cars]], columns=columns_sum)])
+            [label, "cars", x_axis, sum_waiting_time_cars, sum_num_cars]], columns=columns_sum)], ignore_index=True)
 
         i+=1
     
@@ -275,11 +284,11 @@ if __name__ == "__main__":
         plot_data(data[data["Vehicle type"]=="cars"], "cars", x_axis_label, "Difference of mean waiting time with actuated", "car_diff_mean_waiting_time.png", sub_folders)
         plot_data(data[data["Vehicle type"]=="vehicles"], "vehicles", x_axis_label, "Difference of mean waiting time with actuated", "diff_mean_waiting_time.png", sub_folders)
         if(args.full_test):
-            plot_data(data[(data["Vehicle type"]=="cars")|(data["Vehicle type"]=="bikes")], "vehicles", x_axis_label, "Number", "evolution_number_vehicules.png", sub_folders,\
-            hue="Vehicle type", palette=["green", "red"], estimator="sum")
+            plot_data(data_sum[(data_sum["Vehicle type"]=="cars")|(data_sum["Vehicle type"]=="bikes")], "vehicles", x_axis_label, "Number", "evolution_number_vehicules.png", sub_folders,\
+            hue="Vehicle type", palette=["green", "red"])
         else:
             plot_data(data[(data["Vehicle type"]=="cars")|(data["Vehicle type"]=="bikes")], "vehicles", x_axis_label, "Number", "evolution_number_vehicules.png", sub_folders,\
-            hue="Vehicle type", palette=["green", "red"])
+            hue="Vehicle type", palette=["green", "red"], estimator="sum")
     else:
         plt.clf()
         fig = sns.lineplot(tab_losses).get_figure()
@@ -292,4 +301,4 @@ if __name__ == "__main__":
     plot_data(data[data["Vehicle type"]=="vehicles"], "vehicles", x_axis_label, "Mean waiting time", "evolution_mean_waiting_time.png", sub_folders)
 
     if(args.full_test or not args.test):
-        plot_data(data_sum, "vehicles", x_axis_label, "Sum of waiting times", "sum_waiting_times.png", sub_folders)
+        plot_data(data_sum[data_sum["Vehicle type"]=="vehicles"], "vehicles", x_axis_label, "Sum of waiting times", "sum_waiting_times.png", sub_folders)
