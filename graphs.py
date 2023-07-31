@@ -47,7 +47,7 @@ def plot_and_save_bar(data, file_title, labels=None, sub_folders=""):
     plt.savefig("images/"+sub_folders+file_title+".png")
 
 
-def plot_data(data, vehicle_type, x_axis_label, y, file_title, sub_folders="", estimator="mean", hue="Method", palette=None):
+def plot_data(data, vehicle_type, x_axis_label, y, file_title, sub_folders="", estimator="mean", hue="Approach", palette=None):
     plt.clf()
     fig = sns.lineplot(data, x=x_axis_label, y=y, hue=hue, estimator=estimator, palette=palette).get_figure()
     plt.title(y+" of "+vehicle_type)
@@ -142,19 +142,19 @@ if __name__ == "__main__":
 
     labels = {}
 
-    possible_labels = ["2DQN", "3DQN", "DQN", "PPO", "40s", "20s", "normal", "actuated_b"]
+    possible_labels = ["2DQN", "3DQN", "DQN", "PPO", "static_secured", "unsecured", "actuated_b"]
 
     list_tab_scenarios_actuated = []
     list_tab_scenarios = []
 
 
-    columns=["Method", "Vehicle type", x_axis_label, "Number", "Mean waiting time", "Difference of mean waiting time with actuated"]
+    columns=["Approach", "Vehicle type", x_axis_label, "Number", "Mean waiting time", "Difference of mean waiting time with actuated"]
     data = pd.DataFrame(columns=columns)
 
     num_veh_act = []
 
     if(args.full_test or not args.test):
-        columns_sum=["Method", "Vehicle type", x_axis_label, "Sum of waiting times", "Number"]
+        columns_sum=["Approach", "Vehicle type", x_axis_label, "Sum of waiting times", "Number"]
         data_sum = pd.DataFrame(columns=columns_sum)
 
     if os.path.exists("files/"+sub_folders+"actuated_scenarios.tab"):
@@ -216,7 +216,7 @@ if __name__ == "__main__":
                         tab_scenarios = tab_scenarios[:args.slice]
                     for l in possible_labels:
                         if(l in filename):
-                            labels[len(list_tab_scenarios)] = l
+                            labels[len(list_tab_scenarios)] = l.replace("_", " ")
                             break
 
                     for num_scenario in range(len(tab_scenarios)):

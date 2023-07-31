@@ -215,7 +215,7 @@ else:
 use_drl = "DQN" in args.method or "PPO" in args.method
 
 
-if("actuated" in args.method or "normal" in args.method):
+if("actuated" in args.method or "unsecured" in args.method):
     conf = "sumo_files/sumo_"+args.method+".sumocfg"
 else:
     conf = "sumo_files/sumo.sumocfg"
@@ -238,7 +238,7 @@ elif(args.test):
 else:
     sub_folders = "train/"
 
-if("actuated" in args.method or "normal" in args.method):
+if("actuated" in args.method or "unsecured" in args.method):
     net = sumolib.net.readNet("sumo_files/net_"+args.method+".net.xml")
 else:
     net = sumolib.net.readNet("sumo_files/net.net.xml")
@@ -506,7 +506,7 @@ while(cont):
         print("num decisions:", structure.drl_agent.num_decisions_made)
 
     if(args.full_test and not args.load_scenario):
-        cont = ep > 0
+        cont = ep >= 0
         ep -= 1
     elif(args.test):
         cont = ep < num_simu-1
