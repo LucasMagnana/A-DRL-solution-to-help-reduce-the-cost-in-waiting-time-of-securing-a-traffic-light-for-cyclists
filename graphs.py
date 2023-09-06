@@ -47,14 +47,16 @@ def plot_and_save_bar(data, file_title, labels=None, sub_folders=""):
     plt.savefig("images/"+sub_folders+file_title+".png")
 
 
-def plot_data(data, vehicle_type, x_axis_label, y, file_title, sub_folders="", estimator="mean", hue="Approach", palette=None):
+def plot_data(data, vehicle_type, x_axis_label, y, file_title, sub_folders="", estimator="mean", hue="Approach", palette=None, unit_x="", unit_y=" (s)"):
     plt.clf()
     fig = sns.lineplot(data, x=x_axis_label, y=y, hue=hue, estimator=estimator, palette=palette).get_figure()
     plt.title(y+" of "+vehicle_type)
+    plt.xlabel(x_axis_label+unit_x)
+    plt.ylabel(y+unit_y)
     plt.savefig("images/"+sub_folders+file_title)
 
 
-def cut_tab_scenarios(tab_scenarios):
+def cut_tab_scenarios(tab_scenarios, full_test):
     cutted_tab_scenarios = []
 
     for vehicule_type in tab_scenarios:
@@ -63,7 +65,9 @@ def cut_tab_scenarios(tab_scenarios):
             while(int(data["start_step"]//3600)+1 > len(cutted_tab_scenarios)):
                 cutted_tab_scenarios.append({"bikes": {}, "cars": {}})
             cutted_tab_scenarios[int(data["start_step"]//3600)][vehicule_type][vehicle_id] = data
-
+    if(full_test):
+        cutted_tab_scenarios = cutted_tab_scenarios[6:20]
+    
     return cutted_tab_scenarios
 
 
@@ -187,7 +191,7 @@ if __name__ == "__main__":
             if(args.test and len(tab_scenarios_actuated) == 1 or args.full_test):        
                 num_veh_act.append(waiting_time_bikes+waiting_time_cars) 
                 
-                tab_actuated = cut_tab_scenarios(tab_actuated)
+                tab_actuated = cut_tab_scenarios(tab_actuated, args.full_test)
             else:
                 tab_actuated = [tab_actuated]
 
@@ -224,7 +228,7 @@ if __name__ == "__main__":
                             sum_travel_time_bikes, sum_waiting_time_bikes, num_bikes = compute_data(tab_scenarios[num_scenario]["bikes"])
                             sum_travel_time_cars, sum_waiting_time_cars, num_cars = compute_data(tab_scenarios[num_scenario]["cars"])  
 
-                            tab = cut_tab_scenarios(tab_scenarios[num_scenario])   
+                            tab = cut_tab_scenarios(tab_scenarios[num_scenario], args.full_test)   
                         else:
                             tab = [tab_scenarios[num_scenario]]
                         list_tab_scenarios.append(tab)
@@ -285,10 +289,10 @@ if __name__ == "__main__":
         plot_data(data[data["Vehicle type"]=="vehicles"], "vehicles", x_axis_label, "Difference of mean waiting time with actuated", "diff_mean_waiting_time.png", sub_folders)
         if(args.full_test):
             plot_data(data_sum[(data_sum["Vehicle type"]=="cars")|(data_sum["Vehicle type"]=="bikes")], "vehicles", x_axis_label, "Number", "evolution_number_vehicules.png", sub_folders,\
-            hue="Vehicle type", palette=["green", "red"])
+            hue="Vehicle type", palette=["green", "red"], unit_y=" (veh/h)")
         else:
             plot_data(data[(data["Vehicle type"]=="cars")|(data["Vehicle type"]=="bikes")], "vehicles", x_axis_label, "Number", "evolution_number_vehicules.png", sub_folders,\
-            hue="Vehicle type", palette=["green", "red"], estimator="sum")
+            hue="Vehicle type", palette=["green", "red"], estimator="sum", unit_y=" (veh/h)")
     else:
         plt.clf()
         fig = sns.lineplot(tab_losses).get_figure()
