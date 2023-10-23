@@ -35,7 +35,7 @@ def plot_and_save_boxplot(data, file_title, labels=None, structure_was_open=None
             file_path+="_open"
         else:
             file_path+="_close"
-    file_path+=".png"
+    file_path+=".pdf"
     plt.savefig(file_path)
 
 
@@ -44,13 +44,27 @@ def plot_and_save_bar(data, file_title, labels=None, sub_folders=""):
     fig1, ax1 = plt.subplots()
     ax1.set_title('')
     ax1.bar(range(len(data)), data, tick_label=labels)
-    plt.savefig("images/"+sub_folders+file_title+".png")
+    plt.savefig("images/"+sub_folders+file_title+".pdf")
 
 
-def plot_data(data, vehicle_type, x_axis_label, y, file_title, sub_folders="", estimator="mean", hue="Approach", palette=None, unit_x="", unit_y=" (s)"):
+def plot_data(data, vehicle_type, x_axis_label, y, file_title, sub_folders="", estimator="mean", hue="Approche", palette=None, unit_x="", unit_y=" (étapes)"):
     plt.clf()
-    fig = sns.lineplot(data, x=x_axis_label, y=y, hue=hue, estimator=estimator, palette=palette).get_figure()
-    plt.title(y+" of "+vehicle_type)
+    ax = sns.lineplot(data, x=x_axis_label, y=y, hue=hue, estimator=estimator, palette=palette)
+
+    if("ean" in y):
+        y = "Temps d'attente moyen"
+        plt.title(y+" des "+vehicle_type)
+        ax.legend(loc="upper left")
+    elif("umber" in y):
+        y = "Nombre"
+        plt.title(y+" de "+vehicle_type)
+        handles, labels = ax.get_legend_handles_labels()
+        labels = ["vélos", "voitures"]
+        ax.legend(handles=handles, labels=labels, title="Type de véhicule")
+    elif("um" in y):
+        y = "Somme des temps d'attente"
+        plt.title(y+" des "+vehicle_type)
+
     plt.xlabel(x_axis_label+unit_x)
     plt.ylabel(y+unit_y)
     plt.savefig("images/"+sub_folders+file_title)
@@ -134,11 +148,11 @@ if __name__ == "__main__":
         start_variable_evoluting = 1.5
         num_scenario_same_param = 5
         variable_evoluting = start_variable_evoluting
-        x_axis_label = "Multiplying coefficient for bicycle traffic"
+        x_axis_label = "Coefficient multplicateur du trafic vélos"
         
     elif(args.test):
         sub_folders = "test/"
-        x_axis_label = "Hours"
+        x_axis_label = "Heures"
     else:   
         sub_folders = "train/"
         x_axis_label = "Simulations"
@@ -148,17 +162,19 @@ if __name__ == "__main__":
 
     possible_labels = ["2DQN", "3DQN", "DQN", "PPO", "static_secured", "unsecured", "actuated_b"]
 
+    possible_labels_french = ["2DQN", "3DQN", "DQN", "PPO", "statique sécurisée", "non sécurisée", "actuated_b"]
+
     list_tab_scenarios_actuated = []
     list_tab_scenarios = []
 
 
-    columns=["Approach", "Vehicle type", x_axis_label, "Number", "Mean waiting time", "Difference of mean waiting time with actuated"]
+    columns=["Approche", "Type de véhicule", x_axis_label, "Number", "Mean waiting time", "Difference of mean waiting time with actuated"]
     data = pd.DataFrame(columns=columns)
 
     num_veh_act = []
 
     if(args.full_test or not args.test):
-        columns_sum=["Approach", "Vehicle type", x_axis_label, "Sum of waiting times", "Number"]
+        columns_sum=["Approche", "Type de véhicule", x_axis_label, "Sum of waiting times", "Number"]
         data_sum = pd.DataFrame(columns=columns_sum)
 
     if os.path.exists("files/"+sub_folders+"actuated_scenarios.tab"):
@@ -220,7 +236,7 @@ if __name__ == "__main__":
                         tab_scenarios = tab_scenarios[:args.slice]
                     for l in possible_labels:
                         if(l in filename):
-                            labels[len(list_tab_scenarios)] = l.replace("_", " ")
+                            labels[len(list_tab_scenarios)] = possible_labels_french[possible_labels.index(l)] #l.replace("_", " ")
                             break
 
                     for num_scenario in range(len(tab_scenarios)):
@@ -284,25 +300,25 @@ if __name__ == "__main__":
         os.makedirs("images/"+sub_folders)
 
     if(args.test or args.full_test):
-        plot_data(data[data["Vehicle type"]=="bikes"], "bikes", x_axis_label, "Difference of mean waiting time with actuated", "bikes_diff_mean_waiting_time.png", sub_folders)
-        plot_data(data[data["Vehicle type"]=="cars"], "cars", x_axis_label, "Difference of mean waiting time with actuated", "car_diff_mean_waiting_time.png", sub_folders)
-        plot_data(data[data["Vehicle type"]=="vehicles"], "vehicles", x_axis_label, "Difference of mean waiting time with actuated", "diff_mean_waiting_time.png", sub_folders)
+        plot_data(data[data["Type de véhicule"]=="bikes"], "vélos", x_axis_label, "Difference of mean waiting time with actuated", "bikes_diff_mean_waiting_time.pdf", sub_folders)
+        plot_data(data[data["Type de véhicule"]=="cars"], "voitures", x_axis_label, "Difference of mean waiting time with actuated", "car_diff_mean_waiting_time.pdf", sub_folders)
+        plot_data(data[data["Type de véhicule"]=="vehicles"], "véhicules", x_axis_label, "Difference of mean waiting time with actuated", "diff_mean_waiting_time.pdf", sub_folders)
         if(args.full_test):
-            plot_data(data_sum[(data_sum["Vehicle type"]=="cars")|(data_sum["Vehicle type"]=="bikes")], "vehicles", x_axis_label, "Number", "evolution_number_vehicules.png", sub_folders,\
-            hue="Vehicle type", palette=["green", "red"], unit_y=" (veh/h)")
+            plot_data(data_sum[(data_sum["Type de véhicule"]=="cars")|(data_sum["Type de véhicule"]=="bikes")], "véhicules", x_axis_label, "Number", "evolution_number_vehicules.pdf", sub_folders,\
+            hue="Type de véhicule", palette=["green", "red"], unit_y=" (veh/h)")
         else:
-            plot_data(data[(data["Vehicle type"]=="cars")|(data["Vehicle type"]=="bikes")], "vehicles", x_axis_label, "Number", "evolution_number_vehicules.png", sub_folders,\
-            hue="Vehicle type", palette=["green", "red"], estimator="sum", unit_y=" (veh/h)")
+            plot_data(data[(data["Type de véhicule"]=="cars")|(data["Type de véhicule"]=="bikes")], "véhicules", x_axis_label, "Number", "evolution_number_vehicules.pdf", sub_folders,\
+            hue="Type de véhicule", palette=["green", "red"], estimator="sum", unit_y=" (veh/h)")
     else:
         plt.clf()
         fig = sns.lineplot(tab_losses).get_figure()
         plt.title("Loss Evolution")
-        plt.savefig("images/"+sub_folders+"evolution_losses.png")
+        plt.savefig("images/"+sub_folders+"evolution_losses.pdf")
 
     
-    plot_data(data[data["Vehicle type"]=="cars"], "cars", x_axis_label, "Mean waiting time", "cars_evolution_mean_waiting_time.png", sub_folders)
-    plot_data(data[data["Vehicle type"]=="bikes"], "bikes", x_axis_label, "Mean waiting time", "bikes_evolution_mean_waiting_time.png", sub_folders)
-    plot_data(data[data["Vehicle type"]=="vehicles"], "vehicles", x_axis_label, "Mean waiting time", "evolution_mean_waiting_time.png", sub_folders)
+    plot_data(data[data["Type de véhicule"]=="cars"], "voitures", x_axis_label, "Mean waiting time", "cars_evolution_mean_waiting_time.pdf", sub_folders)
+    plot_data(data[data["Type de véhicule"]=="bikes"], "vélos", x_axis_label, "Mean waiting time", "bikes_evolution_mean_waiting_time.pdf", sub_folders)
+    plot_data(data[data["Type de véhicule"]=="vehicles"], "véhicules", x_axis_label, "Mean waiting time", "evolution_mean_waiting_time.pdf", sub_folders)
 
     if(args.full_test or not args.test):
-        plot_data(data_sum[data_sum["Vehicle type"]=="vehicles"], "vehicles", x_axis_label, "Sum of waiting times", "sum_waiting_times.png", sub_folders)
+        plot_data(data_sum[data_sum["Type de véhicule"]=="vehicles"], "véhicules", x_axis_label, "Sum of waiting times", "sum_waiting_times.pdf", sub_folders)

@@ -135,8 +135,10 @@ class Structure:
         self.num_cyclists_crossed = 0
         self.num_cyclists_canceled = 0
 
+
         self.next_step_decision = 0   
         self.module_traci.trafficlight.setPhase(self.tls.getID(), 0)
+        self.phases_history = []
         
 
         if(self.use_drl):
@@ -159,6 +161,11 @@ class Structure:
 
     def step(self, step, edges):
         self.update_next_step_decision(step)
+
+        if(self.method == "3DQN"):
+            self.phases_history.append(self.phases.index(self.actual_phases[self.module_traci.trafficlight.getPhase(self.tls.getID())]))
+        else:
+            self.phases_history.append(self.module_traci.trafficlight.getPhase(self.tls.getID()))
         
         if(self.use_drl):
 
@@ -175,7 +182,7 @@ class Structure:
                         self.update_tls_program()
                     else:
                         self.transition_end -= 1
-                elif(self.time_elapsed_in_chosen_phase >= 10):
+                elif(self.time_elapsed_in_chosen_phase >= 9):
                     self.drl_decision_making(step)
                 else:
                     self.time_elapsed_in_chosen_phase += 1

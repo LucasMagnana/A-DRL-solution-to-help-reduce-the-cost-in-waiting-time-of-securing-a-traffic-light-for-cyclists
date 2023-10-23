@@ -115,20 +115,22 @@ class PPO_Model(nn.Module):
     def __init__(self, size_ob, size_action, max_action=-1):
         super(PPO_Model, self).__init__()
 
-        self.conv_actor = nn.Conv2d(size_ob[0], 16, 2)
-        out_shape_actor = shape_after_conv_and_flatten(size_ob, self.conv_actor)
+        self.conv_actor_1 = nn.Conv2d(size_ob[0], 16, 2)
+        self.conv_actor_2 = nn.Conv2d(16, 16, 2)
 
-        self.conv_critic = nn.Conv2d(size_ob[0], 16, 2)
-        out_shape_critic = shape_after_conv_and_flatten(size_ob, self.conv_critic)
+        self.conv_critic_1 = nn.Conv2d(size_ob[0], 16, 2)
+        self.conv_critic_2 = nn.Conv2d(16, 16, 2)
+
+        out_shape = 1728
 
         self.max_action = max_action
 
         if(max_action < 0):
             self.actor = nn.Sequential(
                 nn.Tanh(),
-                nn.Linear(out_shape_actor, 64),
+                nn.Linear(out_shape, 128),
                 nn.Tanh(),
-                nn.Linear(64, size_action),
+                nn.Linear(128, size_action),
                 nn.Softmax(dim=-1))
         else:
             self.actor = nn.Sequential(
@@ -140,15 +142,17 @@ class PPO_Model(nn.Module):
 
         self.critic = nn.Sequential(
                 nn.Tanh(),
-                nn.Linear(out_shape_critic, 64),
+                nn.Linear(out_shape, 128),
                 nn.Tanh(),
-                nn.Linear(64, 1)
+                nn.Linear(128, 1)
                 )
     
     def forward(self, ob):
         ob = ob.float()
-        features_actor = self.conv_actor(ob)
-        features_critic = self.conv_critic(ob)
+        features_actor = self.conv_actor_1(ob)
+        features_actor = self.conv_actor_2(features_actor)
+        features_critic = self.conv_critic_1(ob)
+        features_critic = self.conv_critic_2(features_critic)
         if(len(features_actor.shape) == 3):
             features_actor = torch.flatten(features_actor)
             features_critic = torch.flatten(features_critic)

@@ -1,3 +1,4 @@
 *.pyc
 files/train/3DQN_scenarios.tab
+files/train/PPO_scenarios.tab
 files/full_test/actuated_scenarios.tab    

@@ -76,6 +76,11 @@ def save(tab_dict_scenarios, args, structure, sub_folders, pre_file_name, use_dr
     with open("files/"+sub_folders+pre_file_name+"scenarios.tab", 'wb') as outfile:
         pickle.dump(tab_saved_dict_scenarios, outfile)
 
+    with open("files/"+sub_folders+pre_file_name+"tls_phases.tab", 'wb') as outfile:
+        pickle.dump(structure.phases_history, outfile)
+
+        
+
     if(not args.test and use_drl):
         print("WARNING: Saving model...")
         with open("files/"+sub_folders+pre_file_name+"losses.tab", 'wb') as outfile:
@@ -253,8 +258,8 @@ tab_dict_scenarios = []
 start_num_simu = 0
 
 if(args.load_scenario):
-    if(os.path.exists("files/"+sub_folders+"actuated_scenarios.tab")):
-        with open("files/"+sub_folders+"actuated_scenarios.tab", 'rb') as infile:
+    if(os.path.exists("files/"+sub_folders+"static_secured_scenarios.tab")):
+        with open("files/"+sub_folders+"static_secured_scenarios.tab", 'rb') as infile:
             tab_dict_old_scenarios = pickle.load(infile)
     else:
         with open("files/"+sub_folders+"3DQN_scenarios.tab", 'rb') as infile:
