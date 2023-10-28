@@ -64,7 +64,7 @@ class PPOHyperParams :
         self.EP_LEARNING_START = 1
         self.LEARNING_EP = 5
         self.K = 4
-        self.DECISION_COUNT = 1500000
+        self.DECISION_COUNT = 1000000
 
         self.COEFF_CRITIC_LOSS = 0.5
         self.COEFF_ENTROPY_LOSS = 0.01

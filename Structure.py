@@ -34,6 +34,8 @@ class Structure:
 
         self.phases = None
 
+        self.test = test
+
         if(self.use_drl):
             self.max_reward = 1
             self.cnn = cnn
@@ -41,7 +43,6 @@ class Structure:
             self.global_drl_cum_reward = 0
             self.drl_mean_reward = -1
             self.drl_decision_made = False
-            self.test = test
             if(self.cnn):
                 self.ob_shape = (2, 8, int(self.net.getEdge("E_EW").getLength()//5)+2)
             else:
@@ -161,11 +162,11 @@ class Structure:
 
     def step(self, step, edges):
         self.update_next_step_decision(step)
-
-        if(self.method == "3DQN"):
-            self.phases_history.append(self.phases.index(self.actual_phases[self.module_traci.trafficlight.getPhase(self.tls.getID())]))
-        else:
-            self.phases_history.append(self.module_traci.trafficlight.getPhase(self.tls.getID()))
+        if(self.test):
+            if(self.method == "3DQN"):
+                self.phases_history.append(self.phases.index(self.actual_phases[self.module_traci.trafficlight.getPhase(self.tls.getID())]))
+            else:
+                self.phases_history.append(self.module_traci.trafficlight.getPhase(self.tls.getID()))
         
         if(self.use_drl):
 

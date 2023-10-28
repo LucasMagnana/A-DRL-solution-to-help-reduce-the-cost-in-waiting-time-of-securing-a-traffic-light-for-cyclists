@@ -76,8 +76,9 @@ def save(tab_dict_scenarios, args, structure, sub_folders, pre_file_name, use_dr
     with open("files/"+sub_folders+pre_file_name+"scenarios.tab", 'wb') as outfile:
         pickle.dump(tab_saved_dict_scenarios, outfile)
 
-    with open("files/"+sub_folders+pre_file_name+"tls_phases.tab", 'wb') as outfile:
-        pickle.dump(structure.phases_history, outfile)
+    if(args.test):
+        with open("files/"+sub_folders+pre_file_name+"tls_phases.tab", 'wb') as outfile:
+            pickle.dump(structure.phases_history, outfile)
 
         
 
@@ -402,7 +403,7 @@ while(cont):
 
     while(step<=simu_length or len(traci.vehicle.getIDList()) > 0):
 
-        if(step >= simu_length*2):
+        if(step >= simu_length+3600):
             forced_stop = True
             break 
 

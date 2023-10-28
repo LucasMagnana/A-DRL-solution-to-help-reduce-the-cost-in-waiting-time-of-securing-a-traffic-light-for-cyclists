@@ -112,7 +112,7 @@ if __name__ == "__main__":
     for key in dict_phases:
         print(key)
         multiplier = 0
-        for phase in dict_phases[key][19*3600:20*3600]:
+        for phase in dict_phases[key][4*3600:5*3600]:
             if(phase == 0):
                 c = "red"
             elif(phase == 1):
