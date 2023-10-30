@@ -53,6 +53,7 @@ class Structure:
             self.action_space = 4
 
             if(os.path.exists("files/train/"+self.method+"_trained.n")):
+                print("files/train/"+self.method+"_trained.n")
                 print("WARNING: Loading model...")
                 model_to_load = "files/train/"+self.method+"_trained.n"
             else:

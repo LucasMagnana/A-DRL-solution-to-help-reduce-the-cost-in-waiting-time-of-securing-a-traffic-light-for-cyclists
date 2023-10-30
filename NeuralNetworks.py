@@ -111,15 +111,12 @@ class DuellingActor(nn.Module):
         
 
 
-class PPO_Model(nn.Module):
+class PPO_Actor(nn.Module):
     def __init__(self, size_ob, size_action, max_action=-1):
-        super(PPO_Model, self).__init__()
+        super(PPO_Actor, self).__init__()
 
-        self.conv_actor_1 = nn.Conv2d(size_ob[0], 16, 2)
-        self.conv_actor_2 = nn.Conv2d(16, 16, 2)
-
-        self.conv_critic_1 = nn.Conv2d(size_ob[0], 16, 2)
-        self.conv_critic_2 = nn.Conv2d(16, 16, 2)
+        self.conv_1 = nn.Conv2d(size_ob[0], 16, 2)
+        self.conv_2 = nn.Conv2d(16, 16, 2)
 
         out_shape = 1728
 
@@ -140,6 +137,29 @@ class PPO_Model(nn.Module):
                 nn.Linear(64, size_action),
                 nn.Tanh())
 
+    
+    def forward(self, ob):
+        ob = ob.float()
+        features = self.conv_1(ob)
+        features = self.conv_2(features)
+        if(len(features.shape) == 3):
+            features = torch.flatten(features)
+        elif(len(features.shape) == 4):
+            features = torch.flatten(features, start_dim=1)
+        #features = nn.functional.relu(self.out(features))
+        return self.actor(features)
+
+
+
+class PPO_Critic(nn.Module):
+    def __init__(self, size_ob):
+        super(PPO_Critic, self).__init__()
+
+        self.conv_1 = nn.Conv2d(size_ob[0], 16, 2)
+        self.conv_2 = nn.Conv2d(16, 16, 2)
+
+        out_shape = 1728
+
         self.critic = nn.Sequential(
                 nn.Tanh(),
                 nn.Linear(out_shape, 128),
@@ -149,16 +169,12 @@ class PPO_Model(nn.Module):
     
     def forward(self, ob):
         ob = ob.float()
-        features_actor = self.conv_actor_1(ob)
-        features_actor = self.conv_actor_2(features_actor)
-        features_critic = self.conv_critic_1(ob)
-        features_critic = self.conv_critic_2(features_critic)
-        if(len(features_actor.shape) == 3):
-            features_actor = torch.flatten(features_actor)
-            features_critic = torch.flatten(features_critic)
-        elif(len(features_actor.shape) == 4):
-            features_actor = torch.flatten(features_actor, start_dim=1)
-            features_critic = torch.flatten(features_critic, start_dim=1)
+        features = self.conv_1(ob)
+        features = self.conv_2(features)
+        if(len(features.shape) == 3):
+            features = torch.flatten(features)
+        elif(len(features.shape) == 4):
+            features = torch.flatten(features, start_dim=1)
         #features = nn.functional.relu(self.out(features))
-        return self.actor(features_actor), self.critic(features_critic)
+        return self.critic(features)
 

@@ -12,7 +12,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 from torch.distributions import MultivariateNormal
 
-from NeuralNetworks import PPO_Model
+from NeuralNetworks import PPO_Actor, PPO_Critic
 
 
 def discount_rewards(rewards, list_done, gamma):
@@ -55,7 +55,7 @@ def gae(rewards, values, episode_ends, gamma, lam):
 
 class PPOHyperParams :
     def __init__(self):
-        self.LR = 0.001
+        self.LR = 0.0001
         self.GAMMA = 0.99
         self.LAMBDA = 0.99
         self.EPSILON = 0.2
@@ -64,7 +64,7 @@ class PPOHyperParams :
         self.EP_LEARNING_START = 1
         self.LEARNING_EP = 5
         self.K = 4
-        self.DECISION_COUNT = 1000000
+        self.DECISION_COUNT = 1500000
 
         self.COEFF_CRITIC_LOSS = 0.5
         self.COEFF_ENTROPY_LOSS = 0.01
@@ -79,20 +79,20 @@ class PPOAgent():
         self.continuous_action_space = continuous_action_space
 
         if(self.continuous_action_space):           
-            self.model = PPO_Model(ob_space, ac_space, max_action=60)
-            self.old_model = PPO_Model(ob_space, ac_space, max_action=60)
+            self.model = PPO_Actor(ob_space, ac_space, max_action=60)
         else:
-            self.model = PPO_Model(ob_space, ac_space)
-            self.old_model = PPO_Model(ob_space, ac_space)
+            self.model = PPO_Actor(ob_space, ac_space)
 
         if(model_to_load != None):
             self.model.load_state_dict(torch.load(model_to_load))
             self.model.eval()
 
-        self.old_model.load_state_dict(self.model.state_dict())
+
+        self.critic = PPO_Critic(ob_space)
 
         # Define optimizer
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.hyperParams.LR)
+        self.optimizer_actor = torch.optim.Adam(self.model.parameters(), lr=self.hyperParams.LR)
+        self.optimizer_critic = torch.optim.Adam(self.critic.parameters(), lr=self.hyperParams.LR)
         self.mse = torch.nn.MSELoss()
 
         self.ac_space = ac_space
@@ -141,7 +141,9 @@ class PPOAgent():
 
             
             # Calculate actor loss
-            probs, values_tensor = self.model(state_tensor)
+            probs = self.model(state_tensor)
+            values_tensor = self.critic(state_tensor)
+
             values_tensor = values_tensor.flatten()
 
             if(self.continuous_action_space):
@@ -151,7 +153,6 @@ class PPOAgent():
                 dist = MultivariateNormal(probs, mat_std)
                 selected_probs_tensor = dist.log_prob(action_tensor.flatten())
                 ratios = torch.exp(selected_probs_tensor - old_selected_probs_tensor.detach())
-                entropy_loss = dist.entropy().mean()
 
             else:
                 # Actions are used as indices, must be 
@@ -159,7 +160,6 @@ class PPOAgent():
                 action_tensor = action_tensor.long()
                 selected_probs_tensor = torch.index_select(probs, 1, action_tensor).diag()
                 ratios = selected_probs_tensor/old_selected_probs_tensor
-                entropy_loss = torch.distributions.Categorical(probs = probs).entropy().mean()
 
             
             #advantages_tensor = rewards_tensor - values_tensor.detach()   
@@ -181,20 +181,21 @@ class PPOAgent():
             loss_critic = self.mse(values_tensor, rewards_tensor)
          
 
-            loss = loss_actor + self.hyperParams.COEFF_CRITIC_LOSS * loss_critic -  self.hyperParams.COEFF_ENTROPY_LOSS * entropy_loss
 
-            self.tab_losses.append(loss.item())
+            self.tab_losses.append((loss_actor.item()+loss_critic.item())/2)
 
-            print(loss)
+            print("Loss :", self.tab_losses[-1])
 
             # Reset gradients
-            self.optimizer.zero_grad()
+            self.optimizer_actor.zero_grad()
+            self.optimizer_critic.zero_grad()
             # Calculate gradients
-            loss.backward()
+            loss_actor.backward()
+            loss_critic.backward()
             # Apply gradients
-            self.optimizer.step()
+            self.optimizer_actor.step()
+            self.optimizer_critic.step()
 
-        self.old_model.load_state_dict(self.model.state_dict())
         self.reset_batches()
 
 
@@ -231,7 +232,8 @@ class PPOAgent():
 
     def act(self, observation):
         # Get actions and convert to numpy array
-        action_probs, val = self.old_model(torch.tensor(observation))
+        action_probs = self.model(torch.tensor(observation))
+        val = self.critic(torch.tensor(observation))
         val = val.detach().numpy()
         if(self.continuous_action_space):
             std_mat = torch.diag(self.action_std)
