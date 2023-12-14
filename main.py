@@ -10,10 +10,8 @@ import json
 from datetime import datetime
 
 
-from Cyclist import Cyclist
 from Structure import Structure
 from graphs import *
-from Model import Model
 
 
 def spawn_vehicle(id_start, id_end, list_edges_name, net, dict_scenario, v_type, dict_vehicles, id_vehicle):
@@ -100,9 +98,6 @@ if __name__ == "__main__":
 
     parser.add_argument("-m", "--method", type=str, default="actuated")
 
-    parser.add_argument("-a", "--alpha", type=float, default=0.5)
-
-    parser.add_argument("--save-scenario", action="store_true")
     parser.add_argument("--load-scenario", action="store_true")
 
     parser.add_argument("--test", action="store_true")
@@ -244,7 +239,7 @@ else:
     net = sumolib.net.readNet("sumo_files/net.net.xml")
 edges = net.getEdges()
 
-structure = Structure(edges, list_edges_name, net, traci, args.method, args.test, min_group_size, args.alpha, use_drl=use_drl)
+structure = Structure(edges, list_edges_name, net, traci, args.method, args.test, min_group_size, use_drl=use_drl)
 
 pre_file_name = args.method+"_"
 

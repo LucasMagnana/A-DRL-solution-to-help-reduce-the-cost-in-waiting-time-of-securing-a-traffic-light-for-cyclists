@@ -9,7 +9,7 @@ from PPOAgent import PPOAgent
 from TD3Agent import TD3Agent
 
 class Structure:
-    def __init__(self, edges, list_edges_name, net, traci, method, test, min_group_size, alpha_bike, use_drl=True, cnn=True, open=True):
+    def __init__(self, edges, list_edges_name, net, traci, method, test, min_group_size, use_drl=True, cnn=True, open=True):
 
 
         self.module_traci = traci

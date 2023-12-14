@@ -119,9 +119,7 @@ def add_scenario_data_to_df(tab_scenarios, tab_scenarios_actuated, label, x_axis
 if __name__ == "__main__": 
 
     parser = argparse.ArgumentParser()
-
-    parser.add_argument("-a", "--alpha", type=float, default=0.5)
-    parser.add_argument("-s", "--slice", type=int, default=-1)
+    
     parser.add_argument("--test", action="store_true")
     parser.add_argument("--full-test", action="store_true")
 
