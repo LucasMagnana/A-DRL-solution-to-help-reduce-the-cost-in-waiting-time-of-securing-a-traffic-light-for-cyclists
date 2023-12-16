@@ -101,7 +101,6 @@ if __name__ == "__main__":
     parser.add_argument("--load-scenario", action="store_true")
 
     parser.add_argument("--test", action="store_true")
-    parser.add_argument("--real-data", action="store_true")
 
     parser.add_argument("--full-test", action="store_true")
 
@@ -110,7 +109,6 @@ if __name__ == "__main__":
 
     if(args.full_test):
         args.test = True
-        args.real_data = True
         num_simu_same_param = 5
 
     list_edges_name = ["NS", "SN", "EW", "WE"]
@@ -137,62 +135,63 @@ if __name__ == "__main__":
             simu_length = 3600*24
             coeff_car_lambda = 1
             coeff_bike_lambda = 1.5
-        elif(args.real_data):
+        else:
             num_simu = 1
             simu_length = 3600*24
             coeff_car_lambda = 1
             coeff_bike_lambda = 1
+
+
+    #LOADING THE DATA FROM THE VEHICLES COUNTERS
+
+    #BIKE COUNTERS
+    with open("./real_data/bikes_counts.json", "rb") as infile:
+        counts_data = json.load(infile)
+
+    first_day_number = None
+    for i in range(len(counts_data)):
+        data = counts_data[i]
+        d = datetime.strptime(data["date"][:-6], '%Y-%m-%dT%H:%M:%S')
+        if("E-O" in data["nom_compteur"]):
+            orientation = "EW"
+        elif("O-E" in data["nom_compteur"]):
+            orientation = "WE"
+
+        dict_poisson_lambdas["bikes"][orientation][d] = data["sum_counts"]/3600
+        if(d not in list_date_in_data):
+            list_date_in_data.append(d)
+
+
+    #CAR COUNTERS
+    with open("./real_data/cars_counts.json", "rb") as infile:
+        counts_data = json.load(infile)
+
+    first_day_number = None
+    for i in range(len(counts_data)):
+        data = counts_data[i]
+        if(data["q"] == None):
+            continue
+        d = datetime.strptime(data["t_1h"][:-6], '%Y-%m-%dT%H:%M:%S')
+
+        if(data["iu_ac"] == "5778"):
+            orientation = "WE"
+        elif(data["iu_ac"] == "5779"):
+            orientation = "EW"
+
+        if(d not in dict_poisson_lambdas["cars"][orientation]):
+            dict_poisson_lambdas["cars"][orientation][d] = [data["q"]]
         else:
-            num_simu = 20
+            dict_poisson_lambdas["cars"][orientation][d].append(data["q"])
 
-    if(args.real_data): 
+    for orientation in dict_poisson_lambdas["cars"]:
+        for d in dict_poisson_lambdas["cars"][orientation]:
+            if(d in list_date_in_data):
+                dict_poisson_lambdas["cars"][orientation][d] = sum(dict_poisson_lambdas["cars"][orientation][d])/len(dict_poisson_lambdas["cars"][orientation][d])
+                dict_poisson_lambdas["cars"][orientation][d] = (dict_poisson_lambdas["cars"][orientation][d]/2)/3600
 
-        with open("./real_data/bikes_counts.json", "rb") as infile:
-            counts_data = json.load(infile)
-
-        first_day_number = None
-        for i in range(len(counts_data)):
-            data = counts_data[i]
-            d = datetime.strptime(data["date"][:-6], '%Y-%m-%dT%H:%M:%S')
-            if("E-O" in data["nom_compteur"]):
-                orientation = "EW"
-            elif("O-E" in data["nom_compteur"]):
-                orientation = "WE"
-
-            dict_poisson_lambdas["bikes"][orientation][d] = data["sum_counts"]/3600
-            if(d not in list_date_in_data):
-                list_date_in_data.append(d)
-
-
-        with open("./real_data/cars_counts.json", "rb") as infile:
-            counts_data = json.load(infile)
-
-        first_day_number = None
-        for i in range(len(counts_data)):
-            data = counts_data[i]
-            if(data["q"] == None):
-                continue
-            d = datetime.strptime(data["t_1h"][:-6], '%Y-%m-%dT%H:%M:%S')
-
-            if(data["iu_ac"] == "5778"):
-                orientation = "WE"
-            elif(data["iu_ac"] == "5779"):
-                orientation = "EW"
-
-            if(d not in dict_poisson_lambdas["cars"][orientation]):
-                dict_poisson_lambdas["cars"][orientation][d] = [data["q"]]
-            else:
-                dict_poisson_lambdas["cars"][orientation][d].append(data["q"])
-
-        for orientation in dict_poisson_lambdas["cars"]:
-            for d in dict_poisson_lambdas["cars"][orientation]:
-                if(d in list_date_in_data):
-                    dict_poisson_lambdas["cars"][orientation][d] = sum(dict_poisson_lambdas["cars"][orientation][d])/len(dict_poisson_lambdas["cars"][orientation][d])
-                    dict_poisson_lambdas["cars"][orientation][d] = (dict_poisson_lambdas["cars"][orientation][d]/2)/3600
-
-        for vt in dict_poisson_lambdas:
-            dict_poisson_lambdas[vt]["NS"] = copy.deepcopy(dict_poisson_lambdas[vt]["EW"])
-            dict_poisson_lambdas[vt]["SN"] = copy.deepcopy(dict_poisson_lambdas[vt]["WE"])
+    for vt in dict_poisson_lambdas:
+        dict_poisson_lambdas[vt]["NS"] = copy.deepcopy(dict_poisson_lambdas[vt]["EW"])
+        dict_poisson_lambdas[vt]["SN"] = copy.deepcopy(dict_poisson_lambdas[vt]["WE"])
                 
 
 
@@ -296,48 +295,38 @@ while(cont):
     structure.create_tls_phases()
 
     if(not args.load_scenario):
-        if(args.real_data):
-            print("WARNING : Creating a new scenario using real data...")
-            if(args.test):
-                print("coeff_bike_lambda:", coeff_bike_lambda)
-            d = list_date_in_data[0]
-            if(args.test):
-                start_hour = 0
-                num_hours = 24
-            else:
-                num_hours = 6
-                start_hour = randint(0, 23)
-
-            for en in list_edges_name:
-                dict_bike_poisson_distrib[en] = []
-                dict_car_poisson_distrib[en] = []
-            for hour in range(start_hour, start_hour+num_hours):
-                d = d.replace(hour=hour%24)
-                for en in list_edges_name:
-                    if(not args.test):
-                        coeff_car_lambda = 1
-                        coeff_bike_lambda = 1 #random.uniform(1, 1)
-                    bike_poisson_lambda = dict_poisson_lambdas["bikes"][en][d]*coeff_bike_lambda
-                    car_poisson_lambda = dict_poisson_lambdas["cars"][en][d]*coeff_car_lambda
-                    distrib_bike = np.random.poisson(bike_poisson_lambda, 3600)
-                    distrib_car = np.random.poisson(car_poisson_lambda, 3600)
-                    if(len(dict_bike_poisson_distrib[en]) == 0):
-                        dict_bike_poisson_distrib[en] = distrib_bike
-                        dict_car_poisson_distrib[en] = distrib_car
-                    else:
-                        dict_bike_poisson_distrib[en] = np.concatenate((dict_bike_poisson_distrib[en], distrib_bike))
-                        dict_car_poisson_distrib[en] = np.concatenate((dict_car_poisson_distrib[en], distrib_car))
-
-            simu_length = 3600*num_hours
-
-
+        print("WARNING : Creating a new scenario using real data...")
+        if(args.test):
+            print("coeff_bike_lambda:", coeff_bike_lambda)
+        d = list_date_in_data[0]
+        if(args.test):
+            start_hour = 0
+            num_hours = 24
         else:
-            print("WARNING : Creating a new scenario...")
+            num_hours = 6
+            start_hour = randint(0, 23)
+
+        for en in list_edges_name:
+            dict_bike_poisson_distrib[en] = []
+            dict_car_poisson_distrib[en] = []
+        for hour in range(start_hour, start_hour+num_hours):
+            d = d.replace(hour=hour%24)
             for en in list_edges_name:
-                bike_poisson_lambda = random.uniform(0.05, 0.1)
-                car_poisson_lambda = bike_poisson_lambda
-                dict_bike_poisson_distrib[en] = np.random.poisson(bike_poisson_lambda, simu_length)
-                dict_car_poisson_distrib[en] = np.random.poisson(car_poisson_lambda, simu_length)
+                if(not args.test):
+                    coeff_car_lambda = 1
+                    coeff_bike_lambda = 1 #random.uniform(1, 1)
+                bike_poisson_lambda = dict_poisson_lambdas["bikes"][en][d]*coeff_bike_lambda
+                car_poisson_lambda = dict_poisson_lambdas["cars"][en][d]*coeff_car_lambda
+                distrib_bike = np.random.poisson(bike_poisson_lambda, 3600)
+                distrib_car = np.random.poisson(car_poisson_lambda, 3600)
+                if(len(dict_bike_poisson_distrib[en]) == 0):
+                    dict_bike_poisson_distrib[en] = distrib_bike
+                    dict_car_poisson_distrib[en] = distrib_car
+                else:
+                    dict_bike_poisson_distrib[en] = np.concatenate((dict_bike_poisson_distrib[en], distrib_bike))
+                    dict_car_poisson_distrib[en] = np.concatenate((dict_car_poisson_distrib[en], distrib_car))
+
+        simu_length = 3600*num_hours
     
         num_cyclists = 0
         num_cars = 0

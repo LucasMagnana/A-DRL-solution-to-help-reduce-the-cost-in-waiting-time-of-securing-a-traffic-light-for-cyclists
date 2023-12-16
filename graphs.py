@@ -23,30 +23,6 @@ def compute_data(dict_scenario):
     return 0, 0, 1
 
 
-
-def plot_and_save_boxplot(data, file_title, labels=None, structure_was_open=None, sub_folders=""):
-    plt.clf()
-    fig1, ax1 = plt.subplots()
-    ax1.set_title('')
-    ax1.boxplot(data, labels=labels)
-    file_path = "images/"+sub_folders+file_title
-    if(structure_was_open != None):
-        if(structure_was_open):
-            file_path+="_open"
-        else:
-            file_path+="_close"
-    file_path+=".png"
-    plt.savefig(file_path)
-
-
-def plot_and_save_bar(data, file_title, labels=None, sub_folders=""):
-    plt.clf()
-    fig1, ax1 = plt.subplots()
-    ax1.set_title('')
-    ax1.bar(range(len(data)), data, tick_label=labels)
-    plt.savefig("images/"+sub_folders+file_title+".png")
-
-
 def plot_data(data, vehicle_type, x_axis_label, y, file_title, sub_folders="", estimator="mean", hue="Approach", palette=None, unit_x="", unit_y=" (s)"):
     plt.clf()
     fig = sns.lineplot(data, x=x_axis_label, y=y, hue=hue, estimator=estimator, palette=palette).get_figure()
@@ -123,6 +99,9 @@ if __name__ == "__main__":
     parser.add_argument("--test", action="store_true")
     parser.add_argument("--full-test", action="store_true")
 
+    parser.add_argument("-a", "--alpha", type=float, default=0.5)
+    parser.add_argument("-s", "--slice", type=int, default=-1)
+
     args = parser.parse_args()
 
     arguments = str(sys.argv)
@@ -162,9 +141,6 @@ if __name__ == "__main__":
     if os.path.exists("files/"+sub_folders+"actuated_scenarios.tab"):
         with open("files/"+sub_folders+"actuated_scenarios.tab", 'rb') as infile:
             tab_scenarios_actuated = pickle.load(infile)
-
-        if(args.slice != -1):
-            tab_scenarios_actuated = tab_scenarios_actuated[:args.slice]
 
             
 
@@ -214,8 +190,6 @@ if __name__ == "__main__":
                 elif("scenarios" in filename):
                     with open("files/"+sub_folders+filename, 'rb') as infile:
                         tab_scenarios = pickle.load(infile)
-                    if(args.slice != -1):
-                        tab_scenarios = tab_scenarios[:args.slice]
                     for l in possible_labels:
                         if(l in filename):
                             labels[len(list_tab_scenarios)] = l.replace("_", " ")

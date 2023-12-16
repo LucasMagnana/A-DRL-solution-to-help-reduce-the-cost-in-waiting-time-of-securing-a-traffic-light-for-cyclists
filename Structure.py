@@ -6,7 +6,6 @@ import copy
 
 from DQNAgent import DQNAgent
 from PPOAgent import PPOAgent
-from TD3Agent import TD3Agent
 
 class Structure:
     def __init__(self, edges, list_edges_name, net, traci, method, test, min_group_size, use_drl=True, cnn=True, open=True):
@@ -71,8 +70,8 @@ class Structure:
                 self.action_probs = None
 
 
-            self.bikes_waiting_time_coeff = 1 #alpha_bike
-            self.cars_waiting_time_coeff = 1 #1-alpha_bike
+            self.bikes_waiting_time_coeff = 1 
+            self.cars_waiting_time_coeff = 1 
 
 
     def create_tls_phases(self):
