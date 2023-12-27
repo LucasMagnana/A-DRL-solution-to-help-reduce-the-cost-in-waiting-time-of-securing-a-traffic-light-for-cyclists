@@ -5,7 +5,7 @@ Code used for the paper [A DRL solution to help reduce the cost in waiting time 
 
 ## Dependencies and installation
 
-Use the package manager [pip](https://pypi.org/project/pip/) to install the dependencies.
+This project uses [Python 3.8.10](https://www.python.org/downloads/release/python-3810/). Use the package manager [pip](https://pypi.org/project/pip/) to install the dependencies :
 
 ```bash
 pip install -r requirements.txt
@@ -30,4 +30,4 @@ The parameters of `main.py` are :
 
 `graphs.py` produces graphs for the training if executed without arguments. `--test` and `--full-test` can be used with the same purposes as for `main.py`.
 
-You can execute the `paper.sh` script to reproduce all the results described in the paper. Execution takes time as the training of the agent lasts for 1500000 steps and the "full-test" results lasts for 2160000 steps.
+You can execute the `paper.sh` script to reproduce all the results described in the paper. Execution takes time as the training of the agent lasts for more than 6000000 steps and the "full-test" results lasts for 2160000 steps.
