@@ -147,7 +147,6 @@ if __name__ == "__main__":
         for num_scenario in range(len(tab_scenarios_actuated)):
 
             tab_actuated = tab_scenarios_actuated[num_scenario]
-
             if(args.full_test and num_scenario > 0 and num_scenario%num_scenario_same_param == 0):
                 variable_evoluting -= 0.1
 

@@ -129,17 +129,22 @@ if __name__ == "__main__":
 
     if(not args.test):
         num_simu = "?"
+        num_hours = 6
+        simu_length = 3600*num_hours
     elif(args.test and not args.load_scenario):
         if(args.full_test):
             num_simu = 11*num_simu_same_param
-            simu_length = 3600*24
+            num_hours = 24
             coeff_car_lambda = 1
             coeff_bike_lambda = 1.5
+            simu_length = 3600*num_hours
         else:
             num_simu = 1
-            simu_length = 3600*24
+            num_hours = 24
             coeff_car_lambda = 1
             coeff_bike_lambda = 1
+            simu_length = 3600*num_hours
+    
 
 
     #LOADING THE DATA FROM THE VEHICLES COUNTERS
@@ -280,11 +285,6 @@ while(cont):
     if(args.full_test and not args.load_scenario and ep < num_simu and ep%num_simu_same_param == 0):
         coeff_bike_lambda -= 0.1
 
-    if(not args.test and "PPO" in args.method):
-        structure.drl_agent.start_episode()
-        if(ep != start_num_simu and ep%structure.drl_agent.hyperParams.LEARNING_EP == 0):
-            structure.drl_agent.learn()
-
     next_step_wt_update = 0
 
     num_cyclists_real = 0
@@ -301,9 +301,7 @@ while(cont):
         d = list_date_in_data[0]
         if(args.test):
             start_hour = 0
-            num_hours = 24
         else:
-            num_hours = 6
             start_hour = randint(0, 23)
 
         for en in list_edges_name:
@@ -385,8 +383,15 @@ while(cont):
             forced_stop = True
             break 
 
-        if(not args.test and "DQN" in args.method and structure.drl_agent.num_decisions_made >= structure.drl_agent.hyperParams.DECISION_CT_LEARNING_START and step%3600 == 0):
-            structure.drl_agent.learn()
+        if(not args.test):
+            if("DQN" in args.method and structure.drl_agent.num_decisions_made >= structure.drl_agent.hyperParams.LEARNING_START and step%structure.drl_agent.hyperParams.LEARN_EVERY == 0):
+                structure.drl_agent.learn()
+            elif("PPO" in args.method and structure.drl_agent.num_decisions_made > 0 and structure.drl_agent.num_decisions_made%structure.drl_agent.hyperParams.BATCH_SIZE == 0):
+                if(len(structure.ob) == 0):
+                    ob = structure.last_ob
+                else:
+                    ob = structure.ob
+                structure.drl_agent.learn(structure.last_done, ob)
 
         if(not args.load_scenario): #new_scenario
             if(step<simu_length):
@@ -472,12 +477,9 @@ while(cont):
         step += step_length
 
     if(use_drl):
-        structure.drl_decision_making(step, end=True, forced_stop=forced_stop)
+        structure.drl_decision_making(step, done=True, forced_stop=forced_stop)
 
     traci.close()
-
-    if(not args.test and "PPO" in args.method):
-        structure.drl_agent.end_episode()
 
     '''for vehicle_type in dict_scenario:
         for i in copy.deepcopy(list(dict_scenario[vehicle_type].keys())):
@@ -490,8 +492,8 @@ while(cont):
         print("num decisions:", structure.drl_agent.num_decisions_made)
 
     if(args.full_test and not args.load_scenario):
-        cont = ep >= 0
         ep -= 1
+        cont = ep > 0
     elif(args.test):
         cont = ep < num_simu-1
         ep += 1

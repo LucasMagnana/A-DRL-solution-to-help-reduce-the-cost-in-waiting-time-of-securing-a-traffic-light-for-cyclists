@@ -152,6 +152,8 @@ class Structure:
 
             self.actual_phase = 0
 
+            self.last_done = False
+
             self.update_tls_program()
 
 
@@ -174,7 +176,7 @@ class Structure:
                         self.update_tls_program()
                     else:
                         self.transition_end -= 1
-                elif(self.time_elapsed_in_chosen_phase >= 10):
+                elif(self.time_elapsed_in_chosen_phase >= 9):
                     self.drl_decision_making(step)
                 else:
                     self.time_elapsed_in_chosen_phase += 1
@@ -183,7 +185,7 @@ class Structure:
 
 
 
-    def drl_decision_making(self, step, end=False, forced_stop=False):  
+    def drl_decision_making(self, step, done=False, forced_stop=False):  
         self.ob_prec = self.ob
         if(self.cnn):
             self.ob = self.create_observation_cnn()
@@ -206,16 +208,18 @@ class Structure:
                     reward = -10000
                     
                 self.drl_cum_reward += reward
-                if(not self.test):                   
-                    if(self.method == "PPO"):                   
-                        self.drl_agent.memorize(self.ob_prec, self.val, self.action_probs, self.action, self.ob, reward, end)  
+                if(not self.test): 
+                    if("PPO" in self.method):
+                        save_done = self.last_done
                     else:
-                        self.drl_agent.memorize(self.ob_prec, self.action, self.ob, reward, end)  
+                        save_done = done
 
-            if(self.method == "PPO"):  
-                self.action, self.val, self.action_probs = self.drl_agent.act(self.ob)
-            else:
-                self.action =       self.drl_agent.act(self.ob)
+                    self.drl_agent.memorize(self.ob_prec, self.action, self.ob, reward, save_done, self.agent_infos)  
+                    self.last_ob = self.ob
+                    self.last_done = done
+
+
+            self.action, self.agent_infos = self.drl_agent.act(self.ob)
 
             #print("decision", self.actual_phase, "->", self.action)
             if(self.action != self.actual_phase):

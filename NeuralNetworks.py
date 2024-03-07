@@ -1,180 +1,139 @@
 import torch
 from torch import nn
 from torch.autograd import Variable
-
-def shape_after_conv_and_flatten(input_shape, conv):
-    return int((input_shape[1] + 2*conv.padding[0] - conv.dilation[0]*(conv.kernel_size[0] - 1) -1)/conv.stride[0]+1)*\
-    int((input_shape[2] + 2*conv.padding[1] - conv.dilation[1]*(conv.kernel_size[1] - 1) -1)/conv.stride[1]+1)*conv.out_channels
+from math import *
+import numpy as np
 
 
-
-class Critic(nn.Module):
-
-    def __init__(self, size_ob, size_action):
-        super(Critic, self).__init__()
-        self.conv1 = nn.Conv2d(size_ob[0], 16, 2)
-        out_shape = shape_after_conv_and_flatten(size_ob, self.conv1)
-        self.out = nn.Linear(out_shape, 1)
-
-    def forward(self, ob, action):
-        out = nn.functional.relu(self.inp(torch.cat((ob, action), dim=1)))
-        out = nn.functional.relu(self.int(out))
-        return self.out(out)
+def layer_init(layer, ppo=False, std=np.sqrt(2), bias_const=0.0):
+    if(ppo):
+        torch.nn.init.orthogonal_(layer.weight, std)
+        torch.nn.init.constant_(layer.bias, bias_const)
+    else:
+        torch.nn.init.kaiming_normal_(layer.weight, nonlinearity="relu")
+    return layer
 
 
 class Actor(nn.Module):
 
-    def __init__(self, size_ob, size_action, max_action=1, tanh=False): #for saved hyperparameters
+    def __init__(self, size_ob, size_action, hyperParams, cnn=False): #for saved hyperparameters
         super(Actor, self).__init__()
-        self.conv1 = nn.Conv2d(size_ob[0], 16, 2)
-        out_shape = shape_after_conv_and_flatten(size_ob, self.conv1)
-        self.out = nn.Linear(out_shape, size_action)
-        self.max_action = max_action
-        self.tanh = tanh
 
-    def forward(self, ob):
-        ob = ob.float()
-        out = nn.functional.relu(self.conv1(ob))
-        if(len(out.shape) == 3):
-            out = torch.flatten(out)
-        elif(len(out.shape) == 4):
-            out = torch.flatten(out, start_dim=1)
-        if(self.tanh):
-            return torch.tanh(self.out(out))*30+30
+        self.cnn = cnn
+
+        if(cnn):
+            self.network = CNN_layers(size_ob, hyperParams, ac=False)
         else:
-            return self.out(out)*self.max_action
+            l1 = layer_init(nn.Linear(np.array(size_ob).prod(), hyperParams.HIDDEN_SIZE_1))
+
+            l2 = layer_init(nn.Linear(hyperParams.HIDDEN_SIZE_1, hyperParams.HIDDEN_SIZE_2))
+
+            activation = nn.ReLU()
+
+            self.network = nn.Sequential(
+                l1,
+                activation,
+                l2,
+                activation
+            )
+
+        self.actor = layer_init(nn.Linear(hyperParams.HIDDEN_SIZE_2, size_action), std=0.01)
 
 
-
-class DuellingActorCNN(nn.Module):
-
-    def __init__(self, size_ob, size_action, max_action=1, tanh=False): #for saved hyperparameters
-        super(DuellingActorCNN, self).__init__()
-
-        self.conv1 = nn.Conv2d(size_ob[0], 16, 2)
-        self.conv2 = nn.Conv2d(16, 16, 2)
-        out_shape = 1728 #shape_after_conv_and_flatten(size_ob, self.conv2)
-
-        self.features_layer = nn.Linear(out_shape, 128)
-
-        self.advantage_out = nn.Linear(128, size_action)
-
-        self.value_out = nn.Linear(128, 1)
-
-        self.max_action = max_action
-        self.tanh = tanh
 
     def forward(self, ob):
-        ob = ob.float()
-        features = nn.functional.relu(self.conv1(ob))
-        features = nn.functional.relu(self.conv2(features))
-        
-        if(len(features.shape) == 3):
-            features = torch.flatten(features)
-        elif(len(features.shape) == 4):
-            features = torch.flatten(features, start_dim=1)
+        features = self.network(ob)
 
-        features = nn.functional.relu(self.features_layer(features))
+        if(self.cnn):
+            qvalues = self.actor(features[1])
 
-        values = self.value_out(features)
-
-        advantages = self.advantage_out(features)
-
-        return values + (advantages - advantages.mean())
-
-
-
-class DuellingActor(nn.Module):
-
-    def __init__(self, size_ob, size_action, max_action=1, tanh=False): #for saved hyperparameters
-        super(DuellingActor, self).__init__()
-        self.features_layer = nn.Linear(size_ob[0], 42)
-
-        self.advantage_out = nn.Linear(42, size_action)
-
-        self.value_out = nn.Linear(42, 1)
-
-        self.max_action = max_action
-        self.tanh = tanh
-
-    def forward(self, ob):
-        ob = ob.float()
-        features = nn.functional.relu(self.features_layer(ob))
-
-        values = self.value_out(features)
-
-        advantages = self.advantage_out(features)
-
-        return values + (advantages - advantages.mean())
-
-
-        
-
-
-class PPO_Actor(nn.Module):
-    def __init__(self, size_ob, size_action, max_action=-1):
-        super(PPO_Actor, self).__init__()
-
-        self.conv_1 = nn.Conv2d(size_ob[0], 16, 2)
-        self.conv_2 = nn.Conv2d(16, 16, 2)
-
-        out_shape = 1728
-
-        self.max_action = max_action
-
-        if(max_action < 0):
-            self.actor = nn.Sequential(
-                nn.Tanh(),
-                nn.Linear(out_shape, 128),
-                nn.Tanh(),
-                nn.Linear(128, size_action),
-                nn.Softmax(dim=-1))
         else:
-            self.actor = nn.Sequential(
-                nn.Tanh(),
-                nn.Linear(out_shape_actor, 64),
-                nn.Tanh(),
-                nn.Linear(64, size_action),
-                nn.Tanh())
+            qvalues = self.actor(features)
 
-    
+        return qvalues
+
+
+class ActorCritic(nn.Module):
+
+    def __init__(self, size_ob, size_action, hyperParams, cnn=False, ppo=False, max_action=-1): #for saved hyperparameters
+        super(ActorCritic, self).__init__()
+
+        self.cnn = cnn
+        self.ppo = ppo
+        self.max_action = max_action
+
+        if(cnn):
+            self.network = CNN_layers(size_ob, hyperParams, ppo)
+        else:
+            l1 = layer_init(nn.Linear(np.array(size_ob).prod(), 64), ppo)
+
+            l2 = layer_init(nn.Linear(hyperParams.HIDDEN_SIZE_1, hyperParams.HIDDEN_SIZE_2), ppo)
+
+            if(ppo):
+                activation = nn.Tanh()
+            else:
+                activation = nn.ReLU()
+
+            self.network = nn.Sequential(
+                l1,
+                activation,
+                l2,
+                activation
+            )
+
+        self.actor = layer_init(nn.Linear(hyperParams.HIDDEN_SIZE_2, size_action), ppo, std=0.01)
+
+        self.critic = layer_init(nn.Linear(hyperParams.HIDDEN_SIZE_2, 1), ppo, std=1)
+
+        if(max_action>0):
+            self.stds = nn.Linear(hyperParams.HIDDEN_SIZE_2, size_action)
+            torch.nn.init.kaiming_normal_(self.stds.weight, nonlinearity="relu")
+
+
+
     def forward(self, ob):
-        ob = ob.float()
-        features = self.conv_1(ob)
-        features = self.conv_2(features)
-        if(len(features.shape) == 3):
-            features = torch.flatten(features)
-        elif(len(features.shape) == 4):
-            features = torch.flatten(features, start_dim=1)
-        #features = nn.functional.relu(self.out(features))
-        return self.actor(features)
+        features = self.network(ob)
+
+        if(self.cnn):
+            values = self.critic(features[0])
+            advantages = self.actor(features[1])
+
+        else:
+            advantages = self.actor(features)
+            values = self.critic(features)
+
+        if(self.ppo):
+            if(self.max_action>0):
+                stds = self.stds(features)
+                return nn.functional.tanh(advantages)*self.max_action, nn.functional.sigmoid(stds), values
+            else:
+                return advantages, values
+        else:
+            return values + (advantages - advantages.mean())
 
 
+class CNN_layers(nn.Module):
 
-class PPO_Critic(nn.Module):
-    def __init__(self, size_ob):
-        super(PPO_Critic, self).__init__()
+    def __init__(self, size_ob, hyperParams, ppo=False, ac=True): #for saved hyperparameters
+        super(CNN_layers, self).__init__()
 
-        self.conv_1 = nn.Conv2d(size_ob[0], 16, 2)
-        self.conv_2 = nn.Conv2d(16, 16, 2)
+        if(ac):
+            ol_size = hyperParams.HIDDEN_SIZE_2*2
+        else:
+            ol_size = hyperParams.HIDDEN_SIZE_2
 
-        out_shape = 1728
+        self.hidden_size = hyperParams.HIDDEN_SIZE_2
 
-        self.critic = nn.Sequential(
-                nn.Tanh(),
-                nn.Linear(out_shape, 128),
-                nn.Tanh(),
-                nn.Linear(128, 1)
-                )
-    
+        self.cnn = nn.Sequential(
+            layer_init(nn.Conv2d(size_ob[0], 16, 2), ppo),
+            nn.ReLU(),
+            layer_init(nn.Conv2d(16, 16, 2), ppo),
+            nn.ReLU(),
+            nn.Flatten(start_dim=1),
+            layer_init(nn.Linear(1728, ol_size), ppo),
+            nn.ReLU())
+
+
     def forward(self, ob):
-        ob = ob.float()
-        features = self.conv_1(ob)
-        features = self.conv_2(features)
-        if(len(features.shape) == 3):
-            features = torch.flatten(features)
-        elif(len(features.shape) == 4):
-            features = torch.flatten(features, start_dim=1)
-        #features = nn.functional.relu(self.out(features))
-        return self.critic(features)
-
+        features = self.cnn(ob.float())
+        return torch.split(features, self.hidden_size, dim=1)
